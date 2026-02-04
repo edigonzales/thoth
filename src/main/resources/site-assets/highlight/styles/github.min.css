@@ -1,0 +1,52 @@
+.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 0.6rem;
+  background: transparent;
+  color: #1f2937;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #6b7280;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-name {
+  color: #b91c1c;
+}
+
+.hljs-string,
+.hljs-doctag,
+.hljs-title,
+.hljs-section {
+  color: #0d9488;
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-variable,
+.hljs-template-variable {
+  color: #7c3aed;
+}
+
+.hljs-attr,
+.hljs-attribute {
+  color: #0369a1;
+}
+
+.hljs-built_in,
+.hljs-type {
+  color: #1d4ed8;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 600;
+}
