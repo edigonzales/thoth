@@ -80,13 +80,39 @@ a:hover {
   color: var(--text);
 }
 
-#theme-toggle {
-  padding: 0.45rem 0.7rem;
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.6rem;
+  padding: 0.35rem 0.5rem;
   border: 1px solid var(--border);
   border-radius: 0.55rem;
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
+}
+
+.theme-toggle__icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: none;
+}
+
+html[data-theme-mode="light"] .theme-toggle__icon--light {
+  display: block;
+}
+
+html[data-theme-mode="dark"] .theme-toggle__icon--dark {
+  display: block;
+}
+
+html[data-theme-mode="system"] .theme-toggle__icon--system {
+  display: block;
+}
+
+html:not([data-theme-mode]) .theme-toggle__icon--system {
+  display: block;
 }
 
 #content {
@@ -188,8 +214,14 @@ a:hover {
 .archive-list li {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
   gap: 0.55rem;
   padding: 0.35rem 0;
+}
+
+.archive-list .post-date {
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 #search-results ul {

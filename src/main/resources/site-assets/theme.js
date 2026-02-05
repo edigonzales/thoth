@@ -2,6 +2,8 @@
   const STORAGE_KEY = "thoth-theme";
   const LIGHT = "light";
   const DARK = "dark";
+  const SYSTEM = "system";
+  const mediaQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
 
   function safeLocalStorageGet(key) {
     try {
@@ -20,48 +22,82 @@
   }
 
   function preferredTheme() {
-    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    if (mediaQuery && mediaQuery.matches) {
       return DARK;
     }
     return LIGHT;
   }
 
-  function currentTheme() {
-    return document.documentElement.dataset.theme || LIGHT;
+  function normalizeMode(mode) {
+    if (mode === LIGHT || mode === DARK || mode === SYSTEM) {
+      return mode;
+    }
+    return SYSTEM;
   }
 
-  function applyTheme(theme) {
+  function currentMode() {
+    return document.documentElement.dataset.themeMode || SYSTEM;
+  }
+
+  function resolvedTheme(mode) {
+    if (mode === LIGHT || mode === DARK) {
+      return mode;
+    }
+    return preferredTheme();
+  }
+
+  function applyTheme(mode) {
     const stylesheet = document.getElementById("theme-style");
     if (!stylesheet) {
       return;
     }
 
-    const nextTheme = theme === DARK ? DARK : LIGHT;
+    const normalizedMode = normalizeMode(mode);
+    const nextTheme = resolvedTheme(normalizedMode);
     const lightHref = stylesheet.getAttribute("data-light");
     const darkHref = stylesheet.getAttribute("data-dark");
 
     stylesheet.setAttribute("href", nextTheme === DARK ? darkHref : lightHref);
     document.documentElement.dataset.theme = nextTheme;
+    document.documentElement.dataset.themeMode = normalizedMode;
 
     const toggle = document.getElementById("theme-toggle");
     if (toggle) {
-      toggle.textContent = nextTheme === DARK ? "Light" : "Dark";
+      toggle.setAttribute("title", `${normalizedMode} mode`);
+      toggle.setAttribute(
+        "aria-label",
+        `Switch between dark and light mode (currently ${normalizedMode} mode)`
+      );
     }
   }
 
   function toggleTheme() {
-    const next = currentTheme() === DARK ? LIGHT : DARK;
+    const mode = currentMode();
+    const next = mode === SYSTEM ? LIGHT : mode === LIGHT ? DARK : SYSTEM;
     applyTheme(next);
     safeLocalStorageSet(STORAGE_KEY, next);
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    const stored = safeLocalStorageGet(STORAGE_KEY);
-    applyTheme(stored || preferredTheme());
+    const stored = normalizeMode(safeLocalStorageGet(STORAGE_KEY));
+    applyTheme(stored);
 
     const toggle = document.getElementById("theme-toggle");
     if (toggle) {
       toggle.addEventListener("click", toggleTheme);
     }
   });
+
+  if (mediaQuery) {
+    const handler = () => {
+      if (currentMode() === SYSTEM) {
+        applyTheme(SYSTEM);
+      }
+    };
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handler);
+    } else if (mediaQuery.addListener) {
+      mediaQuery.addListener(handler);
+    }
+  }
 })();
