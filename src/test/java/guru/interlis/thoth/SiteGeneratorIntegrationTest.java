@@ -1,5 +1,6 @@
 package guru.interlis.thoth;
 
+import org.jsoup.Jsoup;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -33,6 +34,13 @@ public class SiteGeneratorIntegrationTest {
             :thoth-tags: Java,AI
             ---
             image::images/cover.png[Cover]
+
+            [source,ini,linenums]
+            ----
+            [ch.ehi.ili2db]
+            defaultSrsCode=2056
+            createEnumTabs=true
+            ----
 
             First post paragraph with enough content to form a teaser.
             """);
@@ -70,6 +78,17 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("assets/theme.js")));
         assertTrue(Files.exists(output.resolve("assets/search.js")));
         assertTrue(Files.exists(output.resolve("assets/lunr.min.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/prism.css")));
+        assertTrue(Files.exists(output.resolve("assets/prism/prism.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/components/prism-ini.min.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/components/prism-interlis.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/components/prism-javascript.min.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/components/prism-css.min.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/components/prism-java.min.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/plugins/line-highlight/prism-line-highlight.min.css")));
+        assertTrue(Files.exists(output.resolve("assets/prism/plugins/line-highlight/prism-line-highlight.min.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/plugins/line-numbers/prism-line-numbers.min.css")));
+        assertTrue(Files.exists(output.resolve("assets/prism/plugins/line-numbers/prism-line-numbers.min.js")));
         assertTrue(Files.exists(output.resolve("assets/search-index.json")));
         assertTrue(Files.exists(output.resolve("assets/fonts/Inter/Inter-Regular.woff2")));
 
@@ -101,6 +120,12 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(postHtml.contains("id=\"navbar\""));
         assertTrue(postHtml.contains("id=\"search-input\""));
         assertTrue(postHtml.contains("id=\"theme-toggle\""));
+        assertTrue(postHtml.contains("/assets/prism/prism.css"));
+        assertTrue(postHtml.contains("/assets/prism/prism.js"));
+        assertTrue(postHtml.contains("/assets/prism/components/prism-interlis.js"));
+        assertTrue(postHtml.contains("/assets/prism/plugins/line-highlight/prism-line-highlight.min.js"));
+        assertTrue(postHtml.contains("/assets/prism/plugins/line-numbers/prism-line-numbers.min.js"));
+        assertTrue(Jsoup.parse(postHtml).select("pre.language-ini.line-numbers > code.language-ini").size() == 1);
 
         String searchJs = Files.readString(output.resolve("assets/search.js"), StandardCharsets.UTF_8);
         assertTrue(searchJs.contains("lunrSearch"));

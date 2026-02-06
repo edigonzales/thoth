@@ -6,8 +6,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${pageTitle?html} | ${site.title?html}</title>
   <link id="theme-style" rel="stylesheet" href="/assets/styles-light.css" data-light="/assets/styles-light.css" data-dark="/assets/styles-dark.css">
+  <link rel="stylesheet" href="/assets/prism/prism.css">
+  <link rel="stylesheet" href="/assets/prism/plugins/line-highlight/prism-line-highlight.min.css">
+  <link rel="stylesheet" href="/assets/prism/plugins/line-numbers/prism-line-numbers.min.css">
   <link rel="alternate" type="application/rss+xml" title="${site.title?html}" href="/feed.xml">
   <script src="/assets/theme.js" defer></script>
+  <script src="/assets/prism/prism.js" defer></script>
+  <script src="/assets/prism/components/prism-markup.min.js" defer></script>
+  <script src="/assets/prism/components/prism-clike.min.js" defer></script>
+  <script src="/assets/prism/components/prism-javascript.min.js" defer></script>
+  <script src="/assets/prism/components/prism-css.min.js" defer></script>
+  <script src="/assets/prism/components/prism-ini.min.js" defer></script>
+  <script src="/assets/prism/components/prism-interlis.js" defer></script>
+  <script src="/assets/prism/components/prism-java.min.js" defer></script>
+  <script src="/assets/prism/components/prism-typescript.min.js" defer></script>
+  <script src="/assets/prism/components/prism-json.min.js" defer></script>
+  <script src="/assets/prism/components/prism-bash.min.js" defer></script>
+  <script src="/assets/prism/components/prism-sql.min.js" defer></script>
+  <script src="/assets/prism/components/prism-python.min.js" defer></script>
+  <script src="/assets/prism/components/prism-yaml.min.js" defer></script>
+  <script src="/assets/prism/components/prism-kotlin.min.js" defer></script>
+  <script src="/assets/prism/components/prism-go.min.js" defer></script>
+  <script src="/assets/prism/components/prism-c.min.js" defer></script>
+  <script src="/assets/prism/components/prism-cpp.min.js" defer></script>
+  <script src="/assets/prism/plugins/line-highlight/prism-line-highlight.min.js" defer></script>
+  <script src="/assets/prism/plugins/line-numbers/prism-line-numbers.min.js" defer></script>
   <script src="/assets/lunr.min.js" defer></script>
   <script src="/assets/search.js" defer></script>
 </head>

@@ -153,8 +153,22 @@ Thoth writes bundled assets to `assets/`:
 - `assets/search.js`
 - `assets/search-index.json`
 - `assets/lunr.min.js`
+- `assets/prism/prism.css`
+- `assets/prism/prism.js`
+- `assets/prism/components/*.js` (markup, clike, javascript, css, ini, java, typescript, json, bash, sql, python, yaml, kotlin, go, c, cpp)
+- `assets/prism/plugins/line-highlight/*`
+- `assets/prism/plugins/line-numbers/*`
 - `assets/fonts/Inter/Inter-Regular.woff2`
 - `assets/fonts/Inter/Inter-SemiBold.woff2`
+
+Enable line numbers per code block with:
+```adoc
+[source,ini,linenums]
+----
+[ch.ehi.ili2db]
+defaultSrsCode=2056
+----
+```
 
 ### Navbar and Theming
 Every page uses the same sticky navbar:
@@ -232,5 +246,6 @@ The generator uses:
 - FreeMarker
 - AsciidoctorJ
 - Lunr (client-side)
+- Prism.js (client-side syntax highlighting)
 
 All are packaged into `thoth-<version>-all.jar` by the `fatJar` task.

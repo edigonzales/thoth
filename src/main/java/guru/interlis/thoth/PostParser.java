@@ -60,8 +60,9 @@ public final class PostParser {
         Map<String, String> attributes = parseAttributes(headerLines.subList(3, headerLines.size()));
 
         String body = String.join("\n", lines.subList(secondDelimiter + 1, lines.size()));
+        List<Boolean> sourceBlockLineNumbers = detectSourceBlockLineNumbers(body);
         String renderedHtml = renderAsciiDoc(body, sourceFile);
-        String normalizedHtml = rewriteRelativeLinks(renderedHtml, sourceRelativePath.getParent());
+        String normalizedHtml = rewriteRelativeLinks(renderedHtml, sourceRelativePath.getParent(), sourceBlockLineNumbers);
 
         Document document = Jsoup.parseBodyFragment(normalizedHtml);
         String plainText = collapseWhitespace(document.text());
@@ -117,6 +118,7 @@ public final class PostParser {
 
     private String renderAsciiDoc(String body, Path sourceFile) {
         AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
+        attributes.attribute("source-highlighter", "null");
 
         OptionsBuilder options = org.asciidoctor.Options.builder()
             .backend("html5")
@@ -128,7 +130,7 @@ public final class PostParser {
         return asciidoctor.convert(body, options.build());
     }
 
-    private String rewriteRelativeLinks(String html, Path sourceDirectory) {
+    private String rewriteRelativeLinks(String html, Path sourceDirectory, List<Boolean> sourceBlockLineNumbers) {
         Document document = Jsoup.parseBodyFragment(html);
 
         for (Element element : document.select("[src]")) {
@@ -141,7 +143,124 @@ public final class PostParser {
             element.attr("href", rewritten);
         }
 
+        normalizeCodeBlocksForPrism(document, sourceBlockLineNumbers);
+
         return document.body().html();
+    }
+
+    private void normalizeCodeBlocksForPrism(Document document, List<Boolean> sourceBlockLineNumbers) {
+        int sourceBlockIndex = 0;
+        for (Element code : document.select("pre > code")) {
+            String language = detectLanguage(code);
+            if (language == null) {
+                continue;
+            }
+
+            String normalizedLanguage = normalizeLanguageAlias(language);
+            code.addClass("language-" + normalizedLanguage);
+            code.removeAttr("data-lang");
+
+            Element pre = code.parent();
+            if (pre != null && "pre".equals(pre.tagName())) {
+                pre.addClass("language-" + normalizedLanguage);
+                if (sourceBlockIndex < sourceBlockLineNumbers.size() && sourceBlockLineNumbers.get(sourceBlockIndex)) {
+                    pre.addClass("line-numbers");
+                }
+            }
+
+            sourceBlockIndex++;
+        }
+    }
+
+    private String detectLanguage(Element code) {
+        String dataLang = code.attr("data-lang").trim();
+        if (!dataLang.isEmpty()) {
+            return dataLang;
+        }
+
+        for (String className : code.classNames()) {
+            if (className.startsWith("language-")) {
+                return className.substring("language-".length());
+            }
+        }
+        return null;
+    }
+
+    private String normalizeLanguageAlias(String language) {
+        String normalized = language.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "js" -> "javascript";
+            case "ts" -> "typescript";
+            case "yml" -> "yaml";
+            case "sh", "shell", "shell-session", "zsh", "bash" -> "bash";
+            case "html", "xml", "svg", "mathml" -> "markup";
+            default -> normalized;
+        };
+    }
+
+    private List<Boolean> detectSourceBlockLineNumbers(String body) {
+        List<Boolean> lineNumbersByBlock = new ArrayList<>();
+        String[] lines = body.split("\\R", -1);
+
+        for (int i = 0; i < lines.length; i++) {
+            String trimmed = lines[i].trim();
+            if (!isBlockAttributeLine(trimmed)) {
+                continue;
+            }
+
+            String attributeList = trimmed.substring(1, trimmed.length() - 1);
+            if (!isSourceBlockAttributeList(attributeList)) {
+                continue;
+            }
+
+            int next = i + 1;
+            while (next < lines.length) {
+                String candidate = lines[next].trim();
+                if (candidate.isEmpty() || candidate.startsWith(".") || candidate.startsWith("//")) {
+                    next++;
+                    continue;
+                }
+
+                if (isListingDelimiter(candidate)) {
+                    lineNumbersByBlock.add(hasLineNumbersOption(attributeList));
+                }
+                break;
+            }
+        }
+
+        return lineNumbersByBlock;
+    }
+
+    private boolean isBlockAttributeLine(String line) {
+        return line.startsWith("[") && line.endsWith("]") && line.length() >= 2;
+    }
+
+    private boolean isSourceBlockAttributeList(String attributeList) {
+        for (String token : attributeList.split(",")) {
+            String normalized = token.trim().toLowerCase(Locale.ROOT);
+            if (normalized.equals("source") || normalized.startsWith("source%")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasLineNumbersOption(String attributeList) {
+        for (String token : attributeList.split(",")) {
+            String normalized = token.trim().toLowerCase(Locale.ROOT);
+            if (normalized.equals("linenums")
+                || normalized.startsWith("linenums=")
+                || normalized.contains("%linenums")
+                || (normalized.startsWith("opts=") && normalized.contains("linenums"))
+                || (normalized.startsWith("options=") && normalized.contains("linenums"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isListingDelimiter(String line) {
+        return "----".equals(line) || "....".equals(line);
     }
 
     private String resolveCover(String overrideValue, Document document, Path sourceDirectory) {
