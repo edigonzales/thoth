@@ -1,23 +1,4 @@
 (() => {
-  function highlightCodeBlocks() {
-    if (!window.hljs) {
-      return;
-    }
-
-    if (typeof window.hljs.highlightAll === "function") {
-      window.hljs.highlightAll();
-      return;
-    }
-
-    if (typeof window.hljs.initHighlighting === "function") {
-      window.hljs.initHighlighting();
-      return;
-    }
-
-    if (typeof window.hljs.highlightBlock === "function") {
-      document.querySelectorAll("pre code").forEach((block) => window.hljs.highlightBlock(block));
-    }
-  }
 
   function ensureSearchInputSync(query) {
     const input = document.getElementById("search-input");
@@ -150,8 +131,14 @@
       .catch(() => renderMessage(container, "Search index could not be loaded."));
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    highlightCodeBlocks();
+  function initPage() {
     initSearchPage();
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initPage);
+  } else {
+    initPage();
+  }
+
 })();

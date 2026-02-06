@@ -2,7 +2,7 @@
 Plain text. Real websites.
 
 Thoth is a Java-based static site generator for AsciiDoc blogs.
-It builds pretty URLs, tag pages, RSS, local assets, Lunr search, syntax highlighting, and a watch-based dev server.
+It builds pretty URLs, tag pages, RSS, local assets, Lunr search, and a watch-based dev server.
 
 ## Requirements
 - Java: 25 (toolchain configured in Gradle)
@@ -153,8 +153,6 @@ Thoth writes bundled assets to `assets/`:
 - `assets/search.js`
 - `assets/search-index.json`
 - `assets/lunr.min.js`
-- `assets/highlight/highlight.min.js`
-- `assets/highlight/styles/github.min.css`
 - `assets/fonts/Inter/Inter-Regular.woff2`
 - `assets/fonts/Inter/Inter-SemiBold.woff2`
 
@@ -234,6 +232,5 @@ The generator uses:
 - FreeMarker
 - AsciidoctorJ
 - Lunr (client-side)
-- highlight.js (client-side)
 
 All are packaged into `thoth-<version>-all.jar` by the `fatJar` task.

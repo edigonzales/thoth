@@ -115,6 +115,7 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
   display: block;
 }
 
+
 #content {
   width: min(980px, calc(100% - 2rem));
   margin: 1.6rem auto 2.4rem;

@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class PostParserTest {
 
@@ -53,4 +54,6 @@ public class PostParserTest {
             asciidoctor.shutdown();
         }
     }
+
+    // highlight.js-specific tests removed
 }

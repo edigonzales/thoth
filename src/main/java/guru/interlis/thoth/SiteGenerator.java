@@ -36,8 +36,6 @@ public final class SiteGenerator implements AutoCloseable {
         "site-assets/theme.js::assets/theme.js",
         "site-assets/search.js::assets/search.js",
         "site-assets/lunr.min.js::assets/lunr.min.js",
-        "site-assets/highlight/highlight.min.js::assets/highlight/highlight.min.js",
-        "site-assets/highlight/styles/github.min.css::assets/highlight/styles/github.min.css",
         "site-assets/fonts/Inter/Inter-Regular.woff2::assets/fonts/Inter/Inter-Regular.woff2",
         "site-assets/fonts/Inter/Inter-SemiBold.woff2::assets/fonts/Inter/Inter-SemiBold.woff2"
     );

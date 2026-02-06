@@ -71,7 +71,6 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("assets/search.js")));
         assertTrue(Files.exists(output.resolve("assets/lunr.min.js")));
         assertTrue(Files.exists(output.resolve("assets/search-index.json")));
-        assertTrue(Files.exists(output.resolve("assets/highlight/highlight.min.js")));
         assertTrue(Files.exists(output.resolve("assets/fonts/Inter/Inter-Regular.woff2")));
 
         assertTrue(Files.exists(output.resolve("blog/2026/images/cover.png")));
@@ -102,6 +101,9 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(postHtml.contains("id=\"navbar\""));
         assertTrue(postHtml.contains("id=\"search-input\""));
         assertTrue(postHtml.contains("id=\"theme-toggle\""));
+
+        String searchJs = Files.readString(output.resolve("assets/search.js"), StandardCharsets.UTF_8);
+        assertTrue(searchJs.contains("lunrSearch"));
     }
 
     private void write(Path path, String content) throws Exception {

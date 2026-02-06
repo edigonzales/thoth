@@ -116,8 +116,7 @@ public final class PostParser {
     }
 
     private String renderAsciiDoc(String body, Path sourceFile) {
-        AttributesBuilder attributes = org.asciidoctor.Attributes.builder()
-            .sourceHighlighter("highlight.js");
+        AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
 
         OptionsBuilder options = org.asciidoctor.Options.builder()
             .backend("html5")
