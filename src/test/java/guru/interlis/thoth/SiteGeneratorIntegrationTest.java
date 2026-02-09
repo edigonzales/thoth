@@ -123,6 +123,8 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(feed.contains("https://example.com/feed.xml"));
         assertTrue(feed.contains("<guid isPermaLink=\"false\">blog/2026/post-one/</guid>"));
         assertTrue(feed.contains("<link>https://example.com/blog/2026/post-two/</link>"));
+        assertTrue(feed.contains("<img src=\"https://example.com/blog/2026/images/cover.png\""));
+        assertTrue(feed.contains("defaultSrsCode=2056"));
 
         String searchIndex = Files.readString(output.resolve("assets/search-index.json"), StandardCharsets.UTF_8);
         assertTrue(searchIndex.contains("\"title\":\"Second Post\""));

@@ -22,13 +22,17 @@
   font-display: swap;
 }
 
+html {
+  font-size: 18px;
+}
+
 :root {
   --bg: #f7f9fc;
   --surface: #ffffff;
   --border: #d7dee8;
   --text: rgb(36, 38, 43);
   --muted: #5c6b82;
-  --link: #0b4fbd;
+  --link: #2a6496;
   --tag-bg: #eef3fc;
   --code-bg: #f0f4fb;
 }
@@ -182,6 +186,8 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
 .teaser {
   margin: 0;
   color: var(--text);
+  text-align: justify;
+  line-height: 1.5;
 }
 
 .teaser-more {
@@ -242,7 +248,7 @@ pre[class*="language-"] > code {
   display: inline-block;
   padding: 0.2rem 0.5rem;
   border-radius: 999px;
-  background: var(--tag-bg);
+  /*background: var(--tag-bg);*/
   border: 1px solid var(--border);
   color: var(--text);
   font-size: 0.82rem;

@@ -1,6 +1,9 @@
 package guru.interlis.thoth;
 
 import org.asciidoctor.Asciidoctor;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
 import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
@@ -586,15 +589,60 @@ public final class SiteGenerator implements AutoCloseable {
     }
 
     private String feedDescription(Post post) {
-        String content = post.teaser();
-        if (content == null || content.isBlank()) {
-            content = post.plainText();
+        String html = post.htmlContent();
+        if (html != null && !html.isBlank()) {
+            return absolutizeFeedHtml(html);
         }
 
-        if (content.length() > 400) {
-            return content.substring(0, 400).trim();
+        String content = post.plainText();
+        if (content == null || content.isBlank()) {
+            content = post.teaser();
         }
-        return content;
+        return content == null ? "" : content;
+    }
+
+    private String absolutizeFeedHtml(String html) {
+        Document document = Jsoup.parseBodyFragment(html);
+
+        for (Element element : document.select("[href]")) {
+            element.attr("href", absolutizeFeedUrl(element.attr("href")));
+        }
+
+        for (Element element : document.select("[src]")) {
+            element.attr("src", absolutizeFeedUrl(element.attr("src")));
+        }
+
+        return document.body().html();
+    }
+
+    private String absolutizeFeedUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+
+        String normalized = value.trim();
+        if (normalized.startsWith("#") || normalized.startsWith("?")) {
+            return normalized;
+        }
+
+        if (isAbsoluteOrSpecialUrl(normalized)) {
+            return normalized;
+        }
+
+        if (normalized.startsWith("/")) {
+            return config.absoluteUrl(normalized);
+        }
+
+        return config.absoluteUrl("/" + normalized);
+    }
+
+    private boolean isAbsoluteOrSpecialUrl(String value) {
+        return value.startsWith("http://")
+            || value.startsWith("https://")
+            || value.startsWith("//")
+            || value.startsWith("mailto:")
+            || value.startsWith("tel:")
+            || value.startsWith("data:");
     }
 
     private String cdataSafe(String text) {
