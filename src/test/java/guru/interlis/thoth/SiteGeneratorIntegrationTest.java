@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,7 +58,10 @@ public class SiteGeneratorIntegrationTest {
             Some second post body text.
             """);
 
-        write(input.resolve("blog/2026/images/cover.png"), "PNG");
+        writeBinary(
+            input.resolve("blog/2026/images/cover.png"),
+            Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5l5lEAAAAASUVORK5CYII=")
+        );
         write(input.resolve("blog/2026/site.js"), "console.log('ok');");
 
         try (SiteGenerator generator = new SiteGenerator(input, output)) {
@@ -91,6 +95,7 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("assets/prism/plugins/line-numbers/prism-line-numbers.min.js")));
         assertTrue(Files.exists(output.resolve("assets/search-index.json")));
         assertTrue(Files.exists(output.resolve("assets/fonts/Inter/Inter-Regular.woff2")));
+        assertTrue(Files.exists(output.resolve("assets/thumbnails/blog/2026/images/cover-thumb.png")));
 
         assertTrue(Files.exists(output.resolve("blog/2026/images/cover.png")));
         assertTrue(Files.exists(output.resolve("blog/2026/site.js")));
@@ -98,8 +103,10 @@ public class SiteGeneratorIntegrationTest {
         String index = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
         assertTrue(index.contains("First Post"));
         assertTrue(index.contains("Second Post"));
-        assertTrue(index.contains("/blog/2026/images/cover.png"));
+        assertTrue(index.contains("/assets/thumbnails/blog/2026/images/cover-thumb.png"));
         assertTrue(index.contains("Manual teaser override"));
+        assertTrue(index.contains("class=\"post-card-body post-card-body--with-cover\""));
+        assertTrue(index.contains("class=\"teaser-more\""));
 
         String archive = Files.readString(output.resolve("archive.html"), StandardCharsets.UTF_8);
         assertTrue(archive.contains("First Post"));
@@ -134,5 +141,10 @@ public class SiteGeneratorIntegrationTest {
     private void write(Path path, String content) throws Exception {
         Files.createDirectories(path.getParent());
         Files.writeString(path, content, StandardCharsets.UTF_8);
+    }
+
+    private void writeBinary(Path path, byte[] content) throws Exception {
+        Files.createDirectories(path.getParent());
+        Files.write(path, content);
     }
 }

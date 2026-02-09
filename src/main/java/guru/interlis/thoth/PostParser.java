@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
 
 public final class PostParser {
     private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("^:([^:]+):\\s*(.*)$");
+    private static final int DEFAULT_TEASER_LENGTH = 400;
 
     private final Asciidoctor asciidoctor;
 
@@ -281,11 +282,11 @@ public final class PostParser {
             return overrideValue.trim();
         }
 
-        if (plainText.length() <= 200) {
+        if (plainText.length() <= DEFAULT_TEASER_LENGTH) {
             return plainText;
         }
 
-        return plainText.substring(0, 200).trim();
+        return plainText.substring(0, DEFAULT_TEASER_LENGTH).trim();
     }
 
     private List<TagRef> parseTags(String rawTags) {

@@ -2,6 +2,10 @@ package guru.interlis.thoth;
 
 import org.asciidoctor.Asciidoctor;
 
+import javax.imageio.ImageIO;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +33,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class SiteGenerator implements AutoCloseable {
     private static final DateTimeFormatter FEED_DATE_FORMATTER =
         DateTimeFormatter.RFC_1123_DATE_TIME.withLocale(Locale.ENGLISH);
+    private static final int INDEX_THUMBNAIL_MAX_WIDTH = 360;
+    private static final int INDEX_THUMBNAIL_MAX_HEIGHT = 240;
+    private static final Set<String> THUMBNAIL_EXTENSIONS = Set.of("png", "jpg", "jpeg");
 
     private static final List<String> BUNDLED_ASSETS = List.of(
         "site-assets/styles-light.css::assets/styles-light.css",
@@ -392,11 +399,102 @@ public final class SiteGenerator implements AutoCloseable {
             summary.put("tags", tagsForTemplate(post.tags()));
             if (includeTeaserAndCover) {
                 summary.put("teaser", post.teaser());
-                summary.put("coverImage", post.coverImage());
+                summary.put("coverImage", resolveIndexCoverImage(post.coverImage()));
             }
             summaries.add(summary);
         }
         return summaries;
+    }
+
+    private String resolveIndexCoverImage(String coverImage) {
+        if (coverImage == null || coverImage.isBlank()) {
+            return coverImage;
+        }
+
+        String normalizedCover = coverImage.trim();
+        if (!normalizedCover.startsWith("/") || normalizedCover.startsWith("//")) {
+            return normalizedCover;
+        }
+
+        String relativeCoverPath = normalizedCover.substring(1);
+        Path source = outputRoot.resolve(relativeCoverPath).normalize();
+        if (!source.startsWith(outputRoot) || !Files.exists(source) || Files.isDirectory(source)) {
+            return normalizedCover;
+        }
+
+        String extension = extensionOf(source.getFileName().toString());
+        if (!THUMBNAIL_EXTENSIONS.contains(extension)) {
+            return normalizedCover;
+        }
+
+        Path sourceRelativePath = outputRoot.relativize(source);
+        String fileName = source.getFileName().toString();
+        String fileNameWithoutExtension = fileName.substring(0, fileName.length() - extension.length() - 1);
+        String outputExtension = "jpeg".equals(extension) ? "jpg" : extension;
+        String thumbnailFileName = fileNameWithoutExtension + "-thumb." + outputExtension;
+
+        Path thumbnailsRoot = Path.of("assets", "thumbnails");
+        Path thumbnailRelativePath = thumbnailsRoot.resolve(sourceRelativePath).getParent().resolve(thumbnailFileName);
+        Path thumbnailAbsolutePath = outputRoot.resolve(thumbnailRelativePath).normalize();
+        if (!thumbnailAbsolutePath.startsWith(outputRoot)) {
+            return normalizedCover;
+        }
+
+        try {
+            boolean created = createThumbnail(source, thumbnailAbsolutePath, outputExtension);
+            if (created) {
+                return "/" + toUnixPath(thumbnailRelativePath);
+            }
+            return normalizedCover;
+        } catch (IOException ex) {
+            System.err.println("[warn] Failed creating thumbnail for " + normalizedCover + ": " + ex.getMessage());
+            return normalizedCover;
+        }
+    }
+
+    private boolean createThumbnail(Path source, Path target, String format) throws IOException {
+        BufferedImage original = ImageIO.read(source.toFile());
+        if (original == null) {
+            return false;
+        }
+
+        int originalWidth = original.getWidth();
+        int originalHeight = original.getHeight();
+        if (originalWidth <= 0 || originalHeight <= 0) {
+            return false;
+        }
+
+        double scale = Math.min(
+            1.0d,
+            Math.min((double) INDEX_THUMBNAIL_MAX_WIDTH / originalWidth, (double) INDEX_THUMBNAIL_MAX_HEIGHT / originalHeight)
+        );
+
+        int thumbnailWidth = Math.max(1, (int) Math.round(originalWidth * scale));
+        int thumbnailHeight = Math.max(1, (int) Math.round(originalHeight * scale));
+
+        int imageType = "png".equals(format) ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
+        BufferedImage thumbnail = new BufferedImage(thumbnailWidth, thumbnailHeight, imageType);
+
+        Graphics2D graphics = thumbnail.createGraphics();
+        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        graphics.drawImage(original, 0, 0, thumbnailWidth, thumbnailHeight, null);
+        graphics.dispose();
+
+        Files.createDirectories(target.getParent());
+        if (!ImageIO.write(thumbnail, format, target.toFile())) {
+            throw new IOException("Image format not supported for thumbnail generation: " + format);
+        }
+        return true;
+    }
+
+    private String extensionOf(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        if (dot <= 0 || dot == fileName.length() - 1) {
+            return "";
+        }
+        return fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     private List<Map<String, String>> tagsForTemplate(Collection<TagRef> tags) {
