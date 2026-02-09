@@ -38,6 +38,15 @@ public final class SiteGenerator implements AutoCloseable {
     private static final Set<String> THUMBNAIL_EXTENSIONS = Set.of("png", "jpg", "jpeg");
 
     private static final List<String> BUNDLED_ASSETS = List.of(
+        "site-assets/zurich.css::assets/zurich.css",
+        "site-assets/fonts/Zurich/306E22_0_0.eot::assets/fonts/Zurich/306E22_0_0.eot",
+        "site-assets/fonts/Zurich/306E22_0_0.ttf::assets/fonts/Zurich/306E22_0_0.ttf",
+        "site-assets/fonts/Zurich/306E22_0_0.woff::assets/fonts/Zurich/306E22_0_0.woff",
+        "site-assets/fonts/Zurich/306E22_0_0.woff2::assets/fonts/Zurich/306E22_0_0.woff2",
+        "site-assets/fonts/Zurich/306E22_1_0.eot::assets/fonts/Zurich/306E22_1_0.eot",
+        "site-assets/fonts/Zurich/306E22_1_0.ttf::assets/fonts/Zurich/306E22_1_0.ttf",
+        "site-assets/fonts/Zurich/306E22_1_0.woff::assets/fonts/Zurich/306E22_1_0.woff",
+        "site-assets/fonts/Zurich/306E22_1_0.woff2::assets/fonts/Zurich/306E22_1_0.woff2",
         "site-assets/styles-light.css::assets/styles-light.css",
         "site-assets/styles-dark.css::assets/styles-dark.css",
         "site-assets/theme.js::assets/theme.js",
@@ -66,8 +75,9 @@ public final class SiteGenerator implements AutoCloseable {
         "site-assets/prism/plugins/line-highlight/prism-line-highlight.min.js::assets/prism/plugins/line-highlight/prism-line-highlight.min.js",
         "site-assets/prism/plugins/line-numbers/prism-line-numbers.min.css::assets/prism/plugins/line-numbers/prism-line-numbers.min.css",
         "site-assets/prism/plugins/line-numbers/prism-line-numbers.min.js::assets/prism/plugins/line-numbers/prism-line-numbers.min.js",
-        "site-assets/fonts/Inter/Inter-Regular.woff2::assets/fonts/Inter/Inter-Regular.woff2",
-        "site-assets/fonts/Inter/Inter-SemiBold.woff2::assets/fonts/Inter/Inter-SemiBold.woff2"
+        "site-assets/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2::assets/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2",
+        "site-assets/fonts/JetBrainsMono/JetBrainsMono-Bold.woff2::assets/fonts/JetBrainsMono/JetBrainsMono-Bold.woff2",
+        "site-assets/fonts/JetBrainsMono/JetBrainsMono-Italic.woff2::assets/fonts/JetBrainsMono/JetBrainsMono-Italic.woff2"
     );
 
     private final Path inputRoot;
@@ -473,20 +483,68 @@ public final class SiteGenerator implements AutoCloseable {
         int thumbnailHeight = Math.max(1, (int) Math.round(originalHeight * scale));
 
         int imageType = "png".equals(format) ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
-        BufferedImage thumbnail = new BufferedImage(thumbnailWidth, thumbnailHeight, imageType);
-
-        Graphics2D graphics = thumbnail.createGraphics();
-        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        graphics.drawImage(original, 0, 0, thumbnailWidth, thumbnailHeight, null);
-        graphics.dispose();
+        BufferedImage thumbnail = resizeProgressively(original, thumbnailWidth, thumbnailHeight, imageType);
 
         Files.createDirectories(target.getParent());
         if (!ImageIO.write(thumbnail, format, target.toFile())) {
             throw new IOException("Image format not supported for thumbnail generation: " + format);
         }
         return true;
+    }
+
+    private BufferedImage resizeProgressively(BufferedImage source, int targetWidth, int targetHeight, int imageType) {
+        BufferedImage current = source;
+        int currentWidth = source.getWidth();
+        int currentHeight = source.getHeight();
+
+        while (currentWidth > targetWidth || currentHeight > targetHeight) {
+            int nextWidth = currentWidth;
+            int nextHeight = currentHeight;
+
+            if (nextWidth > targetWidth) {
+                nextWidth = Math.max(targetWidth, currentWidth / 2);
+            }
+            if (nextHeight > targetHeight) {
+                nextHeight = Math.max(targetHeight, currentHeight / 2);
+            }
+
+            BufferedImage next = resizeTo(current, nextWidth, nextHeight, imageType);
+            if (current != source) {
+                current.flush();
+            }
+
+            current = next;
+            currentWidth = nextWidth;
+            currentHeight = nextHeight;
+        }
+
+        if (currentWidth != targetWidth || currentHeight != targetHeight || current.getType() != imageType) {
+            BufferedImage finalImage = resizeTo(current, targetWidth, targetHeight, imageType);
+            if (current != source) {
+                current.flush();
+            }
+            current = finalImage;
+        }
+
+        return current;
+    }
+
+    private BufferedImage resizeTo(BufferedImage source, int width, int height, int imageType) {
+        BufferedImage resized = new BufferedImage(width, height, imageType);
+        Graphics2D graphics = resized.createGraphics();
+        applyHighQualityHints(graphics);
+        graphics.drawImage(source, 0, 0, width, height, null);
+        graphics.dispose();
+        return resized;
+    }
+
+    private void applyHighQualityHints(Graphics2D graphics) {
+        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        graphics.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        graphics.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        graphics.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
     }
 
     private String extensionOf(String fileName) {

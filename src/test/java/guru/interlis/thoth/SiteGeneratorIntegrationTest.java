@@ -79,6 +79,9 @@ public class SiteGeneratorIntegrationTest {
 
         assertTrue(Files.exists(output.resolve("assets/styles-light.css")));
         assertTrue(Files.exists(output.resolve("assets/styles-dark.css")));
+        assertTrue(Files.exists(output.resolve("assets/zurich.css")));
+        assertTrue(Files.exists(output.resolve("assets/fonts/Zurich/306E22_0_0.woff2")));
+        assertTrue(Files.exists(output.resolve("assets/fonts/Zurich/306E22_1_0.woff2")));
         assertTrue(Files.exists(output.resolve("assets/theme.js")));
         assertTrue(Files.exists(output.resolve("assets/search.js")));
         assertTrue(Files.exists(output.resolve("assets/lunr.min.js")));
@@ -94,7 +97,9 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("assets/prism/plugins/line-numbers/prism-line-numbers.min.css")));
         assertTrue(Files.exists(output.resolve("assets/prism/plugins/line-numbers/prism-line-numbers.min.js")));
         assertTrue(Files.exists(output.resolve("assets/search-index.json")));
-        assertTrue(Files.exists(output.resolve("assets/fonts/Inter/Inter-Regular.woff2")));
+        assertTrue(Files.exists(output.resolve("assets/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2")));
+        assertTrue(Files.exists(output.resolve("assets/fonts/JetBrainsMono/JetBrainsMono-Bold.woff2")));
+        assertTrue(Files.exists(output.resolve("assets/fonts/JetBrainsMono/JetBrainsMono-Italic.woff2")));
         assertTrue(Files.exists(output.resolve("assets/thumbnails/blog/2026/images/cover-thumb.png")));
 
         assertTrue(Files.exists(output.resolve("blog/2026/images/cover.png")));
@@ -132,6 +137,7 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(postHtml.contains("/assets/prism/components/prism-interlis.js"));
         assertTrue(postHtml.contains("/assets/prism/plugins/line-highlight/prism-line-highlight.min.js"));
         assertTrue(postHtml.contains("/assets/prism/plugins/line-numbers/prism-line-numbers.min.js"));
+        assertTrue(postHtml.contains("/assets/zurich.css"));
         assertTrue(Jsoup.parse(postHtml).select("pre.language-ini.line-numbers > code.language-ini").size() == 1);
 
         String searchJs = Files.readString(output.resolve("assets/search.js"), StandardCharsets.UTF_8);

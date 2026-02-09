@@ -137,4 +137,35 @@ public class PostParserTest {
             asciidoctor.shutdown();
         }
     }
+
+    @Test
+    public void extendsAutoTeaserToSentenceEnd() throws Exception {
+        Path root = Files.createTempDirectory("thoth-parser-teaser-sentence-test");
+        Path post = root.resolve("blog/teaser.adoc");
+        Files.createDirectories(post.getParent());
+
+        String leading = "Wort ".repeat(80);
+        String body = leading + "dieser Satz wird noch vollständig beendet. Nächster Satz soll fehlen.";
+        String content = """
+            ---
+            = Teaser Sentence
+            Jane Doe
+            2026-01-12
+            ---
+            """ + body;
+
+        Files.writeString(post, content, StandardCharsets.UTF_8);
+
+        Asciidoctor asciidoctor = Asciidoctor.Factory.create();
+        try {
+            PostParser parser = new PostParser(asciidoctor);
+            Post parsed = parser.parse(post, root);
+
+            assertTrue(parsed.teaser().length() > 400);
+            assertTrue(parsed.teaser().endsWith("beendet."));
+            assertFalse(parsed.teaser().contains("Nächster Satz soll fehlen."));
+        } finally {
+            asciidoctor.shutdown();
+        }
+    }
 }

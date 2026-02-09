@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
 public final class PostParser {
     private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("^:([^:]+):\\s*(.*)$");
     private static final int DEFAULT_TEASER_LENGTH = 400;
+    private static final int TEASER_SENTENCE_LOOKAHEAD = 220;
 
     private final Asciidoctor asciidoctor;
 
@@ -286,7 +287,54 @@ public final class PostParser {
             return plainText;
         }
 
-        return plainText.substring(0, DEFAULT_TEASER_LENGTH).trim();
+        int cutoff = Math.min(DEFAULT_TEASER_LENGTH, plainText.length());
+        int sentenceEnd = findSentenceEnd(plainText, cutoff);
+        if (sentenceEnd > cutoff) {
+            return plainText.substring(0, sentenceEnd).trim();
+        }
+
+        return plainText.substring(0, cutoff).trim();
+    }
+
+    private int findSentenceEnd(String text, int cutoff) {
+        int searchEnd = Math.min(text.length(), cutoff + TEASER_SENTENCE_LOOKAHEAD);
+        for (int i = cutoff; i < searchEnd; i++) {
+            char ch = text.charAt(i);
+            if (!isSentenceTerminator(text, i, ch)) {
+                continue;
+            }
+
+            int end = i + 1;
+            while (end < text.length() && isSentenceClosingChar(text.charAt(end))) {
+                end++;
+            }
+            return end;
+        }
+        return cutoff;
+    }
+
+    private boolean isSentenceTerminator(String text, int index, char ch) {
+        if (ch == '!' || ch == '?' || ch == '…') {
+            return true;
+        }
+
+        if (ch != '.') {
+            return false;
+        }
+
+        if (index > 0 && index + 1 < text.length()) {
+            char prev = text.charAt(index - 1);
+            char next = text.charAt(index + 1);
+            if (Character.isDigit(prev) && Character.isDigit(next)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean isSentenceClosingChar(char ch) {
+        return ch == '"' || ch == '\'' || ch == ')' || ch == ']' || ch == '}' || ch == '»' || ch == '”' || ch == '’';
     }
 
     private List<TagRef> parseTags(String rawTags) {

@@ -5,6 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${pageTitle?html} | ${site.title?html}</title>
+  <link rel="stylesheet" href="/assets/zurich.css">
   <link id="theme-style" rel="stylesheet" href="/assets/styles-light.css" data-light="/assets/styles-light.css" data-dark="/assets/styles-dark.css">
   <link rel="stylesheet" href="/assets/prism/prism.css">
   <link rel="stylesheet" href="/assets/prism/plugins/line-highlight/prism-line-highlight.min.css">
