@@ -18,7 +18,9 @@ public final class SiteConfig {
     private final String description;
     private final String baseUrl;
     private final String language;
+    private final Locale locale;
     private final String dateFormat;
+    private final boolean indexThumbnailsEnabled;
     private final int devPort;
     private final DateTimeFormatter htmlDateFormatter;
 
@@ -27,7 +29,9 @@ public final class SiteConfig {
         String description,
         String baseUrl,
         String language,
+        Locale locale,
         String dateFormat,
+        boolean indexThumbnailsEnabled,
         int devPort,
         DateTimeFormatter htmlDateFormatter
     ) {
@@ -35,7 +39,9 @@ public final class SiteConfig {
         this.description = description;
         this.baseUrl = baseUrl;
         this.language = language;
+        this.locale = locale;
         this.dateFormat = dateFormat;
+        this.indexThumbnailsEnabled = indexThumbnailsEnabled;
         this.devPort = devPort;
         this.htmlDateFormatter = htmlDateFormatter;
     }
@@ -56,6 +62,9 @@ public final class SiteConfig {
         String baseUrl = stripTrailingSlash(required(properties, "site.baseUrl"));
         String language = required(properties, "site.language");
         String dateFormat = required(properties, "site.dateFormat");
+        boolean indexThumbnailsEnabled = Boolean.parseBoolean(
+            properties.getProperty("site.indexThumbnails.enabled", "false").trim()
+        );
 
         int devPort = Integer.parseInt(properties.getProperty("dev.port", "8080").trim());
         Locale locale = Locale.forLanguageTag(language);
@@ -64,7 +73,7 @@ public final class SiteConfig {
         }
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern(dateFormat, locale);
-        return new SiteConfig(title, description, baseUrl, language, dateFormat, devPort, formatter);
+        return new SiteConfig(title, description, baseUrl, language, locale, dateFormat, indexThumbnailsEnabled, devPort, formatter);
     }
 
     public String title() {
@@ -83,8 +92,16 @@ public final class SiteConfig {
         return language;
     }
 
+    public Locale locale() {
+        return locale;
+    }
+
     public String dateFormat() {
         return dateFormat;
+    }
+
+    public boolean indexThumbnailsEnabled() {
+        return indexThumbnailsEnabled;
     }
 
     public int devPort() {

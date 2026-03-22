@@ -19,6 +19,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -286,14 +287,17 @@ public final class SiteGenerator implements AutoCloseable {
     }
 
     private void renderIndexPage(List<Post> sortedPosts) throws IOException {
+        if (!config.indexThumbnailsEnabled()) {
+            cleanupIndexThumbnails();
+        }
         Map<String, Object> model = baseModel(config.title(), "");
         model.put("posts", summariesForTemplate(sortedPosts, true));
         templateService.renderToFile("index.ftl", model, outputRoot.resolve("index.html"));
     }
 
     private void renderArchivePage(List<Post> sortedPosts) throws IOException {
-        Map<String, Object> model = baseModel("Archive", "");
-        model.put("posts", summariesForTemplate(sortedPosts, false));
+        Map<String, Object> model = baseModel("Blog Archive", "");
+        model.put("groups", archiveGroupsForTemplate(sortedPosts));
         templateService.renderToFile("archive.ftl", model, outputRoot.resolve("archive.html"));
     }
 
@@ -412,11 +416,45 @@ public final class SiteGenerator implements AutoCloseable {
             summary.put("tags", tagsForTemplate(post.tags()));
             if (includeTeaserAndCover) {
                 summary.put("teaser", post.teaser());
-                summary.put("coverImage", resolveIndexCoverImage(post.coverImage()));
+                if (config.indexThumbnailsEnabled()) {
+                    summary.put("coverImage", resolveIndexCoverImage(post.coverImage()));
+                }
             }
             summaries.add(summary);
         }
         return summaries;
+    }
+
+    private List<Map<String, Object>> archiveGroupsForTemplate(List<Post> sortedPosts) {
+        DateTimeFormatter headingFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", config.locale());
+        DateTimeFormatter dayFormatter = DateTimeFormatter.ofPattern("dd", config.locale());
+        Map<YearMonth, List<Map<String, String>>> postsByMonth = new LinkedHashMap<>();
+
+        for (Post post : sortedPosts) {
+            List<Map<String, String>> entries = postsByMonth.computeIfAbsent(YearMonth.from(post.date()), ignored -> new ArrayList<>());
+
+            Map<String, String> entry = new LinkedHashMap<>();
+            entry.put("day", dayFormatter.format(post.date()));
+            entry.put("title", post.title());
+            entry.put("url", post.url());
+            entries.add(entry);
+        }
+
+        List<Map<String, Object>> groups = new ArrayList<>();
+        for (Map.Entry<YearMonth, List<Map<String, String>>> monthEntry : postsByMonth.entrySet()) {
+            Map<String, Object> group = new LinkedHashMap<>();
+            group.put("heading", headingFormatter.format(monthEntry.getKey().atDay(1)));
+            group.put("posts", monthEntry.getValue());
+            groups.add(group);
+        }
+        return groups;
+    }
+
+    private void cleanupIndexThumbnails() throws IOException {
+        Path thumbnailsRoot = outputRoot.resolve("assets").resolve("thumbnails");
+        if (Files.exists(thumbnailsRoot)) {
+            deleteRecursively(thumbnailsRoot);
+        }
     }
 
     private String resolveIndexCoverImage(String coverImage) {

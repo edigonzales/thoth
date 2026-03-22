@@ -9,12 +9,15 @@
   </div>
 
   <footer class="post-footer">
-    <span class="post-author">${post.author?html}</span>
+    <span class="post-author">Written by ${post.author?html}</span>
+    <#if post.tags?has_content>
+    <span class="post-footer-separator"> | </span>
     <span class="post-tags">
       <#list post.tags as tag>
-      <a class="tag" href="/tags/${tag.slug}/index.html">${tag.name?html}</a>
+      <a href="/tags/${tag.slug}/index.html">${tag.name?html}</a><#if tag_has_next>, </#if>
       </#list>
     </span>
+    </#if>
   </footer>
 </article>
 </@layout.page>
