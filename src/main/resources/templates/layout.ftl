@@ -69,7 +69,7 @@
   </#if>
 
   <#if homeHero>
-  <header class="home-hero" style="--home-hero-image: url('/assets/home-hero.png');">
+  <header class="home-hero" style="--home-hero-image: url('/assets/home-hero.jpg');">
     <div class="home-hero__overlay">
       <@siteNav navClass="navbar--hero" />
       <div class="home-hero__copy">

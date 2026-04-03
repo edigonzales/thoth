@@ -48,7 +48,7 @@ public final class SiteGenerator implements AutoCloseable {
         "site-assets/theme.js::assets/theme.js",
         "site-assets/code-copy.js::assets/code-copy.js",
         "site-assets/image-lightbox.js::assets/image-lightbox.js",
-        "site-assets/home-hero.png::assets/home-hero.png",
+        "site-assets/home-hero.jpg::assets/home-hero.jpg",
         "site-assets/search.js::assets/search.js",
         "site-assets/lunr.min.js::assets/lunr.min.js",
         "site-assets/prism/prism.css::assets/prism/prism.css",
@@ -130,6 +130,10 @@ public final class SiteGenerator implements AutoCloseable {
                 return;
             }
 
+            if (shouldIgnoreAsset(relativePath)) {
+                return;
+            }
+
             boolean isAdoc = relativePath.toString().endsWith(".adoc");
             if ("DELETE".equals(eventType)) {
                 handleDelete(relativePath, isAdoc);
@@ -197,6 +201,7 @@ public final class SiteGenerator implements AutoCloseable {
             stream
                 .filter(Files::isRegularFile)
                 .filter(path -> !path.toString().endsWith(".adoc"))
+                .filter(path -> !shouldIgnoreAsset(inputRoot.relativize(path)))
                 .forEach(path -> {
                     Path relativePath = inputRoot.relativize(path);
                     try {
@@ -215,8 +220,17 @@ public final class SiteGenerator implements AutoCloseable {
             return;
         }
 
+        if (shouldIgnoreAsset(relativePath)) {
+            return;
+        }
+
         copyFile(source, outputRoot.resolve(relativePath));
         System.out.println("[copy] " + toUnixPath(relativePath));
+    }
+
+    private boolean shouldIgnoreAsset(Path relativePath) {
+        Path fileName = relativePath.getFileName();
+        return fileName != null && ".DS_Store".equals(fileName.toString());
     }
 
     private void writeBundledAssets() throws IOException {

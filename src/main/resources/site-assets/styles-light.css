@@ -246,7 +246,7 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
   background: var(--surface);
   /*border: 1px solid var(--border);*/
   /*border-radius: 0.9rem;*/
-  padding: 1rem 1.1rem;
+  padding: 1rem 1.1rem 3rem 1.1rem;
 }
 
 .post-title {

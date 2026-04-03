@@ -114,7 +114,8 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("assets/theme.js")));
         assertTrue(Files.exists(output.resolve("assets/code-copy.js")));
         assertTrue(Files.exists(output.resolve("assets/image-lightbox.js")));
-        assertTrue(Files.exists(output.resolve("assets/home-hero.png")));
+        assertTrue(Files.exists(output.resolve("assets/home-hero.jpg")));
+        assertFalse(Files.exists(output.resolve("assets/home-hero.png")));
         assertTrue(Files.exists(output.resolve("assets/search.js")));
         assertTrue(Files.exists(output.resolve("assets/lunr.min.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/prism.css")));
@@ -135,6 +136,8 @@ public class SiteGeneratorIntegrationTest {
 
         assertTrue(Files.exists(output.resolve("blog/2026/images/cover.png")));
         assertTrue(Files.exists(output.resolve("blog/2026/site.js")));
+        assertFalse(Files.exists(output.resolve(".DS_Store")));
+        assertFalse(Files.exists(output.resolve("blog/.DS_Store")));
     }
 
     private void assertCommonCss(Path output) throws Exception {
@@ -359,7 +362,7 @@ public class SiteGeneratorIntegrationTest {
 
         Element hero = indexDoc.selectFirst(".home-hero");
         assertNotNull(hero);
-        assertTrue(hero.attr("style").contains("/assets/home-hero.png"));
+        assertTrue(hero.attr("style").contains("/assets/home-hero.jpg"));
         assertNotNull(indexDoc.selectFirst(".home-hero__overlay"));
         assertEquals(1, indexDoc.select("body > header.home-hero + main#content.page-home").size());
         assertEquals(1, indexDoc.select("body > main#content.page-home > .post-grid").size());
@@ -513,6 +516,8 @@ public class SiteGeneratorIntegrationTest {
             Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5l5lEAAAAASUVORK5CYII=")
         );
         write(input.resolve("blog/2026/site.js"), "console.log('ok');");
+        write(input.resolve(".DS_Store"), "ignored");
+        write(input.resolve("blog/.DS_Store"), "ignored");
     }
 
     private void write(Path path, String content) throws Exception {
