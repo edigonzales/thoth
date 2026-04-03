@@ -38,8 +38,19 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(index.contains("Fourth Post"));
         assertTrue(index.contains("Manual teaser override"));
         assertTrue(index.contains("class=\"teaser-more\""));
+        assertTrue(index.contains("bi bi-calendar3"));
+        assertTrue(index.contains("bi bi-file-text"));
+        assertTrue(index.contains("bi bi-person-fill"));
+        assertTrue(index.contains("M14 0H2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12"));
+        assertTrue(index.contains("Posted on "));
+        assertTrue(index.contains(" words"));
+        assertTrue(index.contains("Alice Author"));
+        assertTrue(index.contains(" | "));
+        assertTrue(index.contains("5 words"));
         assertFalse(index.contains("/assets/thumbnails/blog/2026/images/cover-thumb.png"));
         assertFalse(index.contains("class=\"post-card-body post-card-body--with-cover\""));
+        assertIndexTeasers(output);
+        assertHomeHero(output);
 
         assertCommonCss(output);
         assertGroupedArchive(output);
@@ -64,6 +75,17 @@ public class SiteGeneratorIntegrationTest {
         String index = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
         assertTrue(index.contains("/assets/thumbnails/blog/2026/images/cover-thumb.png"));
         assertTrue(index.contains("class=\"post-card-body post-card-body--with-cover\""));
+        assertTrue(index.contains("bi bi-calendar3"));
+        assertTrue(index.contains("bi bi-file-text"));
+        assertTrue(index.contains("bi bi-person-fill"));
+        assertTrue(index.contains("M14 0H2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12"));
+        assertTrue(index.contains("Posted on "));
+        assertTrue(index.contains(" words"));
+        assertTrue(index.contains("Alice Author"));
+        assertTrue(index.contains(" | "));
+        assertTrue(index.contains("5 words"));
+        assertIndexTeasers(output);
+        assertHomeHero(output);
 
         assertCommonCss(output);
         assertGroupedArchive(output);
@@ -87,9 +109,12 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("assets/styles-light.css")));
         assertTrue(Files.exists(output.resolve("assets/styles-dark.css")));
         assertTrue(Files.exists(output.resolve("assets/zurich.css")));
-        assertTrue(Files.exists(output.resolve("assets/fonts/Zurich/306E22_0_0.woff2")));
-        assertTrue(Files.exists(output.resolve("assets/fonts/Zurich/306E22_1_0.woff2")));
+        assertFalse(Files.exists(output.resolve("assets/fonts/Zurich")));
+        assertFalse(Files.exists(output.resolve("assets/fonts/Inter")));
         assertTrue(Files.exists(output.resolve("assets/theme.js")));
+        assertTrue(Files.exists(output.resolve("assets/code-copy.js")));
+        assertTrue(Files.exists(output.resolve("assets/image-lightbox.js")));
+        assertTrue(Files.exists(output.resolve("assets/home-hero.png")));
         assertTrue(Files.exists(output.resolve("assets/search.js")));
         assertTrue(Files.exists(output.resolve("assets/lunr.min.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/prism.css")));
@@ -118,12 +143,142 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(lightCss.contains("overflow-wrap: anywhere;"));
         assertTrue(lightCss.contains(".archive-group-posts {"));
         assertTrue(lightCss.contains(".post-footer-separator {"));
+        assertTrue(lightCss.contains(".post-content :not(pre) > code {"));
+        assertTrue(lightCss.contains("font-size: 0.95em;"));
+        assertTrue(lightCss.contains("background-color: #f2f2f2;"));
+        assertTrue(lightCss.contains("--code-bg: #f2f2f2;"));
+        assertTrue(lightCss.contains(".code-copy-button {"));
+        assertTrue(lightCss.contains(".teaser {"));
+        assertTrue(lightCss.contains("line-height: 1.6;"));
+        assertTrue(lightCss.contains(".archive-list > h1 {"));
+        assertTrue(lightCss.contains("font-size: 2em;"));
+        assertTrue(lightCss.contains(".archive-group-heading {"));
+        assertTrue(lightCss.contains("font-size: 1.5em;"));
+        assertTrue(lightCss.contains(".code-copy-button svg {"));
+        assertTrue(lightCss.contains(".post-meta-item {"));
+        assertTrue(lightCss.contains(".post-meta-separator {"));
+        assertTrue(lightCss.contains(".post-meta-icon {"));
+        assertTrue(lightCss.contains(".teaser-more {"));
+        assertTrue(lightCss.contains("font-weight: 700;"));
+        assertTrue(lightCss.contains(".teaser-tags {"));
+        assertTrue(lightCss.contains("font-size: 0.9rem;"));
+        assertTrue(lightCss.contains(".post-card .teaser-tags a,"));
+        assertTrue(lightCss.contains(".post-tags a {"));
+        assertTrue(lightCss.contains(".post-card .teaser-tags a:hover,"));
+        assertTrue(lightCss.contains(".post-tags a:hover,"));
+        assertTrue(lightCss.contains(".post-card .teaser-tags a:focus-visible,"));
+        assertTrue(lightCss.contains(".post-tags a:focus-visible {"));
+        assertTrue(lightCss.contains("font-size: 0.9em;"));
+        assertTrue(lightCss.contains(".post-content img.lightbox-trigger {"));
+        assertTrue(lightCss.contains("#image-lightbox {"));
+        assertTrue(lightCss.contains("#image-lightbox::backdrop {"));
+        assertTrue(lightCss.contains("#image-lightbox-image {"));
+        assertTrue(lightCss.contains("#image-lightbox-close {"));
+        assertTrue(lightCss.contains(".post-content p a {"));
+        assertTrue(lightCss.contains(".post-content pre {\n  overflow: auto;\n  padding: 0.75rem;\n  border-radius: 0.55rem;\n  background: var(--code-bg);\n}"));
+        assertTrue(lightCss.contains(".post-content ul li p,\n.post-content ol li p {\n  margin: 9px 0;\n}"));
+        assertTrue(lightCss.contains(".archive-group-posts a {\n  color: rgb(0, 133, 161);\n}"));
+        assertTrue(lightCss.contains(".post-card a {"));
+        assertTrue(lightCss.contains("color: var(--text);"));
+        assertTrue(lightCss.contains(".post-card a:hover,"));
+        assertTrue(lightCss.contains(".post-card a:focus-visible {"));
+        assertTrue(lightCss.contains("color: rgb(0, 133, 161);"));
+        assertTrue(lightCss.contains("#navbar:not(.navbar--hero) .nav-left a {\n  color: rgb(0, 133, 161);\n}"));
+        assertTrue(lightCss.contains("#navbar:not(.navbar--hero) .nav-left a:hover,\n#navbar:not(.navbar--hero) .nav-left a:focus-visible {\n  color: rgb(0, 133, 161);\n}"));
+        assertTrue(lightCss.contains("#content.page-home {\n  margin-top: 0;\n}"));
+        assertFalse(lightCss.contains("#content.page-home {\n  width: min(1200px, calc(100% - 2rem));"));
+        assertTrue(lightCss.contains(".home-hero {"));
+        assertTrue(lightCss.contains("width: 100%;"));
+        assertTrue(lightCss.contains("background-position: center center;"));
+        assertTrue(lightCss.contains(".home-hero__overlay {"));
+        assertTrue(lightCss.contains(".home-hero__copy {"));
+        assertTrue(lightCss.contains("min-height: clamp(7rem, 14vw, 10rem);"));
+        assertTrue(lightCss.contains("#navbar.navbar--hero .nav-left a {"));
+        assertTrue(lightCss.contains("text-decoration: underline;"));
+        assertTrue(lightCss.contains("#navbar.navbar--hero #search-input::placeholder {"));
+        assertTrue(lightCss.contains("#navbar.navbar--hero .theme-toggle {"));
+        assertTrue(lightCss.contains("#navbar.navbar--hero #search-form {"));
+        assertFalse(lightCss.contains("border-radius: 1.3rem;"));
+        assertFalse(lightCss.contains("box-shadow: 0 1.2rem 3rem rgba(65, 80, 102, 0.18);"));
+        assertFalse(lightCss.contains("#navbar.navbar--hero .nav-left a:hover,\n#navbar.navbar--hero .nav-left a:focus-visible {\n  background:"));
+        assertTrue(lightCss.contains("color: var(--muted);"));
+        assertTrue(lightCss.contains("text-decoration: none;"));
+        assertTrue(lightCss.contains("color: currentColor;"));
+        assertTrue(lightCss.contains("white-space: nowrap;"));
+        assertTrue(lightCss.contains("display: inline-block;"));
+        assertTrue(lightCss.contains("vertical-align: -0.125em;"));
+        assertFalse(lightCss.contains(".post-meta-item {\n  display: inline-flex;"));
+        assertFalse(lightCss.contains(".post-meta-item {\n  align-items: baseline;"));
 
         String darkCss = Files.readString(output.resolve("assets/styles-dark.css"), StandardCharsets.UTF_8);
         assertTrue(darkCss.contains(".post-grid {\n  display: grid;\n  grid-template-columns: 1fr;"));
         assertTrue(darkCss.contains("overflow-wrap: anywhere;"));
         assertTrue(darkCss.contains(".archive-group-posts {"));
         assertTrue(darkCss.contains(".post-footer-separator {"));
+        assertTrue(darkCss.contains(".post-content :not(pre) > code {"));
+        assertTrue(darkCss.contains("font-size: 0.95em;"));
+        assertTrue(darkCss.contains("background-color: #dcdcdc;"));
+        assertTrue(darkCss.contains(".code-copy-button {"));
+        assertTrue(darkCss.contains(".teaser {"));
+        assertTrue(darkCss.contains("line-height: 1.6;"));
+        assertTrue(darkCss.contains(".archive-list > h1 {"));
+        assertTrue(darkCss.contains("font-size: 2em;"));
+        assertTrue(darkCss.contains(".archive-group-heading {"));
+        assertTrue(darkCss.contains("font-size: 1.5em;"));
+        assertTrue(darkCss.contains(".code-copy-button svg {"));
+        assertTrue(darkCss.contains(".post-meta-item {"));
+        assertTrue(darkCss.contains(".post-meta-separator {"));
+        assertTrue(darkCss.contains(".post-meta-icon {"));
+        assertTrue(darkCss.contains(".teaser-more {"));
+        assertTrue(darkCss.contains("font-weight: 700;"));
+        assertTrue(darkCss.contains(".teaser-tags {"));
+        assertTrue(darkCss.contains("font-size: 0.9rem;"));
+        assertTrue(darkCss.contains(".post-card .teaser-tags a,"));
+        assertTrue(darkCss.contains(".post-tags a {"));
+        assertTrue(darkCss.contains(".post-card .teaser-tags a:hover,"));
+        assertTrue(darkCss.contains(".post-tags a:hover,"));
+        assertTrue(darkCss.contains(".post-card .teaser-tags a:focus-visible,"));
+        assertTrue(darkCss.contains(".post-tags a:focus-visible {"));
+        assertTrue(darkCss.contains("font-size: 0.9em;"));
+        assertTrue(darkCss.contains(".post-content img.lightbox-trigger {"));
+        assertTrue(darkCss.contains("#image-lightbox {"));
+        assertTrue(darkCss.contains("#image-lightbox::backdrop {"));
+        assertTrue(darkCss.contains("#image-lightbox-image {"));
+        assertTrue(darkCss.contains("#image-lightbox-close {"));
+        assertTrue(darkCss.contains(".post-content p a {"));
+        assertTrue(darkCss.contains(".post-content ul li p,\n.post-content ol li p {\n  margin: 9px 0;\n}"));
+        assertTrue(darkCss.contains(".archive-group-posts a {\n  color: rgb(0, 133, 161);\n}"));
+        assertTrue(darkCss.contains(".post-card a {"));
+        assertTrue(darkCss.contains("color: var(--text);"));
+        assertTrue(darkCss.contains(".post-card a:hover,"));
+        assertTrue(darkCss.contains(".post-card a:focus-visible {"));
+        assertTrue(darkCss.contains("color: rgb(0, 133, 161);"));
+        assertTrue(darkCss.contains("#navbar:not(.navbar--hero) .nav-left a {\n  color: rgb(0, 133, 161);\n}"));
+        assertTrue(darkCss.contains("#navbar:not(.navbar--hero) .nav-left a:hover,\n#navbar:not(.navbar--hero) .nav-left a:focus-visible {\n  color: rgb(0, 133, 161);\n}"));
+        assertTrue(darkCss.contains("#content.page-home {\n  margin-top: 0;\n}"));
+        assertFalse(darkCss.contains("#content.page-home {\n  width: min(1200px, calc(100% - 2rem));"));
+        assertTrue(darkCss.contains(".home-hero {"));
+        assertTrue(darkCss.contains("width: 100%;"));
+        assertTrue(darkCss.contains("background-position: center center;"));
+        assertTrue(darkCss.contains(".home-hero__overlay {"));
+        assertTrue(darkCss.contains(".home-hero__copy {"));
+        assertTrue(darkCss.contains("min-height: clamp(7rem, 14vw, 10rem);"));
+        assertTrue(darkCss.contains("#navbar.navbar--hero .nav-left a {"));
+        assertTrue(darkCss.contains("text-decoration: underline;"));
+        assertTrue(darkCss.contains("#navbar.navbar--hero #search-input::placeholder {"));
+        assertTrue(darkCss.contains("#navbar.navbar--hero .theme-toggle {"));
+        assertTrue(darkCss.contains("#navbar.navbar--hero #search-form {"));
+        assertFalse(darkCss.contains("border-radius: 1.3rem;"));
+        assertFalse(darkCss.contains("box-shadow: 0 1.2rem 3rem rgba(0, 0, 0, 0.42);"));
+        assertFalse(darkCss.contains("#navbar.navbar--hero .nav-left a:hover,\n#navbar.navbar--hero .nav-left a:focus-visible {\n  background:"));
+        assertTrue(darkCss.contains("color: var(--muted);"));
+        assertTrue(darkCss.contains("text-decoration: none;"));
+        assertTrue(darkCss.contains("color: currentColor;"));
+        assertTrue(darkCss.contains("white-space: nowrap;"));
+        assertTrue(darkCss.contains("display: inline-block;"));
+        assertTrue(darkCss.contains("vertical-align: -0.125em;"));
+        assertFalse(darkCss.contains(".post-meta-item {\n  display: inline-flex;"));
+        assertFalse(darkCss.contains(".post-meta-item {\n  align-items: baseline;"));
     }
 
     private void assertGroupedArchive(Path output) throws Exception {
@@ -146,6 +301,10 @@ public class SiteGeneratorIntegrationTest {
             "/blog/2026/post-three/",
             archiveDoc.select(".archive-group").get(0).selectFirst("a").attr("href")
         );
+        assertEquals(
+            List.of("Third Post", "Fourth Post", "Second Post", "First Post"),
+            archiveDoc.select(".archive-group-posts a.post-title").eachText()
+        );
     }
 
     private void assertCommonFeed(Path output) throws Exception {
@@ -165,31 +324,121 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(searchIndex.contains("\"url\":\"/blog/2026/post-one/\""));
     }
 
+    private void assertIndexTeasers(Path output) throws Exception {
+        String indexHtml = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
+        Document indexDoc = Jsoup.parse(indexHtml);
+
+        assertEquals(List.of("[read more]", "[read more]", "[read more]", "[read more]"), indexDoc.select(".teaser-more").eachText());
+        assertFalse(indexHtml.contains(">...</a>"));
+
+        Element firstPostCard = findPostCard(indexDoc, "First Post");
+        assertNotNull(firstPostCard);
+        assertEquals("Tags: #Java #AI", firstPostCard.selectFirst(".teaser-tags").text());
+        assertEquals(List.of("#Java", "#AI"), firstPostCard.select(".teaser-tags a").eachText());
+        assertEquals("/tags/java/index.html", firstPostCard.select(".teaser-tags a").get(0).attr("href"));
+        assertEquals("/tags/ai/index.html", firstPostCard.select(".teaser-tags a").get(1).attr("href"));
+
+        Element secondPostCard = findPostCard(indexDoc, "Second Post");
+        assertNotNull(secondPostCard);
+        assertEquals("Tags: #AI", secondPostCard.selectFirst(".teaser-tags").text());
+        assertEquals(List.of("#AI"), secondPostCard.select(".teaser-tags a").eachText());
+        assertEquals("/tags/ai/index.html", secondPostCard.select(".teaser-tags a").get(0).attr("href"));
+
+        Element thirdPostCard = findPostCard(indexDoc, "Third Post");
+        assertNotNull(thirdPostCard);
+        assertTrue(thirdPostCard.select(".teaser-tags").isEmpty());
+
+        Element fourthPostCard = findPostCard(indexDoc, "Fourth Post");
+        assertNotNull(fourthPostCard);
+        assertTrue(fourthPostCard.select(".teaser-tags").isEmpty());
+    }
+
+    private void assertHomeHero(Path output) throws Exception {
+        String indexHtml = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
+        Document indexDoc = Jsoup.parse(indexHtml);
+
+        Element hero = indexDoc.selectFirst(".home-hero");
+        assertNotNull(hero);
+        assertTrue(hero.attr("style").contains("/assets/home-hero.png"));
+        assertNotNull(indexDoc.selectFirst(".home-hero__overlay"));
+        assertEquals(1, indexDoc.select("body > header.home-hero + main#content.page-home").size());
+        assertEquals(1, indexDoc.select("body > main#content.page-home > .post-grid").size());
+        assertTrue(indexDoc.select("main#content .home-hero").isEmpty());
+
+        Element heroNav = indexDoc.selectFirst("#navbar.navbar--hero");
+        assertNotNull(heroNav);
+        assertEquals(List.of("Home", "Archive", "Subscribe"), heroNav.select(".nav-left a").eachText());
+        assertEquals("/index.html", heroNav.select(".nav-left a").get(0).attr("href"));
+        assertEquals("/archive.html", heroNav.select(".nav-left a").get(1).attr("href"));
+        assertEquals("/feed.xml", heroNav.select(".nav-left a").get(2).attr("href"));
+        assertEquals(1, heroNav.select("#search-form").size());
+        assertEquals(1, heroNav.select("#search-input").size());
+        assertEquals("Search posts", heroNav.selectFirst("#search-input").attr("placeholder"));
+        assertEquals(1, heroNav.select("#theme-toggle").size());
+
+        Element heroCopy = indexDoc.selectFirst(".home-hero__copy");
+        assertNotNull(heroCopy);
+        assertTrue(heroCopy.text().isBlank());
+        assertTrue(indexDoc.select(".home-hero__title").isEmpty());
+    }
+
+    private Element findPostCard(Document document, String title) {
+        for (Element postCard : document.select(".post-card")) {
+            Element titleLink = postCard.selectFirst(".post-title a");
+            if (titleLink != null && title.equals(titleLink.text())) {
+                return postCard;
+            }
+        }
+        return null;
+    }
+
     private void assertPostFooter(Path output) throws Exception {
         String postHtml = Files.readString(output.resolve("blog/2026/post-one/index.html"), StandardCharsets.UTF_8);
         assertTrue(postHtml.contains("id=\"navbar\""));
         assertTrue(postHtml.contains("id=\"search-input\""));
         assertTrue(postHtml.contains("id=\"theme-toggle\""));
+        assertFalse(postHtml.contains("navbar--hero"));
+        assertFalse(postHtml.contains("class=\"home-hero\""));
         assertTrue(postHtml.contains("/assets/prism/prism.css"));
         assertTrue(postHtml.contains("/assets/prism/prism.js"));
         assertTrue(postHtml.contains("/assets/prism/components/prism-interlis.js"));
         assertTrue(postHtml.contains("/assets/prism/plugins/line-highlight/prism-line-highlight.min.js"));
         assertTrue(postHtml.contains("/assets/prism/plugins/line-numbers/prism-line-numbers.min.js"));
+        assertTrue(postHtml.contains("/assets/code-copy.js"));
+        assertTrue(postHtml.contains("/assets/image-lightbox.js"));
         assertTrue(postHtml.contains("/assets/zurich.css"));
         assertTrue(postHtml.contains("Written by Alice Author"));
 
         Document postDoc = Jsoup.parse(postHtml);
         assertEquals(1, postDoc.select("pre.language-ini.line-numbers > code.language-ini").size());
+        assertEquals(1, postDoc.select("#image-lightbox").size());
+        assertEquals(1, postDoc.select("#image-lightbox-image").size());
+        assertEquals(1, postDoc.select("#image-lightbox-close").size());
+        assertEquals(List.of("Example Link"), postDoc.select(".post-content p a").eachText());
+        assertEquals("https://example.com", postDoc.selectFirst(".post-content p a").attr("href"));
+        assertEquals(List.of("First bullet item.", "Second bullet item."), postDoc.select(".post-content ul li p").eachText());
 
         Element footer = postDoc.selectFirst(".post-footer");
         assertNotNull(footer);
-        assertEquals(List.of("Java", "AI"), footer.select(".post-tags a").eachText());
+        assertEquals(List.of("#Java", "#AI"), footer.select(".post-tags a").eachText());
         assertEquals("/tags/java/index.html", footer.select(".post-tags a").get(0).attr("href"));
-        assertTrue(footer.text().contains("Written by Alice Author | Java, AI"));
+        assertTrue(footer.text().contains("Written by Alice Author | #Java #AI"));
         assertTrue(footer.select("a.tag").isEmpty());
 
         String searchJs = Files.readString(output.resolve("assets/search.js"), StandardCharsets.UTF_8);
         assertTrue(searchJs.contains("lunrSearch"));
+
+        String codeCopyJs = Files.readString(output.resolve("assets/code-copy.js"), StandardCharsets.UTF_8);
+        assertTrue(codeCopyJs.contains("bi bi-copy"));
+        assertTrue(codeCopyJs.contains("bi bi-check"));
+        assertTrue(codeCopyJs.contains("setTemporarySuccessState"));
+        assertTrue(codeCopyJs.contains("window.setTimeout"));
+
+        String imageLightboxJs = Files.readString(output.resolve("assets/image-lightbox.js"), StandardCharsets.UTF_8);
+        assertTrue(imageLightboxJs.contains("aria-haspopup"));
+        assertTrue(imageLightboxJs.contains("showModal"));
+        assertTrue(imageLightboxJs.contains("closest(\"a\")"));
+        assertTrue(imageLightboxJs.contains("dialog.addEventListener(\"close\""));
     }
 
     private void writeSampleSite(Path input, boolean enableIndexThumbnails) throws Exception {
@@ -221,7 +470,10 @@ public class SiteGeneratorIntegrationTest {
             createEnumTabs=true
             ----
 
-            First post paragraph with enough content to form a teaser.
+            First post paragraph with enough content to form a teaser and an https://example.com[Example Link].
+
+            * First bullet item.
+            * Second bullet item.
             """);
 
         write(input.resolve("blog/2026/post-two.adoc"), """

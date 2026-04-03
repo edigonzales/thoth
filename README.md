@@ -158,8 +158,6 @@ Thoth writes bundled assets to `assets/`:
 - `assets/prism/components/*.js` (markup, clike, javascript, css, ini, java, typescript, json, bash, sql, python, yaml, kotlin, go, c, cpp)
 - `assets/prism/plugins/line-highlight/*`
 - `assets/prism/plugins/line-numbers/*`
-- `assets/fonts/Inter/Inter-Regular.woff2`
-- `assets/fonts/Inter/Inter-SemiBold.woff2`
 
 Enable line numbers per code block with:
 ```adoc

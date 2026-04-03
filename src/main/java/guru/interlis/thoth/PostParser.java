@@ -153,7 +153,8 @@ public final class PostParser {
     private void normalizeCodeBlocksForPrism(Document document, List<Boolean> sourceBlockLineNumbers) {
         int sourceBlockIndex = 0;
         for (Element code : document.select("pre > code")) {
-            String language = detectLanguage(code);
+            Element pre = code.parent();
+            String language = detectLanguage(code, pre);
             if (language == null) {
                 continue;
             }
@@ -162,9 +163,9 @@ public final class PostParser {
             code.addClass("language-" + normalizedLanguage);
             code.removeAttr("data-lang");
 
-            Element pre = code.parent();
             if (pre != null && "pre".equals(pre.tagName())) {
                 pre.addClass("language-" + normalizedLanguage);
+                pre.removeAttr("data-lang");
                 if (sourceBlockIndex < sourceBlockLineNumbers.size() && sourceBlockLineNumbers.get(sourceBlockIndex)) {
                     pre.addClass("line-numbers");
                 }
@@ -174,15 +175,44 @@ public final class PostParser {
         }
     }
 
-    private String detectLanguage(Element code) {
-        String dataLang = code.attr("data-lang").trim();
+    private String detectLanguage(Element code, Element pre) {
+        String fromCode = detectLanguageFromElement(code);
+        if (fromCode != null) {
+            return fromCode;
+        }
+
+        return detectLanguageFromElement(pre);
+    }
+
+    private String detectLanguageFromElement(Element element) {
+        if (element == null) {
+            return null;
+        }
+
+        String dataLang = element.attr("data-lang").trim();
         if (!dataLang.isEmpty()) {
             return dataLang;
         }
 
-        for (String className : code.classNames()) {
+        String language = element.attr("language").trim();
+        if (!language.isEmpty()) {
+            return language;
+        }
+
+        String lang = element.attr("lang").trim();
+        if (!lang.isEmpty()) {
+            return lang;
+        }
+
+        for (String className : element.classNames()) {
             if (className.startsWith("language-")) {
                 return className.substring("language-".length());
+            }
+            if (className.startsWith("lang-")) {
+                return className.substring("lang-".length());
+            }
+            if (className.startsWith("highlight-source-")) {
+                return className.substring("highlight-source-".length());
             }
         }
         return null;

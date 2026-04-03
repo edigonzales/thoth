@@ -43,17 +43,12 @@ public final class SiteGenerator implements AutoCloseable {
 
     private static final List<String> BUNDLED_ASSETS = List.of(
         "site-assets/zurich.css::assets/zurich.css",
-        "site-assets/fonts/Zurich/306E22_0_0.eot::assets/fonts/Zurich/306E22_0_0.eot",
-        "site-assets/fonts/Zurich/306E22_0_0.ttf::assets/fonts/Zurich/306E22_0_0.ttf",
-        "site-assets/fonts/Zurich/306E22_0_0.woff::assets/fonts/Zurich/306E22_0_0.woff",
-        "site-assets/fonts/Zurich/306E22_0_0.woff2::assets/fonts/Zurich/306E22_0_0.woff2",
-        "site-assets/fonts/Zurich/306E22_1_0.eot::assets/fonts/Zurich/306E22_1_0.eot",
-        "site-assets/fonts/Zurich/306E22_1_0.ttf::assets/fonts/Zurich/306E22_1_0.ttf",
-        "site-assets/fonts/Zurich/306E22_1_0.woff::assets/fonts/Zurich/306E22_1_0.woff",
-        "site-assets/fonts/Zurich/306E22_1_0.woff2::assets/fonts/Zurich/306E22_1_0.woff2",
         "site-assets/styles-light.css::assets/styles-light.css",
         "site-assets/styles-dark.css::assets/styles-dark.css",
         "site-assets/theme.js::assets/theme.js",
+        "site-assets/code-copy.js::assets/code-copy.js",
+        "site-assets/image-lightbox.js::assets/image-lightbox.js",
+        "site-assets/home-hero.png::assets/home-hero.png",
         "site-assets/search.js::assets/search.js",
         "site-assets/lunr.min.js::assets/lunr.min.js",
         "site-assets/prism/prism.css::assets/prism/prism.css",
@@ -412,6 +407,8 @@ public final class SiteGenerator implements AutoCloseable {
             Map<String, Object> summary = new LinkedHashMap<>();
             summary.put("title", post.title());
             summary.put("date", formatDate(post.date()));
+            summary.put("author", post.author());
+            summary.put("wordCount", wordCount(post.plainText()));
             summary.put("url", post.url());
             summary.put("tags", tagsForTemplate(post.tags()));
             if (includeTeaserAndCover) {
@@ -423,6 +420,13 @@ public final class SiteGenerator implements AutoCloseable {
             summaries.add(summary);
         }
         return summaries;
+    }
+
+    private int wordCount(String text) {
+        if (text == null || text.isBlank()) {
+            return 0;
+        }
+        return text.trim().split("\\s+").length;
     }
 
     private List<Map<String, Object>> archiveGroupsForTemplate(List<Post> sortedPosts) {

@@ -79,6 +79,11 @@ public class PostParserTest {
             ----
             body { color: red; }
             ----
+
+            [source,Java]
+            ----
+            class Demo {}
+            ----
             """;
 
         Files.writeString(post, content, StandardCharsets.UTF_8);
@@ -91,6 +96,7 @@ public class PostParserTest {
 
             assertTrue(html.select("pre.language-javascript > code.language-javascript").size() == 1);
             assertTrue(html.select("pre.language-css > code.language-css").size() == 1);
+            assertTrue(html.select("pre.language-java > code.language-java").size() == 1);
         } finally {
             asciidoctor.shutdown();
         }
@@ -133,6 +139,39 @@ public class PostParserTest {
             assertEquals(2, codeBlocks.size());
             assertTrue(codeBlocks.get(0).classNames().contains("line-numbers"));
             assertFalse(codeBlocks.get(1).classNames().contains("line-numbers"));
+        } finally {
+            asciidoctor.shutdown();
+        }
+    }
+
+    @Test
+    public void keepsSourceListingsWithoutLanguageUnannotated() throws Exception {
+        Path root = Files.createTempDirectory("thoth-parser-source-listing-test");
+        Path post = root.resolve("blog/source-listing.adoc");
+        Files.createDirectories(post.getParent());
+
+        String content = """
+            ---
+            = Source Listing
+            Jane Doe
+            2026-01-12
+            ---
+            [source]
+            ----
+            const value = 1;
+            ----
+            """;
+
+        Files.writeString(post, content, StandardCharsets.UTF_8);
+
+        Asciidoctor asciidoctor = Asciidoctor.Factory.create();
+        try {
+            PostParser parser = new PostParser(asciidoctor);
+            Post parsed = parser.parse(post, root);
+            Document html = Jsoup.parseBodyFragment(parsed.htmlContent());
+
+            assertEquals(1, html.select("div.listingblock div.content pre.highlight > code").size());
+            assertEquals(0, html.select("div.listingblock div.content pre[class*=language-] > code").size());
         } finally {
             asciidoctor.shutdown();
         }

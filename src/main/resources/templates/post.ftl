@@ -14,10 +14,16 @@
     <span class="post-footer-separator"> | </span>
     <span class="post-tags">
       <#list post.tags as tag>
-      <a href="/tags/${tag.slug}/index.html">${tag.name?html}</a><#if tag_has_next>, </#if>
+      <a href="/tags/${tag.slug}/index.html">#${tag.name?html}</a><#sep> </#sep>
       </#list>
     </span>
     </#if>
   </footer>
 </article>
+<dialog id="image-lightbox" aria-label="Expanded post image">
+  <div class="image-lightbox-frame">
+    <button id="image-lightbox-close" type="button" aria-label="Close image">&times;</button>
+    <img id="image-lightbox-image" alt="">
+  </div>
+</dialog>
 </@layout.page>
