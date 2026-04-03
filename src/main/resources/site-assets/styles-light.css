@@ -32,7 +32,11 @@ html {
   --border: #d7dee8;
   --text: rgb(36, 38, 43);
   --muted: #5c6b82;
-  --link: #2a6496;
+  --nav-link: rgb(36, 38, 43);
+  --nav-link-hover: rgb(36, 38, 43);
+  --link: #c9533b;
+  --link-hover: #b24731;
+  --focus-ring: #e4a293;
   --tag-bg: #eef3fc;
   /*--code-bg: #f0f4fb;*/
   --code-bg: #f2f2f2;
@@ -73,12 +77,12 @@ a:hover {
 }
 
 #navbar:not(.navbar--hero) .nav-left a {
-  color: rgb(0, 133, 161);
+  color: var(--nav-link);
 }
 
 #navbar:not(.navbar--hero) .nav-left a:hover,
 #navbar:not(.navbar--hero) .nav-left a:focus-visible {
-  color: rgb(0, 133, 161);
+  color: var(--nav-link-hover);
 }
 
 .nav-left,
@@ -262,7 +266,7 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
 
 .post-card a:hover,
 .post-card a:focus-visible {
-  color: rgb(0, 133, 161);
+  color: var(--link-hover);
   text-decoration: none;
 }
 
@@ -337,14 +341,14 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
 
 .post-card .teaser-tags a,
 .post-tags a {
-  color: rgb(0, 133, 161);
+  color: var(--link);
 }
 
 .post-card .teaser-tags a:hover,
 .post-card .teaser-tags a:focus-visible,
 .post-tags a:hover,
 .post-tags a:focus-visible {
-  color: rgb(0, 133, 161);
+  color: var(--link-hover);
   text-decoration: underline;
 }
 
@@ -360,7 +364,7 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
 }
 
 .post-content p a {
-  color: rgb(0, 133, 161);
+  color: var(--link);
 }
 
 .post-content ul li p,
@@ -393,7 +397,7 @@ pre[class*="language-"] > code {
 }
 
 .post-content img.lightbox-trigger:focus-visible {
-  outline: 2px solid #2a6496;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 4px;
 }
 
@@ -452,7 +456,7 @@ pre[class*="language-"] > code {
 }
 
 #image-lightbox-close:focus-visible {
-  outline: 2px solid #2a6496;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -494,7 +498,7 @@ pre[class*="language-"] > code {
 }
 
 .code-copy-button:focus-visible {
-  outline: 2px solid #2a6496;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -577,7 +581,7 @@ pre[class*="language-"] > code {
 }
 
 .archive-group-posts a {
-  color: rgb(0, 133, 161);
+  color: var(--link);
 }
 
 .archive-item-day,

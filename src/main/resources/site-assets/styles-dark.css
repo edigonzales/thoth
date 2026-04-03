@@ -32,7 +32,11 @@ html {
   --border: #2c3b50;
   --text: rgb(36, 38, 43);
   --muted: #a2b0c5;
-  --link: #2a6496;
+  --nav-link: #d9e0ea;
+  --nav-link-hover: #d9e0ea;
+  --link: #df7f6d;
+  --link-hover: #ecab9f;
+  --focus-ring: #c9533b;
   --tag-bg: #23354d;
   --code-bg: #101826;
 }
@@ -72,12 +76,12 @@ a:hover {
 }
 
 #navbar:not(.navbar--hero) .nav-left a {
-  color: rgb(0, 133, 161);
+  color: var(--nav-link);
 }
 
 #navbar:not(.navbar--hero) .nav-left a:hover,
 #navbar:not(.navbar--hero) .nav-left a:focus-visible {
-  color: rgb(0, 133, 161);
+  color: var(--nav-link-hover);
 }
 
 .nav-left,
@@ -261,7 +265,7 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
 
 .post-card a:hover,
 .post-card a:focus-visible {
-  color: rgb(0, 133, 161);
+  color: var(--link-hover);
   text-decoration: none;
 }
 
@@ -336,14 +340,14 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
 
 .post-card .teaser-tags a,
 .post-tags a {
-  color: rgb(0, 133, 161);
+  color: var(--link);
 }
 
 .post-card .teaser-tags a:hover,
 .post-card .teaser-tags a:focus-visible,
 .post-tags a:hover,
 .post-tags a:focus-visible {
-  color: rgb(0, 133, 161);
+  color: var(--link-hover);
   text-decoration: underline;
 }
 
@@ -359,7 +363,7 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
 }
 
 .post-content p a {
-  color: rgb(0, 133, 161);
+  color: var(--link);
 }
 
 .post-content ul li p,
@@ -392,7 +396,7 @@ pre[class*="language-"] > code {
 }
 
 .post-content img.lightbox-trigger:focus-visible {
-  outline: 2px solid #9ec8ff;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 4px;
 }
 
@@ -451,7 +455,7 @@ pre[class*="language-"] > code {
 }
 
 #image-lightbox-close:focus-visible {
-  outline: 2px solid #9ec8ff;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -493,7 +497,7 @@ pre[class*="language-"] > code {
 }
 
 .code-copy-button:focus-visible {
-  outline: 2px solid #2a6496;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -576,7 +580,7 @@ pre[class*="language-"] > code {
 }
 
 .archive-group-posts a {
-  color: rgb(0, 133, 161);
+  color: var(--link);
 }
 
 .archive-item-day,
