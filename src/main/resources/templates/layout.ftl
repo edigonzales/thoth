@@ -31,6 +31,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${pageTitle?html} | ${site.title?html}</title>
+  <#if homeHero>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  </#if>
   <link rel="stylesheet" href="/assets/zurich.css">
   <link id="theme-style" rel="stylesheet" href="/assets/styles-light.css" data-light="/assets/styles-light.css" data-dark="/assets/styles-dark.css">
   <link rel="stylesheet" href="/assets/prism/prism.css">
@@ -75,6 +80,10 @@
       <div class="home-hero__copy">
         <#if heroTitle?has_content>
         <h1 class="home-hero__title">${heroTitle?html}</h1>
+        <#else>
+        <a class="brand" href="/index.html" aria-label="${site.title?html}">
+          <span class="brand-main">${site.brandMain?html}</span><#if site.brandDomain?has_content><span class="brand-domain">${site.brandDomain?html}</span></#if>
+        </a>
         </#if>
       </div>
     </div>

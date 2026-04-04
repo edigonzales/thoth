@@ -50,7 +50,7 @@ public class SiteGeneratorIntegrationTest {
         assertFalse(index.contains("/assets/thumbnails/blog/2026/images/cover-thumb.png"));
         assertFalse(index.contains("class=\"post-card-body post-card-body--with-cover\""));
         assertIndexTeasers(output);
-        assertHomeHero(output);
+        assertHomeHero(output, "Thoth Blog", "");
 
         assertCommonCss(output);
         assertGroupedArchive(output);
@@ -85,12 +85,27 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(index.contains(" | "));
         assertTrue(index.contains("5 words"));
         assertIndexTeasers(output);
-        assertHomeHero(output);
+        assertHomeHero(output, "Thoth Blog", "");
 
         assertCommonCss(output);
         assertGroupedArchive(output);
         assertCommonFeed(output);
         assertCommonSearchIndex(output);
+        assertPostFooter(output);
+    }
+
+    @Test
+    public void buildsHomeHeroBrandFromDotSeparatedSiteTitle() throws Exception {
+        Path input = Files.createTempDirectory("thoth-input");
+        Path output = Files.createTempDirectory("thoth-output");
+        writeSampleSite(input, false, "interlis.guru");
+
+        try (SiteGenerator generator = new SiteGenerator(input, output)) {
+            generator.buildAll(true);
+        }
+
+        assertCommonSiteArtifacts(output);
+        assertHomeHero(output, "interlis", ".guru");
         assertPostFooter(output);
     }
 
@@ -203,9 +218,14 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(lightCss.contains(".home-hero {"));
         assertTrue(lightCss.contains("width: 100%;"));
         assertTrue(lightCss.contains("background-position: center center;"));
-        assertTrue(lightCss.contains(".home-hero__overlay {"));
-        assertTrue(lightCss.contains(".home-hero__copy {"));
-        assertTrue(lightCss.contains("min-height: clamp(7rem, 14vw, 10rem);"));
+        assertTrue(lightCss.contains(".home-hero__overlay {\n  display: flex;\n  flex-direction: column;\n  justify-content: flex-start;"));
+        assertTrue(lightCss.contains(".home-hero__copy {\n  display: flex;\n  flex: 1 1 auto;\n  align-items: center;\n  justify-content: center;\n  min-height: 0;\n  padding: 1rem;\n}"));
+        assertTrue(lightCss.contains(".brand {"));
+        assertTrue(lightCss.contains("font-family: \"Outfit\", sans-serif;"));
+        assertTrue(lightCss.contains("font-size: clamp(2.5rem, 5.25vw, 5.6rem);"));
+        assertTrue(lightCss.contains(".brand-main {"));
+        assertTrue(lightCss.contains(".brand-domain {"));
+        assertTrue(lightCss.contains(".brand:hover,\n.brand:focus-visible {"));
         assertTrue(lightCss.contains("#navbar.navbar--hero .nav-left a {"));
         assertTrue(lightCss.contains("text-decoration: underline;"));
         assertTrue(lightCss.contains("#navbar.navbar--hero #search-input::placeholder {"));
@@ -288,9 +308,14 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(darkCss.contains(".home-hero {"));
         assertTrue(darkCss.contains("width: 100%;"));
         assertTrue(darkCss.contains("background-position: center center;"));
-        assertTrue(darkCss.contains(".home-hero__overlay {"));
-        assertTrue(darkCss.contains(".home-hero__copy {"));
-        assertTrue(darkCss.contains("min-height: clamp(7rem, 14vw, 10rem);"));
+        assertTrue(darkCss.contains(".home-hero__overlay {\n  display: flex;\n  flex-direction: column;\n  justify-content: flex-start;"));
+        assertTrue(darkCss.contains(".home-hero__copy {\n  display: flex;\n  flex: 1 1 auto;\n  align-items: center;\n  justify-content: center;\n  min-height: 0;\n  padding: 1rem;\n}"));
+        assertTrue(darkCss.contains(".brand {"));
+        assertTrue(darkCss.contains("font-family: \"Outfit\", sans-serif;"));
+        assertTrue(darkCss.contains("font-size: clamp(2.5rem, 5.25vw, 5.6rem);"));
+        assertTrue(darkCss.contains(".brand-main {"));
+        assertTrue(darkCss.contains(".brand-domain {"));
+        assertTrue(darkCss.contains(".brand:hover,\n.brand:focus-visible {"));
         assertTrue(darkCss.contains("#navbar.navbar--hero .nav-left a {"));
         assertTrue(darkCss.contains("text-decoration: underline;"));
         assertTrue(darkCss.contains("#navbar.navbar--hero #search-input::placeholder {"));
@@ -381,9 +406,12 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(fourthPostCard.select(".teaser-tags").isEmpty());
     }
 
-    private void assertHomeHero(Path output) throws Exception {
+    private void assertHomeHero(Path output, String expectedBrandMain, String expectedBrandDomain) throws Exception {
         String indexHtml = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
         Document indexDoc = Jsoup.parse(indexHtml);
+
+        assertTrue(indexHtml.contains("fonts.googleapis.com"));
+        assertTrue(indexHtml.contains("fonts.gstatic.com"));
 
         Element hero = indexDoc.selectFirst(".home-hero");
         assertNotNull(hero);
@@ -406,7 +434,18 @@ public class SiteGeneratorIntegrationTest {
 
         Element heroCopy = indexDoc.selectFirst(".home-hero__copy");
         assertNotNull(heroCopy);
-        assertTrue(heroCopy.text().isBlank());
+        Element brand = heroCopy.selectFirst("a.brand");
+        assertNotNull(brand);
+        assertEquals("/index.html", brand.attr("href"));
+        assertEquals(expectedBrandMain + expectedBrandDomain, brand.text());
+        assertEquals(expectedBrandMain, brand.selectFirst(".brand-main").text());
+        if (expectedBrandDomain.isBlank()) {
+            assertTrue(brand.select(".brand-domain").isEmpty());
+        } else {
+            Element brandDomain = brand.selectFirst(".brand-domain");
+            assertNotNull(brandDomain);
+            assertEquals(expectedBrandDomain, brandDomain.text());
+        }
         assertTrue(indexDoc.select(".home-hero__title").isEmpty());
     }
 
@@ -425,6 +464,8 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(postHtml.contains("id=\"navbar\""));
         assertTrue(postHtml.contains("id=\"search-input\""));
         assertTrue(postHtml.contains("id=\"theme-toggle\""));
+        assertFalse(postHtml.contains("fonts.googleapis.com"));
+        assertFalse(postHtml.contains("fonts.gstatic.com"));
         assertFalse(postHtml.contains("navbar--hero"));
         assertFalse(postHtml.contains("class=\"home-hero\""));
         assertTrue(postHtml.contains("/assets/prism/prism.css"));
@@ -470,16 +511,20 @@ public class SiteGeneratorIntegrationTest {
     }
 
     private void writeSampleSite(Path input, boolean enableIndexThumbnails) throws Exception {
+        writeSampleSite(input, enableIndexThumbnails, "Thoth Blog");
+    }
+
+    private void writeSampleSite(Path input, boolean enableIndexThumbnails, String siteTitle) throws Exception {
         String thumbnailConfig = enableIndexThumbnails ? "site.indexThumbnails.enabled=true\n" : "";
 
         write(input.resolve("thoth.properties"), """
-            site.title=Thoth Blog
+            site.title=%s
             site.description=Demo feed
             site.baseUrl=https://example.com
             site.language=en-gb
             site.dateFormat=yyyy-MM-dd
             dev.port=9090
-            """ + thumbnailConfig);
+            """.formatted(siteTitle) + thumbnailConfig);
 
         write(input.resolve("blog/2026/post-one.adoc"), """
             ---

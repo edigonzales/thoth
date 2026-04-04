@@ -628,16 +628,30 @@ public final class SiteGenerator implements AutoCloseable {
     private Map<String, Object> baseModel(String pageTitle, String searchQuery) {
         Map<String, Object> model = new HashMap<>();
         Map<String, Object> site = new HashMap<>();
+        String[] brandParts = splitBrandTitle(config.title());
 
         site.put("title", config.title());
         site.put("description", config.description());
         site.put("baseUrl", config.baseUrl());
         site.put("language", config.language());
+        site.put("brandMain", brandParts[0]);
+        site.put("brandDomain", brandParts[1]);
 
         model.put("site", site);
         model.put("pageTitle", pageTitle);
         model.put("searchQuery", searchQuery == null ? "" : searchQuery);
         return model;
+    }
+
+    private String[] splitBrandTitle(String title) {
+        int firstDot = title.indexOf('.');
+        if (firstDot <= 0 || firstDot >= title.length() - 1) {
+            return new String[] {title, ""};
+        }
+        return new String[] {
+            title.substring(0, firstDot),
+            title.substring(firstDot)
+        };
     }
 
     private String formatDate(LocalDate date) {

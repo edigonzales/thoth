@@ -225,17 +225,18 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
 .home-hero__overlay {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   min-height: clamp(18rem, 36vw, 28rem);
   padding: 1.15rem 1.2rem 1.35rem;
 }
 
 .home-hero__copy {
   display: flex;
-  align-items: flex-end;
+  flex: 1 1 auto;
+  align-items: center;
   justify-content: center;
-  min-height: clamp(7rem, 14vw, 10rem);
-  padding: 0 1rem 0.3rem;
+  min-height: 0;
+  padding: 1rem;
 }
 
 .home-hero__title {
@@ -245,6 +246,36 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
   line-height: 0.95;
   text-align: center;
   text-shadow: 0 0.25rem 1.5rem rgba(0, 0, 0, 0.48);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  color: #f7fbff;
+  text-decoration: none;
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(2.5rem, 5.25vw, 5.6rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  text-shadow: 0 0.25rem 1.5rem rgba(0, 0, 0, 0.48);
+}
+
+.brand:hover,
+.brand:focus-visible {
+  color: #f7fbff;
+  text-decoration: none;
+}
+
+.brand-main {
+  font-weight: 800;
+}
+
+.brand-domain {
+  margin-left: 0.04em;
+  font-weight: 500;
+  opacity: 0.82;
 }
 
 #navbar.navbar--hero {
@@ -768,8 +799,7 @@ td {
   }
 
   .home-hero__copy {
-    min-height: clamp(6rem, 30vw, 9rem);
-    padding: 0 0.35rem 0.15rem;
+    padding: 0.35rem;
   }
 
   #navbar.navbar--hero {
