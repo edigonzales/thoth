@@ -224,16 +224,21 @@ public class SiteGeneratorIntegrationTest {
         assertFalse(lightCss.contains(".post-meta-item {\n  align-items: baseline;"));
 
         String darkCss = Files.readString(output.resolve("assets/styles-dark.css"), StandardCharsets.UTF_8);
+        assertTrue(darkCss.contains("background: var(--bg);\n  text-rendering: optimizeLegibility;"));
+        assertTrue(darkCss.contains(".post-card,\n.post,\n.archive-list {\n  background: var(--bg);\n  padding: 1rem 1.1rem;\n  box-shadow: none;\n}"));
+        assertFalse(darkCss.contains(".post-card,\n.post,\n.archive-list {\n  background: linear-gradient(180deg, rgba(24, 32, 45, 0.98) 0%, rgba(22, 30, 42, 0.98) 100%);"));
+        assertTrue(darkCss.contains("#navbar {\n  position: sticky;\n  top: 0;\n  z-index: 100;\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 1rem;\n  padding: 0.9rem 1.2rem;\n  border-bottom: 1px solid rgba(49, 65, 86, 0.82);\n  background: rgba(16, 23, 34, 0.93);\n"));
+        assertTrue(darkCss.contains("#search-results li {\n  margin: 0.65rem 0;\n  padding: 0.7rem;\n  background: linear-gradient(180deg, rgba(24, 32, 45, 0.98) 0%, rgba(22, 30, 42, 0.98) 100%);\n  border: 1px solid rgba(49, 65, 86, 0.76);\n  border-radius: 0.6rem;\n}"));
         assertTrue(darkCss.contains(".post-grid {\n  display: grid;\n  grid-template-columns: 1fr;"));
         assertTrue(darkCss.contains("overflow-wrap: anywhere;"));
         assertTrue(darkCss.contains(".archive-group-posts {"));
         assertTrue(darkCss.contains(".post-footer-separator {"));
         assertTrue(darkCss.contains(".post-content :not(pre) > code {"));
         assertTrue(darkCss.contains("font-size: 0.95em;"));
-        assertTrue(darkCss.contains("background-color: #dcdcdc;"));
+        assertTrue(darkCss.contains("background-color: var(--code-inline-bg);"));
         assertTrue(darkCss.contains(".code-copy-button {"));
         assertTrue(darkCss.contains(".teaser {"));
-        assertTrue(darkCss.contains("line-height: 1.6;"));
+        assertTrue(darkCss.contains("line-height: 1.68;"));
         assertTrue(darkCss.contains(".archive-list > h1 {"));
         assertTrue(darkCss.contains("font-size: 2em;"));
         assertTrue(darkCss.contains(".archive-group-heading {"));
@@ -260,8 +265,8 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(darkCss.contains("#image-lightbox-close {"));
         assertTrue(darkCss.contains(".post-content p a {"));
         assertTrue(darkCss.contains(".post-content ul li p,\n.post-content ol li p {\n  margin: 9px 0;\n}"));
-        assertTrue(darkCss.contains("--nav-link: #d9e0ea;"));
-        assertTrue(darkCss.contains("--nav-link-hover: #d9e0ea;"));
+        assertTrue(darkCss.contains("--nav-link: #e5ebf3;"));
+        assertTrue(darkCss.contains("--nav-link-hover: #ffffff;"));
         assertTrue(darkCss.contains("--link: #df7f6d;"));
         assertTrue(darkCss.contains("--link-hover: #ecab9f;"));
         assertTrue(darkCss.contains("--focus-ring: #c9533b;"));
