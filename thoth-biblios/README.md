@@ -489,14 +489,14 @@ Each branch (`main`, `stable`, `v1.x`) is checked out independently and rendered
 ## Known MVP Limitations
 
 1. **No Redirects**: Navigating to `/<component>/` does NOT redirect to `/<component>/<default-version>/`. Component landing pages show an overview instead.
-2. **No Page-Level Version Switching**: The version switcher always goes to the start page of the target version, not the equivalent page. This is because stable page identity across versions is not yet implemented.
+2. **Page-Level Version Switching**: The version switcher links to the equivalent page in the target version when the same source file path exists. If the page does not exist in the target version, it falls back to the version start page. Component landing pages always link to the version start page.
 3. **No Branch Patterns**: Patterns like `release/*` are listed in the spec but not yet implemented in the MVP. Use exact branch names.
 4. **No Tag-Based Versions**: Only branch-based versions are supported.
 5. **Global Search Only**: Search covers all documentation and versions without faceting or filtering.
 6. **Single Theme Only**: Only the default theme is available. No theming API yet.
 7. **No PDF Output**: HTML only.
 8. **No Multi-Language**: Each component has a single language.
-9. **Edit/Source Links**: Configurable in `biblios.yml` (`ui.show_edit_link`) but the actual link generation requires the Git source to expose the repository URL and file path. Basic support is planned for Phase 5.
+9. **Edit/Source Links**: Configurable via `ui.show_edit_link`, `ui.show_source_link`, `ui.edit_url_pattern`, and `ui.source_url_pattern` in `biblios.yml`. Patterns support `{repo_url}`, `{branch}`, and `{path}` placeholders. Example: `edit_url_pattern: "https://github.com/org/repo/edit/{branch}/{path}"`.
 
 ## thoth-blog vs. thoth-biblios: Which Should I Use?
 

@@ -17,6 +17,10 @@ public final class BibliosConfigBuilder {
     private String siteLanguage = "en";
     private Path outputDir;
     private boolean clean = true;
+    private boolean showEditLink = false;
+    private boolean showSourceLink = false;
+    private String editUrlPattern = null;
+    private String sourceUrlPattern = null;
     private final java.util.ArrayList<SourceEntry> sources = new java.util.ArrayList<>();
 
     public BibliosConfigBuilder withSiteTitle(String title) {
@@ -41,6 +45,18 @@ public final class BibliosConfigBuilder {
 
     public BibliosConfigBuilder withSource(SourceEntry source) {
         this.sources.add(source);
+        return this;
+    }
+
+    public BibliosConfigBuilder withEditLink(boolean show, String pattern) {
+        this.showEditLink = show;
+        this.editUrlPattern = show ? pattern : null;
+        return this;
+    }
+
+    public BibliosConfigBuilder withSourceLink(boolean show, String pattern) {
+        this.showSourceLink = show;
+        this.sourceUrlPattern = show ? pattern : null;
         return this;
     }
 
@@ -84,6 +100,19 @@ public final class BibliosConfigBuilder {
             }
         }
 
+        StringBuilder uiSection = new StringBuilder();
+        if (showEditLink || showSourceLink) {
+            uiSection.append("ui:\n");
+            uiSection.append("  show_edit_link: %s\n".formatted(showEditLink));
+            uiSection.append("  show_source_link: %s\n".formatted(showSourceLink));
+            if (editUrlPattern != null) {
+                uiSection.append("  edit_url_pattern: \"%s\"\n".formatted(editUrlPattern));
+            }
+            if (sourceUrlPattern != null) {
+                uiSection.append("  source_url_pattern: \"%s\"\n".formatted(sourceUrlPattern));
+            }
+        }
+
         String yaml = """
             site:
               title: %s
@@ -92,10 +121,10 @@ public final class BibliosConfigBuilder {
             output:
               dir: %s
               clean: %s
-            content:
+            %scontent:
               sources:
             %s""".formatted(siteTitle, siteUrl, siteLanguage, outputDir.toString(), clean,
-                sourcesYaml.toString().stripTrailing());
+                uiSection.toString(), sourcesYaml.toString().stripTrailing());
 
         Files.writeString(configFile, yaml);
 

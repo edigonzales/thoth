@@ -5,7 +5,7 @@ Thoth is a family of JVM-based static site generators for AsciiDoc content.
 ## Product Family
 
 - **`thoth-blog`** – Static site generator for AsciiDoc blogs (the original product)
-- **`thoth-biblios`** – Multi-repo documentation site generator with versioning (new, in development)
+- **`thoth-biblios`** – Multi-repo documentation site generator with versioning (MVP complete)
 - **`thoth-core`** – Shared technical infrastructure (AsciidoctorJ, FreeMarker, DevServer, FileWatcher)
 
 ## thoth-blog
@@ -16,12 +16,30 @@ Thoth Blog builds pretty URLs, tag pages, RSS, local assets, Lunr search, and a 
 
 ### Build
 ```bash
-./gradlew test
-./gradlew build
+./gradlew :thoth-blog:test
+./gradlew :thoth-blog:build
 ```
 
 The executable fat JAR is generated as:
 - `thoth-blog/build/libs/thoth-blog-<version>-all.jar`
+
+### Tests
+```bash
+# Unit tests
+./gradlew :thoth-blog:test
+
+# Integration tests (full build pipeline)
+./gradlew :thoth-blog:integrationTest
+
+# E2E tests (build + serve + HTTP)
+./gradlew :thoth-blog:e2eTest
+
+# All tests
+./gradlew :thoth-blog:test :thoth-blog:integrationTest :thoth-blog:e2eTest
+
+# Coverage report
+./gradlew :thoth-blog:jacocoTestReport
+```
 
 Run it with:
 ```bash
@@ -232,17 +250,74 @@ Main templates:
 - `feed.ftl`
 
 ## Tests
-Implemented tests cover:
-1. header parsing (title, author, date, tags, overrides)
-2. tag slugging
-3. pretty output paths (`post/index.html`)
-4. generation of homepage/archive/tag/feed/search index
-5. asset copy for non-`.adoc` files
 
-Run:
+### Test Categories
+
+Thoth Blog uses a three-tier test strategy:
+
+1. **Unit Tests** (`test`) – Isolated tests for parsers, config, slugging, templates
+2. **Integration Tests** (`integrationTest`) – Full build pipeline tests with realistic input
+3. **End-to-End Tests** (`e2eTest`) – Realistic user flows including HTTP server verification
+
+### Running Tests
+
 ```bash
-./gradlew test
+# Unit tests only
+./gradlew :thoth-blog:test
+
+# Integration tests (full build pipeline)
+./gradlew :thoth-blog:integrationTest
+
+# E2E tests (build + serve + HTTP verification)
+./gradlew :thoth-blog:e2eTest
+
+# All tests
+./gradlew :thoth-blog:test :thoth-blog:integrationTest :thoth-blog:e2eTest
 ```
+
+### What Each Test Category Covers
+
+**Unit Tests** cover:
+- Front Matter parsing (title, author, date, tags, overrides)
+- Tag slugging (basic, umlauts, special characters, edge cases)
+- Pretty output paths and GUID generation
+- `thoth.properties` configuration parsing
+- Template rendering (post, index, archive, tag, search, feed)
+- Error handling and edge cases in parsing
+
+**Integration Tests** cover the complete build pipeline:
+- Multi-post blog builds with tags, code blocks, and assets
+- Generation of `index.html`, `archive.html`, `search.html`, `feed.xml`
+- Tag page generation with correct post filtering
+- Search index JSON structure and content
+- Asset copying (images, JS, CSS)
+- Pretty URL generation
+- Index thumbnail generation (optional)
+
+**E2E Tests** cover realistic user flows:
+- Full blog build from realistic input
+- DevServer (`serve`) start and HTTP content delivery
+- Pretty URL page serving via HTTP
+- 404 handling for non-existent pages
+- Search page and search index delivery
+- Code block and asset verification
+- Site title branding
+
+### Test Coverage
+
+JaCoCo coverage reporting is configured for `thoth-blog`:
+
+```bash
+# Generate coverage report (runs all test types first)
+./gradlew :thoth-blog:jacocoTestReport
+
+# HTML report location
+open thoth-blog/build/reports/jacoco/test/html/index.html
+```
+
+### Test Count
+
+- **thoth-blog:** 77 tests (unit + integration + E2E)
 
 ## Notes on Dependencies
 Build dependencies are resolved from Maven Central via Gradle.
@@ -262,7 +337,7 @@ This is a Gradle multi-project with three modules:
 thoth/
 ├── thoth-core/          Shared technical infrastructure (AsciidoctorJ, FreeMarker, DevServer, FileWatcher)
 ├── thoth-blog/          Blog-specific product (posts, tags, RSS, archive, search)
-└── thoth-biblios/       Multi-repo documentation generator (in development)
+└── thoth-biblios/       Multi-repo documentation generator (MVP complete)
 ```
 
 ### Module Responsibilities
@@ -280,7 +355,7 @@ thoth/
 - Blog-specific templates and assets
 - Blog-specific CLI (`build` / `serve`)
 
-**thoth-biblios** (in development) will contain:
+**thoth-biblios** contains:
 - YAML configuration loading (`biblios.yml`)
 - Git repository fetching and branch resolution
 - Multi-version documentation catalog
@@ -382,16 +457,26 @@ items:
 ./gradlew test
 ```
 
-### Module-specific Tests
+### Integration Tests (full build pipeline with local Git repos)
 ```bash
-./gradlew :thoth-blog:test        # Blog tests
-./gradlew :thoth-biblios:test     # Biblios tests (unit + integration)
-./gradlew :thoth-core:test        # Core tests (none yet)
+./gradlew integrationTest
+./gradlew :thoth-biblios:integrationTest    # Biblios only
+```
+
+### End-to-End Tests (realistic user flows: build, HTML output, search, serve)
+```bash
+./gradlew e2eTest
+./gradlew :thoth-biblios:e2eTest            # Biblios only
+```
+
+### All Tests
+```bash
+./gradlew test integrationTest e2eTest
 ```
 
 ### Test Coverage
-- **thoth-blog:** 14 tests (PostParser, TagSlugger, SiteGenerator integration)
-- **thoth-biblios:** 30 tests (Config parsing, Navigation, Routing, Breadcrumbs, Integration)
+- **thoth-blog:** 77 tests (unit + integration + E2E), JaCoCo coverage reporting
+- **thoth-biblios:** 40 unit tests, 3 integration tests, 11 E2E tests
 - **thoth-core:** Technical infrastructure only (DevServer, InputWatcher)
 
 ## Architecture Decisions
@@ -402,6 +487,19 @@ items:
 - **display_version** for human-readable version labels in UI
 - **Global search** across all documentation in MVP
 - **No redirects** from `/<component>/` to default version in MVP
+- **Edit/Source links**: configurable via `edit_url_pattern` / `source_url_pattern` in `biblios.yml`
+- **Version switcher**: links to equivalent page in target version if it exists (by source path), otherwise falls back to version start page
+
+## Known MVP Limitations
+
+1. **No Redirects**: Navigating to `/<component>/` does NOT redirect to `/<component>/<default-version>/`. Component landing pages show an overview instead.
+2. **No Page-Level Version Switching for Landing Pages**: The version switcher links to the equivalent page on content pages (by source path), but component landing pages always link to the version start page.
+3. **No Branch Patterns**: Patterns like `release/*` are listed in the spec but not yet implemented in the MVP. Use exact branch names.
+4. **No Tag-Based Versions**: Only branch-based versions are supported.
+5. **Global Search Only**: Search covers all documentation and versions without faceting or filtering.
+6. **Single Theme Only**: Only the default theme is available.
+7. **No PDF Output**: HTML only.
+8. **No Multi-Language**: Each component has a single language.
 
 For detailed specifications, see `thoth-biblios-spec-v2.md`.
 For architecture details, see `ARCHITECTURE.md`.

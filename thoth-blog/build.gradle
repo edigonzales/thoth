@@ -1,9 +1,23 @@
 plugins {
     id 'java'
     id 'application'
+    id 'jacoco'
 }
 
 description = 'Thoth Blog - Static site generator for AsciiDoc blogs'
+
+jacoco {
+    toolVersion = '0.8.13'
+}
+
+jacocoTestReport {
+    dependsOn test, integrationTest, e2eTest
+    executionData fileTree(project.buildDir).include('jacoco/*.exec')
+    reports {
+        html.required = true
+        xml.required = false
+    }
+}
 
 application {
     mainClass = 'guru.interlis.thoth.blog.ThothBlogCli'

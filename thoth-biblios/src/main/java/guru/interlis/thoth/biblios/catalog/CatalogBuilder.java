@@ -73,11 +73,23 @@ public final class CatalogBuilder implements AutoCloseable {
             throw new IOException("No valid versions found for source: " + source.id());
         }
 
-        String defaultVersion = source.defaultVersion() != null
+        String configuredDefaultVersion = source.defaultVersion() != null
             ? source.defaultVersion()
             : versions.get(0).version();
+        final String effectiveDefaultVersion;
 
-        return new DocComponent(source.id(), source.displayName(), defaultVersion, versions);
+        // Validate that defaultVersion references an existing version
+        boolean defaultVersionExists = versions.stream().anyMatch(v -> v.version().equals(configuredDefaultVersion));
+        if (!defaultVersionExists) {
+            System.err.println("[warn] Default version '" + configuredDefaultVersion + "' not found for source: " + source.id());
+            System.err.println("[warn] Available versions: " + versions.stream().map(ComponentVersion::version).collect(java.util.stream.Collectors.joining(", ")));
+            System.err.println("[warn] Falling back to first available version: " + versions.get(0).version());
+            effectiveDefaultVersion = versions.get(0).version();
+        } else {
+            effectiveDefaultVersion = configuredDefaultVersion;
+        }
+
+        return new DocComponent(source.id(), source.displayName(), effectiveDefaultVersion, versions);
     }
 
     private ComponentVersion buildVersion(SourceConfig source, BranchConfig branch, Path workTree, UiSection ui) throws IOException {
@@ -118,6 +130,17 @@ public final class CatalogBuilder implements AutoCloseable {
         if (pages.isEmpty()) {
             System.err.println("[warn] No pages found for " + source.id() + "/" + branch.name());
             System.err.println("[warn] Check that .adoc files exist in: " + docRoot);
+        }
+
+        // Validate startPage exists
+        String startPage = source.startPage() != null ? source.startPage() : "index.adoc";
+        boolean startPageExists = pages.stream().anyMatch(p -> p.sourcePath().equals(startPage));
+        if (!startPageExists) {
+            System.err.println("[warn] Start page '" + startPage + "' not found for " + source.id() + "/" + branch.name());
+            System.err.println("[warn] Available pages: " + pages.stream().map(DocPage::sourcePath).limit(10).collect(java.util.stream.Collectors.joining(", ")));
+            if (!pages.isEmpty()) {
+                System.err.println("[warn] Falling back to first available page: " + pages.get(0).sourcePath());
+            }
         }
 
         return new ComponentVersion(

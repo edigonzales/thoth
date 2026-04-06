@@ -289,9 +289,13 @@ Zentrale Exception-Klasse mit:
    - Multi-Branch-Verarbeitung
    - Site-Generierung
 
-3. **E2E-Tests** (geplant)
-   - Browser-basierte Tests
-   - Vollständige Benutzerflüsse
+3. **E2E-Tests** (implementiert)
+   - Vollständige Benutzerflüsse mit lokalen Git-Repos
+   - Multi-Source, Multi-Version Builds
+   - HTML-Output-Verifikation
+   - Globaler Suchindex
+   - Doku-Switcher und Versions-Switcher
+   - DevServer (serve) HTTP-Auslieferung
 
 ### Ausführung
 
@@ -299,12 +303,20 @@ Zentrale Exception-Klasse mit:
 # Alle Unit-Tests
 ./gradlew test
 
+# Integrationstests
+./gradlew integrationTest
+
+# E2E-Tests
+./gradlew e2eTest
+
+# Alle Tests
+./gradlew test integrationTest e2eTest
+
 # Spezifisches Modul
 ./gradlew :thoth-blog:test
 ./gradlew :thoth-biblios:test
-
-# Integrationstests (in thoth-biblios enthalten)
-./gradlew :thoth-biblios:test --tests "*IntegrationTest"
+./gradlew :thoth-biblios:integrationTest
+./gradlew :thoth-biblios:e2eTest
 ```
 
 ## Entwicklungsrichtlinien
@@ -362,12 +374,27 @@ Zentrale Exception-Klasse mit:
 
 - [ ] Inkrementelle Rebuilds für Biblios
 - [ ] Tag-basierte Versionen
-- [ ] Cross-Version-Page-Mapping
+- [ ] Cross-Version-Page-Mapping (beyond exact source-path match)
 - [ ] PDF-Pipeline
 - [ ] Mehrsprachige Dokumentationen
-- [ ] Edit-Links auf Seiten
-- [ ] Browser-basierte E2E-Tests
+- [ ] Branch-Pattern-Unterstützung (z. B. `release/*`)
 - [ ] CI/CD-Pipeline
+
+### Implementiert (Phase 1–3)
+
+- [x] Gradle-Multi-Project mit thoth-core, thoth-blog, thoth-biblios
+- [x] biblios.yml Parsing und Validierung
+- [x] Git-Fetching mit lokalem Cache
+- [x] Branch-Versionierung mit display_version
+- [x] nav.yml Navigation
+- [x] Site-Katalog, Routing, HTML-Rendering
+- [x] Globale Startseite, Komponenten-Landingpages
+- [x] Doku-Switcher und Versions-Switcher
+- [x] Globaler Suchindex
+- [x] Build- und Serve-CLI
+- [x] Unit-Tests, Integrationstests, E2E-Tests
+- [x] Edit-Links / Source-Links (konfigurierbar über URL-Pattern)
+- [x] Versions-Switcher mit Page-Mapping (exakter Source-Pfad-Vergleich)
 
 ### Nicht-Ziele (aktuell)
 

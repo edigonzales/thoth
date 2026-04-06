@@ -69,7 +69,10 @@ public final class AsciidoctorRenderer implements AutoCloseable {
 
             return asciidoctor.convert(content, options.build());
         } catch (Exception e) {
-            throw new RuntimeException("Failed to render AsciiDoc content", e);
+            String snippet = content != null && content.length() > 80
+                ? content.substring(0, 80) + "..."
+                : String.valueOf(content);
+            throw new RuntimeException("Failed to render AsciiDoc content: " + snippet, e);
         }
     }
 
@@ -91,6 +94,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             );
             return doc.getDoctitle();
         } catch (Exception e) {
+            System.err.println("[warn] Failed to extract title from: " + sourcePath + " (" + e.getMessage() + ")");
             return null;
         }
     }

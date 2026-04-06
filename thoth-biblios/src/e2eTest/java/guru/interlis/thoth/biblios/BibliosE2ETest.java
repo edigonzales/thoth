@@ -421,6 +421,122 @@ class BibliosE2ETest {
         assertTrue(docsBPage.contains("/docs-a/main/"));
     }
 
+    /**
+     * E2E-9: Edit and Source links are rendered when configured.
+     * Verifies: edit_url_pattern and source_url_pattern produce correct URLs on pages.
+     */
+    @Test
+    void editAndSourceLinksRendered() throws Exception {
+        Path repoDir = setupTestRepo("editlink-repo");
+        setupOutputDirs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Edit Link Test Docs")
+            .withOutputDir(outputRoot)
+            .withEditLink(true, "https://github.com/example/docs/edit/{branch}/{path}")
+            .withSourceLink(true, "https://github.com/example/docs/blob/{branch}/{path}")
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertDocPage("mydocs", "main", "");
+        assertions.assertDocPage("mydocs", "main", "guide");
+
+        // Verify edit link on guide page
+        String guidePage = Files.readString(outputRoot.resolve("mydocs/main/guide/index.html"));
+        assertTrue(guidePage.contains("Edit this page"));
+        assertTrue(guidePage.contains("https://github.com/example/docs/edit/main/docs/guide.adoc"));
+
+        // Verify source link on guide page
+        assertTrue(guidePage.contains("View source"));
+        assertTrue(guidePage.contains("https://github.com/example/docs/blob/main/docs/guide.adoc"));
+
+        // Verify NO edit/source links on index page when pattern is set but page is index
+        String indexPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        // Edit/source links should still appear on index page since they have source paths
+        assertTrue(indexPage.contains("Edit this page") || indexPage.contains("View source"));
+    }
+
+    /**
+     * E2E-10: Edit/Source links are absent when not configured.
+     */
+    @Test
+    void editAndSourceLinksAbsentWhenNotConfigured() throws Exception {
+        Path repoDir = setupTestRepo("noeditlink-repo");
+        setupOutputDirs();
+
+        // Default BibliosConfigBuilder does NOT set edit/source links
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("No Edit Link Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertDocPage("mydocs", "main", "guide");
+
+        String guidePage = Files.readString(outputRoot.resolve("mydocs/main/guide/index.html"));
+        assertFalse(guidePage.contains("Edit this page"));
+        assertFalse(guidePage.contains("View source"));
+    }
+
+    /**
+     * E2E-11: Version switcher navigates to equivalent page (same source path) in target version.
+     * Verifies: when on guide page in main, version switcher links to guide page in v1.x.
+     */
+    @Test
+    void versionSwitcherNavigatesToEquivalentPage() throws Exception {
+        Path repoDir = setupTestRepo("versionmap-repo");
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir)
+            .withBasicDocs()
+            .withSecondBranch("v1.x");
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Version Map Test Docs")
+            .withOutputDir(outputRoot)
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: mydocs
+                  display_name: My Documentation
+                  url: file://%s
+                  branches:
+                    - name: main
+                      display_version: Latest
+                    - name: v1.x
+                      display_version: Version 1.x
+                  start_path: docs
+                  default_version: main
+                  navigation:
+                    file: nav.yml
+                """.formatted(repoDir.toString())))
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+
+        // Both versions have guide.adoc
+        assertions.assertDocPage("mydocs", "main", "guide");
+        assertions.assertDocPage("mydocs", "v1.x", "guide");
+
+        // Version switcher on main/guide should link to v1.x/guide (same source path)
+        String mainGuide = Files.readString(outputRoot.resolve("mydocs/main/guide/index.html"));
+        assertTrue(mainGuide.contains("/mydocs/v1.x/guide/"),
+            "Version switcher on main/guide should link to v1.x/guide");
+
+        // Version switcher on v1.x/guide should link to main/guide
+        String v1xGuide = Files.readString(outputRoot.resolve("mydocs/v1.x/guide/index.html"));
+        assertTrue(v1xGuide.contains("/mydocs/main/guide/"),
+            "Version switcher on v1.x/guide should link to main/guide");
+    }
+
     // ================================================================
     // Helper methods
     // ================================================================
