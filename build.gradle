@@ -90,3 +90,119 @@ subprojects {
         shouldRunAfter integrationTest
     }
 }
+
+// ========================================
+// Shared conventions for CLI application modules
+// Applied to thoth-blog and thoth-biblios
+// ========================================
+def configureCliModule = { Project proj ->
+    // JAR manifest with version from build
+    proj.jar {
+        manifest {
+            attributes(
+                'Implementation-Title': proj.description ?: proj.name,
+                'Implementation-Version': proj.version,
+                'Main-Class': proj.application.mainClass.get()
+            )
+        }
+    }
+
+    // fatJar convention – same pattern for all CLI modules
+    proj.tasks.register('fatJar', Jar) {
+        group = 'build'
+        description = "Assembles an executable fat jar for ${proj.name}"
+        archiveBaseName = proj.name
+        archiveClassifier = 'all'
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+        manifest {
+            attributes(
+                'Implementation-Title': proj.description ?: proj.name,
+                'Implementation-Version': proj.version,
+                'Main-Class': proj.application.mainClass.get()
+            )
+        }
+
+        from proj.sourceSets.main.output
+        dependsOn proj.configurations.runtimeClasspath
+        from {
+            proj.configurations.runtimeClasspath.findAll { it.name.endsWith('.jar') }.collect { zipTree(it) }
+        }
+    }
+
+    proj.tasks.named('build') {
+        dependsOn proj.tasks.named('fatJar')
+    }
+}
+
+// ---- thoth-blog ----
+project(':thoth-blog') {
+    apply plugin: 'application'
+    apply plugin: 'jacoco'
+
+    application {
+        mainClass = 'guru.interlis.thoth.blog.ThothBlogCli'
+    }
+
+    dependencies {
+        implementation project(':thoth-core')
+        implementation 'info.picocli:picocli:4.7.7'
+
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.14.2'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    // JaCoCo coverage – runs after all test types
+    jacoco {
+        toolVersion = '0.8.13'
+    }
+
+    jacocoTestReport {
+        dependsOn test, integrationTest, e2eTest
+        executionData fileTree(project.buildDir).include('jacoco/*.exec')
+        reports {
+            html.required = true
+            xml.required = false
+        }
+    }
+
+    // Apply shared CLI conventions
+    configureCliModule(delegate)
+}
+
+// ---- thoth-biblios ----
+project(':thoth-biblios') {
+    apply plugin: 'application'
+    apply plugin: 'jacoco'
+
+    application {
+        mainClass = 'guru.interlis.thoth.biblios.ThothBibliosCli'
+    }
+
+    dependencies {
+        implementation project(':thoth-core')
+        implementation 'info.picocli:picocli:4.7.7'
+        implementation 'org.snakeyaml:snakeyaml-engine:2.9'
+        implementation 'org.eclipse.jgit:org.eclipse.jgit:7.1.0.202411261347-r'
+
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.14.2'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    // JaCoCo coverage – same convention as thoth-blog
+    jacoco {
+        toolVersion = '0.8.13'
+    }
+
+    jacocoTestReport {
+        dependsOn test, integrationTest, e2eTest
+        executionData fileTree(project.buildDir).include('jacoco/*.exec')
+        reports {
+            html.required = true
+            xml.required = false
+        }
+    }
+
+    // Apply shared CLI conventions
+    configureCliModule(delegate)
+}

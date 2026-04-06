@@ -20,6 +20,7 @@ thoth/
 **Enthält**:
 - `DevServer` – HTTP-Server für statische Dateien (serve-Modus)
 - `InputWatcher` – Filesystem-Watcher für inkrementelle Rebuilds
+- `ServeHandle` – Orchestrierungshilfe für Serve/Watcher-Lifecycle
 - `ThothBuildException` – Zentrale Exception-Klasse für strukturierte Fehlerbehandlung
 
 **Abhängigkeiten**:
@@ -283,9 +284,13 @@ Zentrale Exception-Klasse mit:
    - Breadcrumbs
    - Asciidoctor-Rendering
    - Branch-Pattern-Matching
+   - Front-Matter-Parsing
+   - Tag-Slug-Normalisierung
+   - Template-Rendering
 
 2. **Integrationstests**
-   - Vollständige Build-Pipeline mit lokalen Git-Repos
+   - Vollständige Build-Pipeline mit lokalen Git-Repos (Biblios)
+   - Vollständige Build-Pipeline mit realistischem Input (Blog)
    - Multi-Branch-Verarbeitung
    - Site-Generierung
 
@@ -296,6 +301,12 @@ Zentrale Exception-Klasse mit:
    - Globaler Suchindex
    - Doku-Switcher und Versions-Switcher
    - DevServer (serve) HTTP-Auslieferung
+
+### Testanzahl
+
+- **thoth-blog:** 77 Tests (unit + integration + E2E)
+- **thoth-biblios:** 54 Tests (unit + integration + E2E)
+- **thoth-core:** Keine eigenen Tests (reine technische Infrastruktur)
 
 ### Ausführung
 

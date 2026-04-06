@@ -23,7 +23,7 @@ Think of it as a lightweight, JVM-native alternative to Antora: you point it at 
 
 The executable JAR is generated as:
 ```
-thoth-biblios/build/libs/thoth-biblios-0.0.1-all.jar
+thoth-biblios/build/libs/thoth-biblios-<version>-all.jar
 ```
 
 ### Your First Build
@@ -57,7 +57,7 @@ content:
 2. Run the build:
 
 ```bash
-java -jar thoth-biblios/build/libs/thoth-biblios-0.0.1-all.jar build \
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
   --config biblios.yml
 ```
 
@@ -68,7 +68,7 @@ java -jar thoth-biblios/build/libs/thoth-biblios-0.0.1-all.jar build \
 For local preview with auto-rebuild on file changes:
 
 ```bash
-java -jar thoth-biblios/build/libs/thoth-biblios-0.0.1-all.jar serve \
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar serve \
   --config biblios.yml \
   --port 8080
 ```
@@ -347,7 +347,7 @@ The search index is consumed by client-side search implementations. The default 
 Builds the documentation site from `biblios.yml`.
 
 ```bash
-java -jar thoth-biblios-0.0.1-all.jar build \
+java -jar thoth-biblios-<version>-all.jar build \
   --config biblios.yml \
   --output build/site \
   --clean
@@ -364,7 +364,7 @@ java -jar thoth-biblios-0.0.1-all.jar build \
 Runs the development server with auto-rebuild.
 
 ```bash
-java -jar thoth-biblios-0.0.1-all.jar serve \
+java -jar thoth-biblios-<version>-all.jar serve \
   --config biblios.yml \
   --output build/site \
   --port 8080
@@ -608,5 +608,5 @@ Then run the build again.
 
 The JAR is available at:
 ```
-thoth-biblios/build/libs/thoth-biblios-0.0.1-all.jar
+thoth-biblios/build/libs/thoth-biblios-<version>-all.jar
 ```

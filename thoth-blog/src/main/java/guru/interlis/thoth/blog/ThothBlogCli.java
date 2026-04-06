@@ -1,26 +1,32 @@
 package guru.interlis.thoth.blog;
 
-import guru.interlis.thoth.core.DevServer;
-import guru.interlis.thoth.core.InputWatcher;
+import guru.interlis.thoth.core.ServeHandle;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 
 @Command(
-    name = "thoth",
+    name = "thoth-blog",
     mixinStandardHelpOptions = true,
-    version = "Thoth 1.0.0",
-    description = "Thoth - Plain text. Real websites.",
+    versionProvider = ThothBlogCli.VersionProvider.class,
+    description = "Thoth Blog - Static site generator for AsciiDoc blogs",
     subcommands = {
         ThothBlogCli.BuildCommand.class,
         ThothBlogCli.ServeCommand.class
     }
 )
 public final class ThothBlogCli implements Callable<Integer> {
+
+    static final class VersionProvider implements CommandLine.IVersionProvider {
+        @Override
+        public String[] getVersion() throws Exception {
+            String version = ThothBlogCli.class.getPackage().getImplementationVersion();
+            return new String[]{ "thoth-blog " + (version != null ? version : "dev") };
+        }
+    }
 
     public static void main(String[] args) {
         int exitCode = new CommandLine(new ThothBlogCli()).execute(args);
@@ -71,22 +77,12 @@ public final class ThothBlogCli implements Callable<Integer> {
                 generator.buildAll(false);
 
                 int resolvedPort = generator.resolveServePort(port);
-                DevServer server = new DevServer(output, resolvedPort);
-                InputWatcher watcher = new InputWatcher(input, generator::handleInputEvent);
-
-                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                    try {
-                        watcher.close();
-                    } catch (Exception ignored) {
-                    }
-                    server.stop();
-                }));
-
-                server.start();
-                watcher.start();
-
-                CountDownLatch latch = new CountDownLatch(1);
-                latch.await();
+                try (ServeHandle handle = new ServeHandle(output, resolvedPort)) {
+                    handle.startServer();
+                    handle.addWatcher(input, generator::handleInputEvent);
+                    Runtime.getRuntime().addShutdownHook(new Thread(handle::close));
+                    handle.awaitShutdown();
+                }
             }
             return 0;
         }

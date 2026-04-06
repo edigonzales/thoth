@@ -4,22 +4,21 @@ import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.BibliosConfigParser;
 import guru.interlis.thoth.biblios.catalog.CatalogBuilder;
 import guru.interlis.thoth.biblios.catalog.SiteCatalog;
-import guru.interlis.thoth.biblios.git.GitSourceResolver;
-import guru.interlis.thoth.core.DevServer;
 import guru.interlis.thoth.core.InputWatcher;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Command(
     name = "thoth-biblios",
     mixinStandardHelpOptions = true,
-    version = "Thoth Biblios 0.0.1",
+    versionProvider = ThothBibliosCli.VersionProvider.class,
     description = "Thoth Biblios - Multi-repo documentation site generator",
     subcommands = {
         ThothBibliosCli.BuildCommand.class,
@@ -27,6 +26,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
     }
 )
 public final class ThothBibliosCli implements Callable<Integer> {
+
+    static final class VersionProvider implements CommandLine.IVersionProvider {
+        @Override
+        public String[] getVersion() throws Exception {
+            String version = ThothBibliosCli.class.getPackage().getImplementationVersion();
+            return new String[]{ "thoth-biblios " + (version != null ? version : "dev") };
+        }
+    }
 
     public static void main(String[] args) {
         int exitCode = new CommandLine(new ThothBibliosCli()).execute(args);
@@ -112,19 +119,37 @@ public final class ThothBibliosCli implements Callable<Integer> {
             // Initial build
             doBuild(config, output, workRoot);
 
-            // Start dev server
+            // Start dev server and watchers
             Path outputDir = output != null ? output : resolveOutputDir(config);
-            DevServer server = new DevServer(outputDir, resolvedPort);
-            server.start();
+            try (InputWatcher configWatcher = watchConfig(config, workRoot, output)) {
+                InputWatcher repoWatcher = watchRepoCache(workRoot, config, output);
 
-            // Watch config file and cached repos for changes
+                // Server lifecycle managed via shutdown hook
+                final var server = new guru.interlis.thoth.core.DevServer(outputDir, resolvedPort);
+                server.start();
+
+                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                    server.stop();
+                    try { configWatcher.close(); } catch (Exception ignored) {}
+                    if (repoWatcher != null) { try { repoWatcher.close(); } catch (Exception ignored) {} }
+                }));
+
+                System.out.println("[info] Watching for changes. Press Ctrl+C to stop.");
+
+                // Block until interrupted
+                Thread.currentThread().join();
+            }
+            return 0;
+        }
+
+        private InputWatcher watchConfig(Path configPath, Path workRoot, Path outputOverride) throws Exception {
             AtomicBoolean rebuilding = new AtomicBoolean(false);
-            InputWatcher configWatcher = new InputWatcher(config.getParent(), (changedPath, eventType) -> {
-                if (changedPath.getFileName().toString().equals(config.getFileName().toString()) &&
+            InputWatcher watcher = new InputWatcher(configPath.getParent(), (changedPath, eventType) -> {
+                if (changedPath.getFileName().toString().equals(configPath.getFileName().toString()) &&
                     !rebuilding.getAndSet(true)) {
                     System.out.println("[info] Config changed (" + eventType + "), rebuilding...");
                     try {
-                        doBuild(config, output, workRoot);
+                        doBuild(configPath, outputOverride, workRoot);
                     } catch (Exception e) {
                         System.err.println("[error] Rebuild failed: " + e.getMessage());
                     } finally {
@@ -132,44 +157,29 @@ public final class ThothBibliosCli implements Callable<Integer> {
                     }
                 }
             });
-            configWatcher.start();
+            watcher.start();
+            return watcher;
+        }
 
-            // Watch cached repos if they exist
-            final java.util.ArrayList<InputWatcher> watchers = new java.util.ArrayList<>();
-            if (java.nio.file.Files.exists(workRoot)) {
-                InputWatcher repoWatcher = new InputWatcher(workRoot, (changedPath, eventType) -> {
-                    if (!rebuilding.getAndSet(true)) {
-                        System.out.println("[info] Repo cache changed (" + eventType + "), rebuilding...");
-                        try {
-                            doBuild(config, output, workRoot);
-                        } catch (Exception e) {
-                            System.err.println("[error] Rebuild failed: " + e.getMessage());
-                        } finally {
-                            rebuilding.set(false);
-                        }
-                    }
-                });
-                repoWatcher.start();
-                watchers.add(repoWatcher);
+        private InputWatcher watchRepoCache(Path workRoot, Path configPath, Path outputOverride) throws Exception {
+            if (!java.nio.file.Files.exists(workRoot)) {
+                return null;
             }
-
-            final var finalConfigWatcher = configWatcher;
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                server.stop();
-                try {
-                    finalConfigWatcher.close();
-                    for (InputWatcher w : watchers) {
-                        w.close();
+            AtomicBoolean rebuilding = new AtomicBoolean(false);
+            InputWatcher watcher = new InputWatcher(workRoot, (changedPath, eventType) -> {
+                if (!rebuilding.getAndSet(true)) {
+                    System.out.println("[info] Repo cache changed (" + eventType + "), rebuilding...");
+                    try {
+                        doBuild(configPath, outputOverride, workRoot);
+                    } catch (Exception e) {
+                        System.err.println("[error] Rebuild failed: " + e.getMessage());
+                    } finally {
+                        rebuilding.set(false);
                     }
-                } catch (Exception ignored) {
                 }
-            }));
-
-            System.out.println("[info] Watching for changes. Press Ctrl+C to stop.");
-
-            CountDownLatch latch = new CountDownLatch(1);
-            latch.await();
-            return 0;
+            });
+            watcher.start();
+            return watcher;
         }
 
         private void doBuild(Path configPath, Path outputOverride, Path workRoot) throws Exception {
