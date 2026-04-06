@@ -8,25 +8,85 @@ version = '0.0.1'
 
 subprojects {
     apply plugin: 'java'
-    
+
     group = 'guru.interlis'
     version = '0.0.1'
-    
+
     java {
         toolchain {
             languageVersion = JavaLanguageVersion.of(25)
         }
     }
-    
+
     repositories {
         mavenCentral()
     }
-    
+
     tasks.withType(JavaCompile).configureEach {
         options.encoding = 'UTF-8'
     }
-    
+
     test {
         useJUnitPlatform()
+    }
+
+    // ========================================
+    // Integration Test Source Set (all modules)
+    // ========================================
+    sourceSets {
+        integrationTest {
+            java {
+                srcDir 'src/integrationTest/java'
+            }
+            resources {
+                srcDir 'src/integrationTest/resources'
+            }
+            compileClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testCompileClasspath
+            runtimeClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testRuntimeClasspath
+        }
+    }
+
+    configurations {
+        integrationTestImplementation.extendsFrom testImplementation
+        integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+    }
+
+    tasks.register('integrationTest', Test) {
+        group = 'verification'
+        description = 'Runs integration tests.'
+        testClassesDirs = sourceSets.integrationTest.output.classesDirs
+        classpath = sourceSets.integrationTest.runtimeClasspath
+        useJUnitPlatform()
+        shouldRunAfter test
+    }
+
+    // ========================================
+    // E2E Test Source Set (all modules)
+    // ========================================
+    sourceSets {
+        e2eTest {
+            java {
+                srcDir 'src/e2eTest/java'
+            }
+            resources {
+                srcDir 'src/e2eTest/resources'
+            }
+            compileClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testCompileClasspath
+            runtimeClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testRuntimeClasspath
+        }
+    }
+
+    configurations {
+        e2eTestImplementation.extendsFrom testImplementation
+        e2eTestRuntimeOnly.extendsFrom testRuntimeOnly
+    }
+
+    tasks.register('e2eTest', Test) {
+        group = 'verification'
+        description = 'Runs end-to-end (E2E) tests.'
+        testClassesDirs = sourceSets.e2eTest.output.classesDirs
+        classpath = sourceSets.e2eTest.runtimeClasspath
+        useJUnitPlatform()
+        shouldRunAfter integrationTest
     }
 }

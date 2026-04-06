@@ -4,6 +4,7 @@ import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.BranchConfig;
 import guru.interlis.thoth.biblios.config.NavigationConfig;
 import guru.interlis.thoth.biblios.config.SourceConfig;
+import guru.interlis.thoth.biblios.config.UiSection;
 import guru.interlis.thoth.biblios.git.GitSourceResolver;
 import guru.interlis.thoth.biblios.nav.NavParser;
 import guru.interlis.thoth.biblios.nav.NavItem;
@@ -40,14 +41,14 @@ public final class CatalogBuilder implements AutoCloseable {
 
         for (SourceConfig source : config.content().sources()) {
             System.out.println("[info] Resolving source: " + source.id() + " (" + source.url() + ")");
-            DocComponent component = buildComponent(source);
+            DocComponent component = buildComponent(source, config.ui());
             components.add(component);
         }
 
         return new SiteCatalog(components);
     }
 
-    private DocComponent buildComponent(SourceConfig source) throws IOException {
+    private DocComponent buildComponent(SourceConfig source, UiSection ui) throws IOException {
         GitSourceResolver resolver = new GitSourceResolver(workRoot);
         resolvers.add(resolver);
 
@@ -64,7 +65,7 @@ public final class CatalogBuilder implements AutoCloseable {
             System.out.println("[info] Checking out " + source.id() + "/" + branch.name());
             resolver.checkout(branch.name());
 
-            ComponentVersion version = buildVersion(source, branch, resolver.workTree());
+            ComponentVersion version = buildVersion(source, branch, resolver.workTree(), ui);
             versions.add(version);
         }
 
@@ -79,7 +80,7 @@ public final class CatalogBuilder implements AutoCloseable {
         return new DocComponent(source.id(), source.displayName(), defaultVersion, versions);
     }
 
-    private ComponentVersion buildVersion(SourceConfig source, BranchConfig branch, Path workTree) throws IOException {
+    private ComponentVersion buildVersion(SourceConfig source, BranchConfig branch, Path workTree, UiSection ui) throws IOException {
         Path docRoot = workTree.resolve(source.startPath());
         if (!Files.exists(docRoot)) {
             throw new IOException(
@@ -112,7 +113,7 @@ public final class CatalogBuilder implements AutoCloseable {
         }
 
         // Discover and build pages
-        List<DocPage> pages = discoverAndBuildPages(source, branch, docRoot, navigation);
+        List<DocPage> pages = discoverAndBuildPages(source, branch, docRoot, navigation, ui);
 
         if (pages.isEmpty()) {
             System.err.println("[warn] No pages found for " + source.id() + "/" + branch.name());
@@ -131,7 +132,7 @@ public final class CatalogBuilder implements AutoCloseable {
     }
 
     private List<DocPage> discoverAndBuildPages(SourceConfig source, BranchConfig branch,
-                                                  Path docRoot, NavTree navigation) throws IOException {
+                                                  Path docRoot, NavTree navigation, UiSection ui) throws IOException {
         List<DocPage> pages = new ArrayList<>();
 
         // Collect all .adoc files from the navigation tree
@@ -159,7 +160,14 @@ public final class CatalogBuilder implements AutoCloseable {
                 String title;
                 try {
                     html = renderer.renderFile(filePath);
-                    title = extractTitle(filePath, html);
+                    if (html == null || html.isEmpty()) {
+                        // Fallback to raw content if renderer returns empty
+                        String content = Files.readString(filePath);
+                        html = "<pre><code>" + escapeHtml(content) + "</code></pre>";
+                        title = extractTitleFallback(pagePath, content);
+                    } else {
+                        title = extractTitle(filePath, html);
+                    }
                 } catch (Exception e) {
                     System.err.println("[warn] Failed to render " + filePath + ": " + e.getMessage());
                     // Fallback to raw content
@@ -167,6 +175,10 @@ public final class CatalogBuilder implements AutoCloseable {
                     html = "<pre><code>" + escapeHtml(content) + "</code></pre>";
                     title = extractTitleFallback(pagePath, content);
                 }
+
+                // Build edit/source URLs
+                String editUrl = buildEditUrl(ui, source, branch, pagePath);
+                String sourceUrl = buildSourceUrl(ui, source, branch, pagePath);
 
                 DocPage page = new DocPage(
                     source.id(),
@@ -180,7 +192,9 @@ public final class CatalogBuilder implements AutoCloseable {
                     html,
                     buildBreadcrumbs(navigation, pagePath, title, route),
                     null, // prev/next will be set after all pages are collected
-                    null
+                    null,
+                    editUrl,
+                    sourceUrl
                 );
                 pages.add(page);
             }
@@ -239,6 +253,9 @@ public final class CatalogBuilder implements AutoCloseable {
     }
 
     private String extractTitle(Path filePath, String htmlContent) {
+        if (htmlContent == null || htmlContent.isEmpty()) {
+            return extractTitleFallback(filePath.getFileName().toString(), "");
+        }
         // Try to extract from rendered HTML <h1> tag
         int h1Start = htmlContent.indexOf("<h1");
         if (h1Start >= 0) {
@@ -288,6 +305,32 @@ public final class CatalogBuilder implements AutoCloseable {
                    .replace("\"", "&quot;");
     }
 
+    /**
+     * Build an edit URL for a page based on the configured pattern.
+     */
+    private String buildEditUrl(UiSection ui, SourceConfig source, BranchConfig branch, String pagePath) {
+        if (ui == null || ui.editUrlPattern() == null || ui.editUrlPattern().isBlank()) {
+            return null;
+        }
+        return ui.editUrlPattern()
+            .replace("{repo_url}", source.url().replaceFirst("\\.git$", ""))
+            .replace("{branch}", branch.name())
+            .replace("{path}", source.startPath() + "/" + pagePath);
+    }
+
+    /**
+     * Build a source view URL for a page based on the configured pattern.
+     */
+    private String buildSourceUrl(UiSection ui, SourceConfig source, BranchConfig branch, String pagePath) {
+        if (ui == null || ui.sourceUrlPattern() == null || ui.sourceUrlPattern().isBlank()) {
+            return null;
+        }
+        return ui.sourceUrlPattern()
+            .replace("{repo_url}", source.url().replaceFirst("\\.git$", ""))
+            .replace("{branch}", branch.name())
+            .replace("{path}", source.startPath() + "/" + pagePath);
+    }
+
     private List<DocPage.Breadcrumb> buildBreadcrumbs(NavTree nav, String pagePath, String title, String route) {
         List<DocPage.Breadcrumb> crumbs = new ArrayList<>();
         if (nav != null) {
@@ -331,11 +374,12 @@ public final class CatalogBuilder implements AutoCloseable {
             DocPage prev = i > 0 ? pageMap.get(orderedPaths.get(i - 1)) : null;
             DocPage next = i < orderedPaths.size() - 1 ? pageMap.get(orderedPaths.get(i + 1)) : null;
 
-            // Rebuild with prev/next
+            // Rebuild with prev/next, preserving edit/source URLs
             DocPage updated = new DocPage(
                 page.componentId(), page.version(), page.sourcePath(), page.sourceUri(),
                 page.pageId(), page.title(), page.navTitle(), page.route(), page.html(),
-                page.breadcrumbs(), prev, next
+                page.breadcrumbs(), prev, next,
+                page.editUrl(), page.sourceUrl()
             );
             pages.set(i, updated);
             pageMap.put(orderedPaths.get(i), updated);

@@ -32,7 +32,7 @@
                     <select id="version-switch" onchange="window.location.href=this.value">
                         <option disabled>Version</option>
                         <#list versionSwitcher as ver>
-                            <option value="${basePath}/${currentComponentId}/${ver.version}/<#if currentPagePath?has_content>${currentPagePath}<#else></#if>"
+                            <option value="${basePath}${ver.route}"
                                 <#if currentVersionStr == ver.version>selected</#if>>
                                 ${ver.displayVersion}
                             </option>

@@ -7,6 +7,16 @@
     prevPage=(prevPage)!{} nextPage=(nextPage)!{}>
     <article class="doc-page">
         <h1>${page.title}</h1>
+        <#if (showEditLink)!false && (editUrl?? || sourceUrl??)>
+        <div class="page-actions">
+            <#if editUrl??>
+                <a href="${editUrl}" class="page-action" target="_blank" rel="noopener">Edit this page</a>
+            </#if>
+            <#if sourceUrl??>
+                <a href="${sourceUrl}" class="page-action" target="_blank" rel="noopener">View source</a>
+            </#if>
+        </div>
+        </#if>
         <div class="doc-content">
             ${page.html}
         </div>

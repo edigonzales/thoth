@@ -36,7 +36,9 @@ public final class NavParser {
         Objects.requireNonNull(navPath, "navPath must not be null");
         if (!Files.exists(navPath)) {
             throw new ThothBuildException(
-                "Navigation file not found: " + navPath,
+                "Navigation file not found: " + navPath + "\n" +
+                "Check that the 'navigation.file' in biblios.yml points to the correct path\n" +
+                "and that the file exists in the documentation source's 'start_path' directory.",
                 ThothBuildException.ErrorSeverity.ERROR,
                 "navigation"
             );
@@ -48,14 +50,19 @@ public final class NavParser {
                 loaded = yaml.loadFromReader(reader);
             } catch (Exception e) {
                 throw new ThothBuildException(
-                    "Failed to parse navigation YAML: " + e.getMessage(),
+                    "Failed to parse navigation YAML: " + e.getMessage() + "\n" +
+                    "File: " + navPath + "\n" +
+                    "Check the nav.yml syntax. Expected format:\n" +
+                    "  items:\n" +
+                    "    - title: Page Title\n" +
+                    "      page: page.adoc",
                     ThothBuildException.ErrorSeverity.ERROR,
                     "navigation"
                 );
             }
             if (!(loaded instanceof Map<?, ?> map)) {
                 throw new ThothBuildException(
-                    "Navigation file must be a YAML mapping",
+                    "Navigation file must be a YAML mapping (expected top-level 'items:' key)",
                     ThothBuildException.ErrorSeverity.ERROR,
                     "navigation"
                 );
@@ -105,7 +112,18 @@ public final class NavParser {
 
         if (page == null && children.isEmpty()) {
             throw new ThothBuildException(
-                label + " ('" + title + "') must have either 'page' or 'children'",
+                "Navigation item " + label + " ('" + title + "') must have either 'page' or 'children'\n" +
+                "  - 'page': path to an .adoc file (e.g., 'index.adoc')\n" +
+                "  - 'children': a nested list of nav entries",
+                ThothBuildException.ErrorSeverity.ERROR,
+                "navigation"
+            );
+        }
+
+        if (page != null && page.isBlank()) {
+            throw new ThothBuildException(
+                "Navigation item " + label + " ('" + title + "') has an empty 'page' value\n" +
+                "  Expected a path to an .adoc file, e.g., 'index.adoc'",
                 ThothBuildException.ErrorSeverity.ERROR,
                 "navigation"
             );

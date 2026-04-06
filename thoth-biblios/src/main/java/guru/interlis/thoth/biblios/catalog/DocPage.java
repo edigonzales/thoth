@@ -19,10 +19,20 @@ public final class DocPage {
     private final List<Breadcrumb> breadcrumbs;
     private final DocPage prev;
     private final DocPage next;
+    private final String editUrl;
+    private final String sourceUrl;
 
     public DocPage(String componentId, String version, String sourcePath, String sourceUri,
                    String pageId, String title, String navTitle, String route, String html,
                    List<Breadcrumb> breadcrumbs, DocPage prev, DocPage next) {
+        this(componentId, version, sourcePath, sourceUri, pageId, title, navTitle, route, html,
+             breadcrumbs, prev, next, null, null);
+    }
+
+    public DocPage(String componentId, String version, String sourcePath, String sourceUri,
+                   String pageId, String title, String navTitle, String route, String html,
+                   List<Breadcrumb> breadcrumbs, DocPage prev, DocPage next,
+                   String editUrl, String sourceUrl) {
         this.componentId = Objects.requireNonNull(componentId, "componentId is required");
         this.version = Objects.requireNonNull(version, "version is required");
         this.sourcePath = Objects.requireNonNull(sourcePath, "sourcePath is required");
@@ -35,6 +45,8 @@ public final class DocPage {
         this.breadcrumbs = breadcrumbs != null ? List.copyOf(breadcrumbs) : List.of();
         this.prev = prev;
         this.next = next;
+        this.editUrl = editUrl;
+        this.sourceUrl = sourceUrl;
     }
 
     public String componentId() {
@@ -83,6 +95,22 @@ public final class DocPage {
 
     public DocPage next() {
         return next;
+    }
+
+    /**
+     * URL to edit this page source file.
+     * May be null if not configured.
+     */
+    public String editUrl() {
+        return editUrl;
+    }
+
+    /**
+     * URL to view the raw source file in the repository.
+     * May be null if not configured.
+     */
+    public String sourceUrl() {
+        return sourceUrl;
     }
 
     @Override

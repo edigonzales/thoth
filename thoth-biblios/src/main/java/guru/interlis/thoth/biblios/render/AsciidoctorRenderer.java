@@ -43,7 +43,8 @@ public final class AsciidoctorRenderer implements AutoCloseable {
                 .baseDir(sourcePath.getParent().toFile())
                 .attributes(attributes.build());
 
-            return asciidoctor.convertFile(sourcePath.toFile(), options.build(), String.class);
+            String result = asciidoctor.convertFile(sourcePath.toFile(), options.build(), String.class);
+            return result != null ? result : "";
         } catch (Exception e) {
             throw new IOException("Failed to render AsciiDoc file: " + sourcePath, e);
         }

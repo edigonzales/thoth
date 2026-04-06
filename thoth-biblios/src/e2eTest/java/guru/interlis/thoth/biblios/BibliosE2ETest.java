@@ -1,0 +1,464 @@
+package guru.interlis.thoth.biblios;
+
+import guru.interlis.thoth.biblios.catalog.CatalogBuilder;
+import guru.interlis.thoth.biblios.catalog.SiteCatalog;
+import guru.interlis.thoth.biblios.config.BibliosConfig;
+import guru.interlis.thoth.biblios.config.BibliosConfigParser;
+import guru.interlis.thoth.biblios.fixture.BibliosConfigBuilder;
+import guru.interlis.thoth.biblios.fixture.SiteAssertions;
+import guru.interlis.thoth.biblios.fixture.TestRepoBuilder;
+import guru.interlis.thoth.core.DevServer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * End-to-End tests for thoth-biblios.
+ * Tests realistic full build flows with local Git repositories.
+ * NOT mock tests — uses real Git repos, real builds, real HTML output.
+ */
+class BibliosE2ETest {
+
+    @TempDir Path tempDir;
+
+    private Path workRoot;
+    private Path outputRoot;
+    private Path configFile;
+    private DevServer runningServer;
+
+    @AfterEach
+    void tearDown() {
+        if (runningServer != null) {
+            try {
+                runningServer.stop();
+            } catch (Exception ignored) {
+            }
+            runningServer = null;
+        }
+    }
+
+    /**
+     * E2E-1: Full build from a single source with multiple pages.
+     * Verifies: loading biblios.yml, processing docs, HTML output, assets.
+     */
+    @Test
+    void fullBuildSingleSource() throws Exception {
+        Path repoDir = setupTestRepo("single-repo");
+        setupOutputDirs();
+
+        new BibliosConfigBuilder()
+            .withSiteTitle("Single Source Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        // Run full build
+        BibliosConfig config = parseConfig();
+        buildAndGenerate(config);
+
+        // Assert output
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertGlobalStartPage("Single Source Docs", "My Documentation");
+        assertions.assertSiteAssets();
+        assertions.assertDocPage("mydocs", "main", "");
+        assertions.assertDocPage("mydocs", "main", "guide");
+        assertions.assertSearchIndex("mydocs", "Welcome", "User Guide");
+    }
+
+    /**
+     * E2E-2: Full build from TWO content sources.
+     * Verifies: multi-repo processing, global start page with both sources.
+     */
+    @Test
+    void fullBuildTwoContentSources() throws Exception {
+        Path repo1Dir = setupTestRepo("repo-a");
+        Path repo2Dir = setupTestRepo("repo-b");
+        setupOutputDirs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Multi-Source Portal")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repo1Dir, "docs-a", "Documentation A",
+                "docs", "main", "main")
+            .withSingleSourceGitRepo(repo2Dir, "docs-b", "Documentation B",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertGlobalStartPage("Multi-Source Portal", "Documentation A", "Documentation B");
+        assertions.assertComponentLandingPage("docs-a", "Documentation A");
+        assertions.assertComponentLandingPage("docs-b", "Documentation B");
+        assertions.assertDocPage("docs-a", "main", "");
+        assertions.assertDocPage("docs-b", "main", "");
+        assertions.assertDocPage("docs-a", "main", "guide");
+        assertions.assertDocPage("docs-b", "main", "guide");
+        assertions.assertSearchIndex("docs-a", "docs-b", "Welcome");
+
+        // Verify doc switcher on pages
+        assertions.assertDocSwitcher("docs-a/main/index.html", "Documentation A", "Documentation B");
+        assertions.assertDocSwitcher("docs-b/main/index.html", "Documentation A", "Documentation B");
+    }
+
+    /**
+     * E2E-3: Multiple versions via branches.
+     * Verifies: branch resolution, display_version, version switcher.
+     */
+    @Test
+    void multipleVersionsViaBranches() throws Exception {
+        Path repoDir = setupTestRepo("multi-version-repo");
+        setupOutputDirs();
+
+        // Create repo with two branches
+        new TestRepoBuilder(repoDir)
+            .withBasicDocs()
+            .withSecondBranch("v1.x");
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Versioned Docs")
+            .withOutputDir(outputRoot)
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: mydocs
+                  display_name: My Documentation
+                  url: file://%s
+                  branches:
+                    - name: main
+                      display_version: Latest
+                    - name: v1.x
+                      display_version: Version 1.x
+                  start_path: docs
+                  default_version: main
+                  navigation:
+                    file: nav.yml
+                """.formatted(repoDir.toString())))
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        // Verify both versions exist
+        assertions.assertDocPage("mydocs", "main", "");
+        assertions.assertDocPage("mydocs", "v1.x", "");
+        assertions.assertDocPage("mydocs", "main", "guide");
+        assertions.assertDocPage("mydocs", "v1.x", "guide");
+
+        // Verify version switcher
+        assertions.assertVersionSwitcher("mydocs/main/index.html", "Latest", "Version 1.x");
+        assertions.assertVersionSwitcher("mydocs/v1.x/index.html", "Latest", "Version 1.x");
+
+        // Verify content differs between versions
+        assertions.assertFileContains("mydocs/main/guide/index.html", "User Guide");
+        assertions.assertFileContains("mydocs/v1.x/guide/index.html", "v1.x");
+    }
+
+    /**
+     * E2E-4: Complete HTML site structure verification.
+     * Verifies: start page, component pages, navigation, breadcrumbs, search.
+     */
+    @Test
+    void completeHtmlSiteStructure() throws Exception {
+        Path repoDir = setupTestRepo("structure-repo");
+        setupOutputDirs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Structure Test Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+
+        // Global start page
+        assertions.assertGlobalStartPage("Structure Test Docs", "My Documentation");
+        assertions.assertFileContains("index.html", "<h1");
+        assertions.assertFileContains("index.html", "Structure Test Docs");
+
+        // Component landing page
+        assertions.assertComponentLandingPage("mydocs", "My Documentation");
+        assertions.assertFileContains("mydocs/index.html", "My Documentation");
+
+        // Documentation pages
+        assertions.assertDocPage("mydocs", "main", "");
+        assertions.assertDocPage("mydocs", "main", "guide");
+
+        // Navigation on content pages
+        assertions.assertNavigation("mydocs/main/guide/index.html",
+            "Welcome", "User Guide", "Advanced");
+
+        // Breadcrumbs
+        assertions.assertBreadcrumbs("mydocs/main/guide/index.html");
+
+        // Search index
+        assertions.assertSearchIndex("mydocs", "Welcome", "User Guide", "Configuration");
+    }
+
+    /**
+     * E2E-5: Global search index is correctly populated.
+     * Verifies: search-index.json contains entries from all components/versions.
+     */
+    @Test
+    void globalSearchIndexPopulated() throws Exception {
+        Path repo1Dir = setupTestRepo("search-repo-a");
+        Path repo2Dir = setupTestRepo("search-repo-b");
+        setupOutputDirs();
+
+        // Create repo2 with second branch
+        new TestRepoBuilder(repo2Dir)
+            .withBasicDocs()
+            .withSecondBranch("v1.x");
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Search Test Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repo1Dir, "docs-a", "Documentation A",
+                "docs", "main", "main")
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: docs-b
+                  display_name: Documentation B
+                  url: file://%s
+                  branches:
+                    - name: main
+                      display_version: Latest
+                    - name: v1.x
+                      display_version: Version 1.x
+                  start_path: docs
+                  default_version: main
+                  navigation:
+                    file: nav.yml
+                """.formatted(repo2Dir.toString())))
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        // Verify search index
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertSearchIndex("docs-a", "docs-b", "Welcome", "User Guide");
+
+        // Verify JSON structure
+        String searchJson = Files.readString(outputRoot.resolve("search-index.json"));
+        assertTrue(searchJson.contains("docs-a"));
+        assertTrue(searchJson.contains("docs-b"));
+        assertTrue(searchJson.contains("main"));
+        assertTrue(searchJson.contains("v1.x"));
+        assertTrue(searchJson.contains("Latest"));
+        assertTrue(searchJson.contains("Welcome"));
+        assertTrue(searchJson.contains("User Guide"));
+    }
+
+    /**
+     * E2E-6: DevServer (serve) can start and deliver generated pages.
+     * Verifies: HTTP server starts, serves HTML content, correct routes.
+     */
+    @Test
+    void serveDeliversGeneratedPages() throws Exception {
+        Path repoDir = setupTestRepo("serve-repo");
+        setupOutputDirs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Serve Test Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        // Build first
+        buildAndGenerate(config);
+
+        // Start DevServer on a free port
+        int port = findFreePort();
+        runningServer = new DevServer(outputRoot, port);
+        runningServer.start();
+        Thread.sleep(1000); // Wait for server to start
+
+        // Create HTTP client
+        HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
+
+        // Test global start page
+        HttpResponse<String> homeResponse = client.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/index.html"))
+                .timeout(Duration.ofSeconds(5))
+                .build(),
+            HttpResponse.BodyHandlers.ofString()
+        );
+        assertEquals(200, homeResponse.statusCode());
+        assertTrue(homeResponse.body().contains("Serve Test Docs"));
+        assertTrue(homeResponse.body().contains("My Documentation"));
+
+        // Test documentation page
+        HttpResponse<String> docResponse = client.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/mydocs/main/index.html"))
+                .timeout(Duration.ofSeconds(5))
+                .build(),
+            HttpResponse.BodyHandlers.ofString()
+        );
+        assertEquals(200, docResponse.statusCode());
+        assertTrue(docResponse.body().contains("Welcome"));
+
+        // Test search index
+        HttpResponse<String> searchResponse = client.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/search-index.json"))
+                .timeout(Duration.ofSeconds(5))
+                .build(),
+            HttpResponse.BodyHandlers.ofString()
+        );
+        assertEquals(200, searchResponse.statusCode());
+        assertTrue(searchResponse.body().contains("mydocs"));
+
+        // Test CSS asset
+        HttpResponse<String> cssResponse = client.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/site-assets/styles.css"))
+                .timeout(Duration.ofSeconds(5))
+                .build(),
+            HttpResponse.BodyHandlers.ofString()
+        );
+        assertEquals(200, cssResponse.statusCode());
+        assertTrue(cssResponse.body().contains("body") || cssResponse.body().contains("."));
+    }
+
+    /**
+     * E2E-7: Version switcher links to correct version start pages.
+     * Verifies: switching from main to v1.x leads to correct version's start page.
+     */
+    @Test
+    void versionSwitcherLinksCorrectly() throws Exception {
+        Path repoDir = setupTestRepo("switcher-repo");
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir)
+            .withBasicDocs()
+            .withSecondBranch("v1.x");
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Switcher Test Docs")
+            .withOutputDir(outputRoot)
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: mydocs
+                  display_name: My Documentation
+                  url: file://%s
+                  branches:
+                    - name: main
+                      display_version: Latest
+                    - name: v1.x
+                      display_version: Version 1.x
+                  start_path: docs
+                  default_version: main
+                  navigation:
+                    file: nav.yml
+                """.formatted(repoDir.toString())))
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+
+        // Verify both version start pages exist
+        assertions.assertFileExists("mydocs/main/index.html");
+        assertions.assertFileExists("mydocs/v1.x/index.html");
+
+        // Verify version switcher contains links to both versions
+        String mainPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(mainPage.contains("/mydocs/main/"));
+        assertTrue(mainPage.contains("/mydocs/v1.x/"));
+
+        String v1xPage = Files.readString(outputRoot.resolve("mydocs/v1.x/index.html"));
+        assertTrue(v1xPage.contains("/mydocs/main/"));
+        assertTrue(v1xPage.contains("/mydocs/v1.x/"));
+    }
+
+    /**
+     * E2E-8: Doc switcher links to correct component default versions.
+     * Verifies: switching from docs-a to docs-b leads to docs-b's default version.
+     */
+    @Test
+    void docSwitcherLinksToDefaultVersion() throws Exception {
+        Path repo1Dir = setupTestRepo("docswitch-repo-a");
+        Path repo2Dir = setupTestRepo("docswitch-repo-b");
+        setupOutputDirs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Doc Switcher Test")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repo1Dir, "docs-a", "Documentation A",
+                "docs", "main", "main")
+            .withSingleSourceGitRepo(repo2Dir, "docs-b", "Documentation B",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+
+        // Verify doc switcher on docs-a page links to docs-b
+        String docsAPage = Files.readString(outputRoot.resolve("docs-a/main/index.html"));
+        assertTrue(docsAPage.contains("Documentation B"));
+        assertTrue(docsAPage.contains("/docs-b/main/"));
+
+        // Verify doc switcher on docs-b page links to docs-a
+        String docsBPage = Files.readString(outputRoot.resolve("docs-b/main/index.html"));
+        assertTrue(docsBPage.contains("Documentation A"));
+        assertTrue(docsBPage.contains("/docs-a/main/"));
+    }
+
+    // ================================================================
+    // Helper methods
+    // ================================================================
+
+    private Path setupTestRepo(String name) throws Exception {
+        Path repoDir = tempDir.resolve(name);
+        Files.createDirectories(repoDir);
+        new TestRepoBuilder(repoDir).withBasicDocs();
+        return repoDir;
+    }
+
+    private void setupOutputDirs() throws IOException {
+        workRoot = tempDir.resolve("work");
+        outputRoot = tempDir.resolve("output");
+        configFile = tempDir.resolve("biblios.yml");
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+    }
+
+    private BibliosConfig parseConfig() throws Exception {
+        BibliosConfigParser parser = new BibliosConfigParser();
+        return parser.parse(configFile);
+    }
+
+    private void buildAndGenerate(BibliosConfig config) throws Exception {
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+    }
+
+    private int findFreePort() {
+        try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (IOException e) {
+            return 8765; // fallback
+        }
+    }
+}

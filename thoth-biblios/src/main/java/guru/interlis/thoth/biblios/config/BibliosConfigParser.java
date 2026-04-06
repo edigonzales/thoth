@@ -112,7 +112,10 @@ public final class BibliosConfigParser {
         UiSection ui = new UiSection(
             (String) uiMap.get("theme"),
             getBoolean(uiMap, "show_version_badge", false),
-            getBoolean(uiMap, "show_edit_link", false)
+            getBoolean(uiMap, "show_edit_link", false),
+            getBoolean(uiMap, "show_source_link", false),
+            (String) uiMap.get("edit_url_pattern"),
+            (String) uiMap.get("source_url_pattern")
         );
 
         // Parse content section

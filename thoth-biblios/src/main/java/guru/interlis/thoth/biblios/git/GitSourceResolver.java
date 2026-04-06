@@ -43,7 +43,10 @@ public final class GitSourceResolver implements AutoCloseable {
         Objects.requireNonNull(sourceId, "sourceId is required");
 
         if (remoteUrl.isBlank()) {
-            throw new IOException("Repository URL must not be blank for source: " + sourceId);
+            throw new IOException(
+                "Repository URL must not be blank for source: " + sourceId + "\n" +
+                "Check the 'url' field in biblios.yml for content.sources id='" + sourceId + "'."
+            );
         }
 
         repoPath = cacheRoot.resolve("repos").resolve(safeDirectoryName(sourceId));
@@ -88,7 +91,8 @@ public final class GitSourceResolver implements AutoCloseable {
             }
         } catch (Exception e) {
             throw new IOException(
-                "Failed to checkout branch '" + branchName + "': " + e.getMessage() + "\n" +
+                "Failed to checkout branch '" + branchName + "' in source: " + e.getMessage() + "\n" +
+                "Check that the branch exists in the repository.\n" +
                 "Available branches can be checked with: git branch -a",
                 e
             );
@@ -156,9 +160,14 @@ public final class GitSourceResolver implements AutoCloseable {
             clone.setCloneAllBranches(true);
             git = clone.call();
         } catch (Exception e) {
+            String hint = remoteUrl.startsWith("http://") || remoteUrl.startsWith("https://")
+                ? "For HTTPS repos, check network access and authentication."
+                : remoteUrl.startsWith("file://") || remoteUrl.startsWith("/")
+                    ? "For local repos, verify the path exists and is a valid Git repo."
+                    : "Check the URL format (supported: https://, file://, git@).";
             throw new IOException(
                 "Failed to clone repository '" + remoteUrl + "': " + e.getMessage() + "\n" +
-                "Please check that the URL is correct and accessible.",
+                hint,
                 e
             );
         }

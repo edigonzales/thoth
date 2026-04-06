@@ -82,9 +82,33 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     }
 
     private void generateComponentPages(DocComponent component) throws IOException {
+        // Generate component-level landing page (<component>/index.html)
+        generateComponentLandingPage(component);
+
+        // Generate version-specific pages (<component>/<version>/...)
         for (ComponentVersion version : component.versions()) {
             generateVersionPages(component, version);
         }
+    }
+
+    private void generateComponentLandingPage(DocComponent component) throws IOException {
+        Path componentRoot = outputRoot.resolve(component.id());
+        Files.createDirectories(componentRoot);
+
+        Map<String, Object> model = new HashMap<>();
+        model.put("siteTitle", config.site().title());
+        model.put("basePath", "");
+        model.put("locale", config.site().defaultLanguage());
+        model.put("component", componentToModel(component));
+        model.put("currentVersion", versionToModel(component.versions().get(0)));
+        model.put("currentComponentId", component.id());
+        model.put("currentVersionStr", component.defaultVersion());
+        model.put("navigation", null);
+        model.put("docSwitcher", buildDocSwitcher());
+        model.put("versionSwitcher", buildVersionSwitcher(component));
+
+        String html = renderTemplate("component.ftl", model);
+        writeOutput(componentRoot.resolve("index.html"), html);
     }
 
     private void generateVersionPages(DocComponent component, ComponentVersion version) throws IOException {
@@ -143,8 +167,12 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("currentPagePath", page.sourcePath());
         model.put("navigation", version.navigation() != null ? navToModel(version.navigation()) : null);
         model.put("docSwitcher", buildDocSwitcher());
-        model.put("versionSwitcher", buildVersionSwitcher(component));
+        model.put("versionSwitcher", buildVersionSwitcher(component, page.sourcePath()));
         model.put("breadcrumbs", breadcrumbsToModel(page.breadcrumbs()));
+        model.put("editUrl", page.editUrl());
+        model.put("sourceUrl", page.sourceUrl());
+        model.put("showEditLink", config.ui() != null && config.ui().showEditLink());
+        model.put("showSourceLink", config.ui() != null && config.ui().showSourceLink());
 
         if (page.prev() != null) {
             model.put("prevPage", pageToModel(page.prev()));
@@ -310,11 +338,30 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     }
 
     private List<Map<String, Object>> buildVersionSwitcher(DocComponent component) {
+        return buildVersionSwitcher(component, null);
+    }
+
+    private List<Map<String, Object>> buildVersionSwitcher(DocComponent component, String currentPageSourcePath) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (ComponentVersion v : component.versions()) {
             Map<String, Object> m = new HashMap<>();
             m.put("version", v.version());
             m.put("displayVersion", v.displayVersion());
+
+            // If we know the current page, try to find the equivalent page in the target version
+            if (currentPageSourcePath != null) {
+                var targetPage = v.findPageBySourcePath(currentPageSourcePath);
+                if (targetPage != null) {
+                    m.put("route", targetPage.route());
+                } else {
+                    // Fallback: use the version start page
+                    m.put("route", "/" + component.id() + "/" + v.version() + "/");
+                }
+            } else {
+                // No current page context - default to version start page
+                m.put("route", "/" + component.id() + "/" + v.version() + "/");
+            }
+
             result.add(m);
         }
         return result;
