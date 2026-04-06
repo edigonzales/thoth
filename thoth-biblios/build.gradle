@@ -1,0 +1,48 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+description = 'Thoth Biblios - Multi-repo documentation site generator'
+
+application {
+    mainClass = 'guru.interlis.thoth.biblios.ThothBibliosCli'
+}
+
+dependencies {
+    implementation project(':thoth-core')
+    implementation 'info.picocli:picocli:4.7.7'
+    implementation 'org.snakeyaml:snakeyaml-engine:2.9'
+    implementation 'org.eclipse.jgit:org.eclipse.jgit:7.1.0.202411261347-r'
+    
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.14.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'guru.interlis.thoth.biblios.ThothBibliosCli'
+    }
+}
+
+tasks.register('fatJar', Jar) {
+    group = 'build'
+    description = 'Assembles an executable fat jar for thoth-biblios'
+    archiveBaseName = 'thoth-biblios'
+    archiveClassifier = 'all'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes 'Main-Class': 'guru.interlis.thoth.biblios.ThothBibliosCli'
+    }
+
+    from sourceSets.main.output
+    dependsOn configurations.runtimeClasspath
+    from {
+        configurations.runtimeClasspath.findAll { it.name.endsWith('.jar') }.collect { zipTree(it) }
+    }
+}
+
+build {
+    dependsOn tasks.named('fatJar')
+}

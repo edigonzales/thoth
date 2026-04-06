@@ -1,30 +1,36 @@
 # Thoth
+
+Thoth is a family of JVM-based static site generators for AsciiDoc content.
+
+## Product Family
+
+- **`thoth-blog`** – Static site generator for AsciiDoc blogs (the original product)
+- **`thoth-biblios`** – Multi-repo documentation site generator with versioning (new, in development)
+- **`thoth-core`** – Shared technical infrastructure (AsciidoctorJ, FreeMarker, DevServer, FileWatcher)
+
+## thoth-blog
+
 Plain text. Real websites.
 
-Thoth is a Java-based static site generator for AsciiDoc blogs.
-It builds pretty URLs, tag pages, RSS, local assets, Lunr search, and a watch-based dev server.
+Thoth Blog builds pretty URLs, tag pages, RSS, local assets, Lunr search, and a watch-based dev server.
 
-## Requirements
-- Java: 25 (toolchain configured in Gradle)
-- Gradle: wrapper included (`./gradlew`)
-
-## Build
+### Build
 ```bash
 ./gradlew test
 ./gradlew build
 ```
 
 The executable fat JAR is generated as:
-- `build/libs/thoth-<version>-all.jar` (for example `build/libs/thoth-0.0.1-all.jar`)
+- `thoth-blog/build/libs/thoth-blog-<version>-all.jar`
 
 Run it with:
 ```bash
-java -jar build/libs/thoth-<version>-all.jar --help
+java -jar thoth-blog/build/libs/thoth-blog-<version>-all.jar --help
 ```
 
-## CLI
+### CLI
 ```bash
-java -jar build/libs/thoth-<version>-all.jar <command> [options]
+java -jar thoth-blog/build/libs/thoth-blog-<version>-all.jar <command> [options]
 ```
 
 Commands:
@@ -246,4 +252,198 @@ The generator uses:
 - Lunr (client-side)
 - Prism.js (client-side syntax highlighting)
 
-All are packaged into `thoth-<version>-all.jar` by the `fatJar` task.
+All are packaged into `thoth-blog-<version>-all.jar` by the `fatJar` task.
+
+## Project Structure
+
+This is a Gradle multi-project with three modules:
+
+```
+thoth/
+├── thoth-core/          Shared technical infrastructure (AsciidoctorJ, FreeMarker, DevServer, FileWatcher)
+├── thoth-blog/          Blog-specific product (posts, tags, RSS, archive, search)
+└── thoth-biblios/       Multi-repo documentation generator (in development)
+```
+
+### Module Responsibilities
+
+**thoth-core** contains only technical infrastructure shared by both products:
+- AsciidoctorJ integration
+- FreeMarker template engine setup
+- Dev server (HTTP static file server)
+- File system watcher
+- Common utilities
+
+**thoth-blog** contains all blog-specific logic:
+- Post parsing with front matter
+- Tag pages, RSS feed, archive
+- Blog-specific templates and assets
+- Blog-specific CLI (`build` / `serve`)
+
+**thoth-biblios** (in development) will contain:
+- YAML configuration loading (`biblios.yml`)
+- Git repository fetching and branch resolution
+- Multi-version documentation catalog
+- Documentation-specific templates
+- Doku- and version switchers
+
+## thoth-biblios (MVP Complete)
+
+Multi-repo documentation site generator with versioning support.
+
+### Build
+```bash
+./gradlew :thoth-biblios:build
+```
+
+The executable fat JAR is generated as:
+- `thoth-biblios/build/libs/thoth-biblios-<version>-all.jar`
+
+Run it with:
+```bash
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar --help
+```
+
+### CLI
+```bash
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar <command> [options]
+```
+
+Commands:
+1. `build` – Builds the documentation site from `biblios.yml`
+2. `serve` – Runs dev server for documentation site
+
+### Configuration
+
+`thoth-biblios` uses a YAML configuration file (`biblios.yml`) that defines:
+- Multiple Git repositories as content sources
+- Branches per repository as published versions
+- `display_version` for human-readable version labels
+- `nav.yml` for navigation structure
+
+### MVP Features
+- ✅ YAML configuration loading (`biblios.yml`)
+- ✅ Git repository fetching via JGit (with local cache)
+- ✅ Branch resolution as documentation versions
+- ✅ `display_version` support in UI
+- ✅ `nav.yml` navigation parsing
+- ✅ Site catalog building
+- ✅ Routing with `/<component>/<version>/...` URL schema
+- ✅ Global start page listing all documentations
+- ✅ Component landing pages
+- ✅ Documentation content pages with breadcrumbs and prev/next
+- ✅ Doku-Switcher and Versions-Switcher in UI
+- ✅ Global search index (`search-index.json`)
+- ✅ `build` and `serve` CLI commands
+
+### Example biblios.yml
+```yaml
+site:
+  title: My Docs Portal
+  url: https://docs.example.org
+
+output:
+  dir: build/site
+  clean: true
+
+content:
+  sources:
+    - id: mydocs
+      display_name: My Documentation
+      url: https://github.com/example/docs.git
+      branches:
+        - name: main
+          display_version: Latest
+        - name: v1.x
+          display_version: Version 1.x
+      start_path: docs
+      default_version: main
+      navigation:
+        file: nav.yml
+```
+
+### Example nav.yml
+```yaml
+items:
+  - title: Introduction
+    page: index.adoc
+  - title: User Guide
+    children:
+      - title: Installation
+        page: installation.adoc
+      - title: Configuration
+        page: config.adoc
+```
+
+## Running Tests
+
+### Unit Tests (all modules)
+```bash
+./gradlew test
+```
+
+### Module-specific Tests
+```bash
+./gradlew :thoth-blog:test        # Blog tests
+./gradlew :thoth-biblios:test     # Biblios tests (unit + integration)
+./gradlew :thoth-core:test        # Core tests (none yet)
+```
+
+### Test Coverage
+- **thoth-blog:** 14 tests (PostParser, TagSlugger, SiteGenerator integration)
+- **thoth-biblios:** 30 tests (Config parsing, Navigation, Routing, Breadcrumbs, Integration)
+- **thoth-core:** Technical infrastructure only (DevServer, InputWatcher)
+
+## Architecture Decisions
+
+- **Java 25** as target platform
+- **AsciidoctorJ** for rendering (not Asciidoctor.js)
+- **nav.yml** as MVP navigation standard
+- **display_version** for human-readable version labels in UI
+- **Global search** across all documentation in MVP
+- **No redirects** from `/<component>/` to default version in MVP
+
+For detailed specifications, see `thoth-biblios-spec-v2.md`.
+For architecture details, see `ARCHITECTURE.md`.
+
+## Troubleshooting
+
+### Java Version Issues
+
+If you see `UnsupportedClassVersionError`, ensure you're using Java 25:
+
+```bash
+# Check Java version
+java -version
+
+# Use SDKMAN to switch to Java 25
+sdk use java 25.0.1-tem
+```
+
+### Build Failures
+
+```bash
+# Clean and rebuild
+./gradlew clean build
+
+# Check specific module
+./gradlew :thoth-biblios:test --info
+```
+
+### Git Repository Errors
+
+- Check that repository URLs are correct and accessible
+- For local repos, use `file:///path/to/repo` format
+- Clear cache if needed: `rm -rf .thoth/cache`
+
+### Navigation Issues
+
+- Ensure `nav.yml` is in the correct `start_path`
+- Check YAML syntax
+- Every nav item must have either `page` or `children`
+
+### Asciidoctor Rendering Problems
+
+- Check AsciiDoc syntax
+- Ensure `.adoc` files are in the configured `start_path`
+- Check logs for `[warn]` messages during build

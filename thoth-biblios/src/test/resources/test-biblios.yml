@@ -1,0 +1,43 @@
+site:
+  title: Test Documentation Portal
+  url: https://docs.example.org
+  default_language: en
+  default_component: alpha
+  default_version: main
+
+output:
+  dir: build/test-site
+  clean: true
+
+ui:
+  theme: default
+  show_version_badge: true
+  show_edit_link: false
+
+content:
+  sources:
+    - id: alpha
+      display_name: Alpha Docs
+      url: https://github.com/example/alpha.git
+      branches:
+        - name: main
+          display_version: Latest
+        - name: v1.x
+          display_version: 1.x Legacy
+      start_path: docs
+      default_version: main
+      navigation:
+        file: nav.yml
+      start_page: index.adoc
+
+    - id: beta
+      display_name: Beta API
+      url: https://github.com/example/beta.git
+      branches:
+        - name: main
+          display_version: Current
+      start_path: handbook
+      default_version: main
+      navigation:
+        file: nav.yml
+      start_page: index.adoc

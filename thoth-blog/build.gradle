@@ -1,0 +1,46 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+description = 'Thoth Blog - Static site generator for AsciiDoc blogs'
+
+application {
+    mainClass = 'guru.interlis.thoth.blog.ThothBlogCli'
+}
+
+dependencies {
+    implementation project(':thoth-core')
+    implementation 'info.picocli:picocli:4.7.7'
+    
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.14.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'guru.interlis.thoth.blog.ThothBlogCli'
+    }
+}
+
+tasks.register('fatJar', Jar) {
+    group = 'build'
+    description = 'Assembles an executable fat jar for thoth-blog'
+    archiveBaseName = 'thoth-blog'
+    archiveClassifier = 'all'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes 'Main-Class': 'guru.interlis.thoth.blog.ThothBlogCli'
+    }
+
+    from sourceSets.main.output
+    dependsOn configurations.runtimeClasspath
+    from {
+        configurations.runtimeClasspath.findAll { it.name.endsWith('.jar') }.collect { zipTree(it) }
+    }
+}
+
+build {
+    dependsOn tasks.named('fatJar')
+}
