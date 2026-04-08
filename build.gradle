@@ -123,13 +123,20 @@ def configureCliModule = { Project proj ->
             )
         }
 
+        // WICHTIG: Signaturdateien aus eingebetteten JARs ausschließen
+        exclude 'META-INF/*.SF'
+        exclude 'META-INF/*.DSA'
+        exclude 'META-INF/*.RSA'
+        exclude 'META-INF/INDEX.LIST'
+
         from proj.sourceSets.main.output
         dependsOn proj.configurations.runtimeClasspath
         from {
-            proj.configurations.runtimeClasspath.findAll { it.name.endsWith('.jar') }.collect { zipTree(it) }
+            proj.configurations.runtimeClasspath
+                .findAll { it.name.endsWith('.jar') }
+                .collect { zipTree(it) }
         }
     }
-
     proj.tasks.named('build') {
         dependsOn proj.tasks.named('fatJar')
     }
