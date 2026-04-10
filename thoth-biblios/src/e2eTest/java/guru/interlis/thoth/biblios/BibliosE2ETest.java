@@ -73,6 +73,20 @@ class BibliosE2ETest {
         SiteAssertions assertions = new SiteAssertions(outputRoot);
         assertions.assertGlobalStartPage("Single Source Docs", "My Documentation");
         assertions.assertSiteAssets();
+        assertions.assertFileContains("site-assets/styles.css",
+            ".doc-content ul li + li,\n" +
+                ".doc-content ol li + li {\n" +
+                "    margin-top: 0.5625rem;\n" +
+                "}");
+        assertions.assertFileContains("site-assets/styles.css",
+            ".doc-content ul li > p,\n" +
+                ".doc-content ol li > p {\n" +
+                "    margin-bottom: 0;\n" +
+                "}");
+        assertions.assertFileNotContains("site-assets/styles.css",
+            ".doc-content li + li {\n" +
+                "    margin-top: 0.5rem;\n" +
+                "}");
         assertions.assertDocPage("mydocs", "main", "");
         assertions.assertDocPage("mydocs", "main", "guide");
         assertions.assertSearchIndex("mydocs", "Welcome", "User Guide");
@@ -264,13 +278,40 @@ class BibliosE2ETest {
         assertions.assertFileContains("mydocs/main/index.html", "Grundprinzipien");
         assertions.assertFileNotContains("mydocs/main/index.html", ">1 Einleitung<");
         assertions.assertFileNotContains("mydocs/main/index.html", "id=\"toc\"");
-        assertions.assertFileContains("site-assets/styles.css", "scroll-padding-top: var(--anchor-offset);");
+        assertions.assertFileContains("site-assets/styles.css", "scroll-margin-top: var(--anchor-offset);");
         assertions.assertFileContains("site-assets/styles.css", "content: \"\\00A7\";");
         assertions.assertFileContains("site-assets/styles.css", "h2:hover > a.anchor");
         assertions.assertFileContains("site-assets/styles.css", ".breadcrumbs {");
         assertions.assertFileContains("site-assets/styles.css", "top: var(--site-header-height);");
         assertions.assertFileContains("site-assets/search.js", "IntersectionObserver");
         assertions.assertFileNotContains("site-assets/search.js", "history.replaceState");
+    }
+
+    @Test
+    void singlePageModeHidesUnnumberedChapterSubtreeFromSidebar() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-unnumbered-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withSinglePageDocsIncludingUnnumberedChapter();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Single Page Unnumbered Portal")
+            .withOutputDir(outputRoot)
+            .withSidebarTocDepth(3)
+            .withContentToc("off")
+            .withSinglePageSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("mydocs/main/index.html", "data-chapter-title=\"Einleitung\"");
+        assertions.assertFileContains("mydocs/main/index.html", "data-chapter-title=\"Grundprinzipien\"");
+        assertions.assertFileNotContains("mydocs/main/index.html", "data-chapter-title=\"Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3\"");
+        assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-current\">Einleitung<");
+        assertions.assertFileContains("mydocs/main/index.html", "Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3");
     }
 
     /**

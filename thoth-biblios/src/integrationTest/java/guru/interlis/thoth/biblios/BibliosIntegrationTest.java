@@ -278,6 +278,43 @@ class BibliosIntegrationTest {
     }
 
     @Test
+    void singlePageModeSkipsUnnumberedChapterSubtreeInSidebar() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-unnumbered-repo");
+        Path workRoot = tempDir.resolve("work-single-unnumbered");
+        Path outputRoot = tempDir.resolve("output-single-unnumbered");
+        Path configFile = tempDir.resolve("single-page-unnumbered-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withSinglePageDocsIncludingUnnumberedChapter();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Single Page Unnumbered Integration")
+            .withOutputDir(outputRoot)
+            .withSidebarTocDepth(3)
+            .withContentToc("off")
+            .withSinglePageSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(html.contains("data-chapter-title=\"Einleitung\""));
+        assertTrue(html.contains("data-chapter-title=\"Grundprinzipien\""));
+        assertFalse(html.contains("data-chapter-title=\"Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3\""));
+        assertTrue(html.contains("id=\"chapter-breadcrumb-current\">Einleitung<"));
+        assertTrue(html.contains("Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3"));
+    }
+
+    @Test
     void singlePageSidebarTocNumbersOnPrefixesTitles() throws Exception {
         Path repoDir = tempDir.resolve("single-page-numbered-repo");
         Path workRoot = tempDir.resolve("work-single-numbered");

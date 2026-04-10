@@ -219,8 +219,9 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             }
 
             String sectionNumber = normalizeSectionNumber(section);
+            boolean unnumbered = isUnnumberedSection(section);
             List<Heading> children = mapSections(childSections(section), minLevel, maxDepth);
-            result.add(new Heading(id, title, normalizedLevel, sectionNumber, List.copyOf(children)));
+            result.add(new Heading(id, title, normalizedLevel, sectionNumber, unnumbered, List.copyOf(children)));
         }
         return result;
     }
@@ -262,6 +263,19 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         return normalized;
     }
 
+    private boolean isUnnumberedSection(Section section) {
+        if (section == null) {
+            return false;
+        }
+
+        if (!section.isNumbered()) {
+            return true;
+        }
+
+        // Fallback for documents where the role is preserved in the AST.
+        return section.hasRole("unnumbered");
+    }
+
     public record RenderOptions(
         boolean sectionNumbers,
         boolean contentToc,
@@ -294,7 +308,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         }
     }
 
-    public record Heading(String id, String title, int level, String sectionNumber, List<Heading> children) {
+    public record Heading(String id, String title, int level, String sectionNumber, boolean unnumbered, List<Heading> children) {
     }
 
     public record RenderedDocument(String html, String title, List<Heading> headings) {

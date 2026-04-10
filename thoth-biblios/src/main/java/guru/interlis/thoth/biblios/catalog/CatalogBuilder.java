@@ -189,10 +189,9 @@ public final class CatalogBuilder implements AutoCloseable {
             ? rendered.title().trim()
             : source.displayName();
 
-        NavTree navigation = new NavTree(
-            mapHeadingsToNavItems(rendered.headings(), source.sidebarTocNumbers().isEnabled())
-        );
-        String initialChapterTitle = firstHeadingTitle(rendered.headings(), title);
+        List<NavItem> navigationItems = mapHeadingsToNavItems(rendered.headings(), source.sidebarTocNumbers().isEnabled());
+        NavTree navigation = new NavTree(navigationItems);
+        String initialChapterTitle = firstHeadingTitleFromNav(navigationItems, title);
         List<DocPage.Breadcrumb> breadcrumbs = List.of(
             new DocPage.Breadcrumb(source.displayName(), route),
             new DocPage.Breadcrumb(initialChapterTitle, null)
@@ -324,6 +323,9 @@ public final class CatalogBuilder implements AutoCloseable {
             if (heading == null || heading.title() == null || heading.title().isBlank()) {
                 continue;
             }
+            if (heading.unnumbered()) {
+                continue;
+            }
             String chapterId = heading.id() != null ? heading.id().trim() : "";
             if (chapterId.isBlank()) {
                 continue;
@@ -343,15 +345,15 @@ public final class CatalogBuilder implements AutoCloseable {
         return items;
     }
 
-    private String firstHeadingTitle(List<AsciidoctorRenderer.Heading> headings, String fallback) {
-        if (headings == null || headings.isEmpty()) {
+    private String firstHeadingTitleFromNav(List<NavItem> items, String fallback) {
+        if (items == null || items.isEmpty()) {
             return fallback;
         }
-        AsciidoctorRenderer.Heading first = headings.get(0);
-        if (first == null || first.title() == null || first.title().isBlank()) {
+        NavItem first = items.get(0);
+        if (first == null || first.rawTitle() == null || first.rawTitle().isBlank()) {
             return fallback;
         }
-        return first.title().trim();
+        return first.rawTitle().trim();
     }
 
     private List<String> collectPagePathsFromNav(NavTree nav) {

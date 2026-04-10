@@ -194,6 +194,47 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Create a repo for single-page mode with an unnumbered chapter subtree.
+     */
+    public TestRepoBuilder withSinglePageDocsIncludingUnnumberedChapter() throws Exception {
+        Files.createDirectories(repoDir);
+
+        try (Git git = Git.init().setDirectory(repoDir.toFile()).setInitialBranch(initialBranch).call()) {
+            configureUser(git);
+
+            Path docsDir = repoDir.resolve("docs");
+            Files.createDirectories(docsDir);
+
+            Files.writeString(docsDir.resolve("master.adoc"), """
+                = Reference Manual
+                :doctype: book
+
+                == Einleitung
+
+                === Status
+
+                Genehmigt.
+                
+                [unnumbered]
+                == Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3
+
+                Nicht im TOC anzeigen.
+                
+                == Grundprinzipien
+
+                === Modellierung
+
+                Grundlagen der Modellierung.
+                """);
+
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Single-page docs with unnumbered chapter").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Create a repo with a single master file where section numbers are available from Asciidoctor AST.
      */
     public TestRepoBuilder withSinglePageNumberedDocs() throws Exception {

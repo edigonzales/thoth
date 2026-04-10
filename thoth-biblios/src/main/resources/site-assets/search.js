@@ -266,9 +266,9 @@
     const breadcrumbs = document.querySelector(".breadcrumbs");
     const isDesktop = window.innerWidth > DESKTOP_BREADCRUMB_BREAKPOINT;
 
-    const headerHeight = header ? Math.ceil(header.getBoundingClientRect().height) : 0;
+    const headerHeight = header ? header.getBoundingClientRect().height : 0;
     const breadcrumbHeight = isDesktop && breadcrumbs
-      ? Math.ceil(breadcrumbs.getBoundingClientRect().height)
+      ? breadcrumbs.getBoundingClientRect().height
       : 0;
     const anchorOffset = headerHeight + breadcrumbHeight;
 

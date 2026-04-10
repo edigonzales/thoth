@@ -15,12 +15,14 @@
     --site-header-height: 60px;
     --breadcrumb-height: 0px;
     --anchor-offset: 60px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale; /* mac Firefox */    
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-    scroll-padding-top: var(--anchor-offset);
+    font-size: 18px;
 }
 
 body {
@@ -41,7 +43,7 @@ a:hover { text-decoration: underline; }
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: none;
 }
 
 .header-content {
@@ -384,7 +386,7 @@ a:hover { text-decoration: underline; }
 .doc-content h5 > a.anchor,
 .doc-content h6 > a.anchor {
     position: absolute;
-    top: 50%;
+    top: 0;
     width: 1.4ex;
     margin-left: -1.4ex;
     display: block;
@@ -392,7 +394,6 @@ a:hover { text-decoration: underline; }
     text-decoration: none;
     visibility: hidden;
     color: var(--color-link);
-    transform: translateY(-50%);
 }
 
 .doc-content h1 > a.anchor::before,
@@ -402,9 +403,10 @@ a:hover { text-decoration: underline; }
 .doc-content h5 > a.anchor::before,
 .doc-content h6 > a.anchor::before {
     content: "\00A7";
-    display: block;
+    display: inline-block;
     font-size: 0.85em;
-    line-height: 1;
+    line-height: inherit;
+    vertical-align: baseline;
 }
 
 .doc-content h1:hover > a.anchor,
@@ -430,8 +432,13 @@ a:hover { text-decoration: underline; }
     margin: 0 0 1rem;
     padding-left: 2.25rem;
 }
-.doc-content li + li {
-    margin-top: 0.5rem;
+.doc-content ul li > p,
+.doc-content ol li > p {
+    margin-bottom: 0;
+}
+.doc-content ul li + li,
+.doc-content ol li + li {
+    margin-top: 0.5625rem;
 }
 
 .doc-content .admonitionblock.note {

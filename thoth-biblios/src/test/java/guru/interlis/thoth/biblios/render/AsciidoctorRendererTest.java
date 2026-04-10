@@ -136,8 +136,10 @@ class AsciidoctorRendererTest {
 
             assertEquals("Vorwort", rendered.headings().get(0).title());
             assertTrue(rendered.headings().get(0).sectionNumber().isBlank());
+            assertTrue(rendered.headings().get(0).unnumbered());
             assertEquals("Einleitung", rendered.headings().get(1).title());
             assertEquals("1", rendered.headings().get(1).sectionNumber());
+            assertFalse(rendered.headings().get(1).unnumbered());
         }
     }
 
