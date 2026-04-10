@@ -12,12 +12,19 @@
     --color-breadcrumb: #586069;
     --max-width: 1200px;
     --sidebar-width: 280px;
+    --site-header-height: 60px;
+    --breadcrumb-height: 0px;
+    --anchor-offset: 60px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+    scroll-padding-top: var(--anchor-offset);
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: "Frutiger Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     color: var(--color-text);
     background: var(--color-bg);
     line-height: 1.6;
@@ -139,9 +146,13 @@ a:hover { text-decoration: underline; }
     padding: 1.5rem 1rem;
     flex-shrink: 0;
     overflow-y: auto;
-    max-height: calc(100vh - 60px);
+    max-height: calc(100vh - var(--site-header-height));
     position: sticky;
-    top: 60px;
+    top: var(--site-header-height);
+}
+
+.sidebar-nav {
+    line-height: 1.2;
 }
 
 .nav-list {
@@ -199,6 +210,18 @@ a:hover { text-decoration: underline; }
     padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--color-border);
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    position: sticky;
+    top: var(--site-header-height);
+    z-index: 70;
+    background: var(--color-bg);
+    padding-top: 0.25rem;
+}
+
+#chapter-breadcrumb-trail {
+    display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.25rem;
@@ -344,9 +367,136 @@ a:hover { text-decoration: underline; }
     line-height: 1.7;
 }
 
+.doc-content h1[id],
+.doc-content h2[id],
+.doc-content h3[id],
+.doc-content h4[id],
+.doc-content h5[id],
+.doc-content h6[id] {
+    position: relative;
+    scroll-margin-top: var(--anchor-offset);
+}
+
+.doc-content h1 > a.anchor,
+.doc-content h2 > a.anchor,
+.doc-content h3 > a.anchor,
+.doc-content h4 > a.anchor,
+.doc-content h5 > a.anchor,
+.doc-content h6 > a.anchor {
+    position: absolute;
+    top: 50%;
+    width: 1.4ex;
+    margin-left: -1.4ex;
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    visibility: hidden;
+    color: var(--color-link);
+    transform: translateY(-50%);
+}
+
+.doc-content h1 > a.anchor::before,
+.doc-content h2 > a.anchor::before,
+.doc-content h3 > a.anchor::before,
+.doc-content h4 > a.anchor::before,
+.doc-content h5 > a.anchor::before,
+.doc-content h6 > a.anchor::before {
+    content: "\00A7";
+    display: block;
+    font-size: 0.85em;
+    line-height: 1;
+}
+
+.doc-content h1:hover > a.anchor,
+.doc-content h2:hover > a.anchor,
+.doc-content h3:hover > a.anchor,
+.doc-content h4:hover > a.anchor,
+.doc-content h5:hover > a.anchor,
+.doc-content h6:hover > a.anchor,
+.doc-content h1 > a.anchor:focus-visible,
+.doc-content h2 > a.anchor:focus-visible,
+.doc-content h3 > a.anchor:focus-visible,
+.doc-content h4 > a.anchor:focus-visible,
+.doc-content h5 > a.anchor:focus-visible,
+.doc-content h6 > a.anchor:focus-visible {
+    visibility: visible;
+}
+
 .doc-content h2 { font-size: 1.5rem; margin: 2rem 0 1rem; }
 .doc-content h3 { font-size: 1.25rem; margin: 1.5rem 0 0.75rem; }
 .doc-content p { margin-bottom: 1rem; }
+.doc-content ul,
+.doc-content ol {
+    margin: 0 0 1rem;
+    padding-left: 2.25rem;
+}
+.doc-content li + li {
+    margin-top: 0.5rem;
+}
+
+.doc-content .admonitionblock.note {
+    margin: 1.25rem 0;
+    background: #f1fafe;
+    border: 1px solid #d4e7f4;
+    border-radius: 0.875rem;
+}
+
+.doc-content .admonitionblock.note > table,
+.doc-content .admonitionblock.note > table > tbody,
+.doc-content .admonitionblock.note > table > tbody > tr {
+    display: block;
+    width: 100%;
+}
+
+.doc-content .admonitionblock.note > table > tbody > tr > td {
+    display: block;
+    border: 0;
+    padding: 0;
+}
+
+.doc-content .admonitionblock.note td.icon {
+    padding: 1.15rem 1.35rem 0;
+}
+
+.doc-content .admonitionblock.note td.icon i.icon-note,
+.doc-content .admonitionblock.note td.icon .title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: #1E4ED8;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
+    font-style: normal;
+}
+
+.doc-content .admonitionblock.note td.icon i.icon-note::after {
+    content: attr(title);
+}
+
+.doc-content .admonitionblock.note td.icon i.icon-note::before,
+.doc-content .admonitionblock.note td.icon .title::before {
+    content: "";
+    display: inline-block;
+    width: 1.35rem;
+    height: 1.35rem;
+    flex-shrink: 0;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2360A6FA'%3E%3Cpath d='M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16'/%3E%3Cpath d='m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 .877-.252 1.02-.598l.088-.416c.066-.308.131-.384.306-.437l.451-.083.082-.381-2.29-.287zM8 5.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2'/%3E%3C/svg%3E");
+}
+
+.doc-content .admonitionblock.note td.content {
+    padding: 0.8rem 1.35rem 1.3rem;
+}
+
+.doc-content .admonitionblock.note td.content > .title {
+    margin-bottom: 0.4rem;
+}
+
 .doc-content pre {
     background: #f6f8fa;
     padding: 1rem;
@@ -405,26 +555,6 @@ a:hover { text-decoration: underline; }
     font-size: 0.95rem;
 }
 
-/* Prev/Next */
-.prev-next {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 3rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--color-border);
-}
-
-.prev-next a {
-    padding: 0.75rem 1.25rem;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-}
-
-.prev-next a:hover {
-    background: #f6f8fa;
-    text-decoration: none;
-}
-
 /* Footer */
 .site-footer {
     text-align: center;
@@ -448,6 +578,11 @@ a:hover { text-decoration: underline; }
     }
     .content {
         padding: 1.5rem;
+    }
+    .breadcrumbs {
+        position: static;
+        top: auto;
+        z-index: auto;
     }
     .header-content {
         flex-wrap: wrap;

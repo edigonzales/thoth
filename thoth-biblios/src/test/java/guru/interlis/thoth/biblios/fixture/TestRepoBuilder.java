@@ -112,6 +112,41 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Extend the basic docs fixture with a NOTE admonition in guide.adoc.
+     */
+    public TestRepoBuilder withNoteAdmonitionInGuide() throws Exception {
+        withBasicDocs();
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Path guide = repoDir.resolve("docs/guide.adoc");
+            Files.writeString(guide, """
+                = User Guide
+                :doctype: book
+
+                This is the user guide.
+
+                == Installation
+
+                Follow these steps to install the software.
+
+                [NOTE]
+                ====
+                This guide includes an important note for localization tests.
+                ====
+
+                == Configuration
+
+                Configure the software to your needs.
+                """);
+
+            git.add().addFilepattern("docs/guide.adoc").call();
+            git.commit().setMessage("Add NOTE admonition to guide").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Create a repo configured for single-page rendering via master.adoc includes.
      */
     public TestRepoBuilder withSinglePageDocs() throws Exception {
@@ -125,7 +160,6 @@ public final class TestRepoBuilder {
 
             Files.writeString(docsDir.resolve("master.adoc"), """
                 = Reference Manual
-                :doctype: book
 
                 include::vorwort.adoc[]
                 include::einleitung.adoc[]
@@ -154,6 +188,35 @@ public final class TestRepoBuilder {
 
             git.add().addFilepattern("docs/").call();
             git.commit().setMessage("Initial single-page docs").call();
+        }
+
+        return this;
+    }
+
+    /**
+     * Create a repo with a single master file where section numbers are available from Asciidoctor AST.
+     */
+    public TestRepoBuilder withSinglePageNumberedDocs() throws Exception {
+        Files.createDirectories(repoDir);
+
+        try (Git git = Git.init().setDirectory(repoDir.toFile()).setInitialBranch(initialBranch).call()) {
+            configureUser(git);
+
+            Path docsDir = repoDir.resolve("docs");
+            Files.createDirectories(docsDir);
+
+            Files.writeString(docsDir.resolve("master.adoc"), """
+                = Reference Manual
+
+                == Einleitung
+
+                === Status
+
+                == Grundprinzipien
+                """);
+
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Initial single-page numbered docs").call();
         }
 
         return this;

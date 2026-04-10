@@ -6,7 +6,7 @@
                 <#if item.page?has_content>
                     <a href="${basePath}${item.route}"
                        class="nav-link<#if (currentPagePath!'__none__') == item.page> active</#if><#if (item.chapter)!false> chapter-link</#if>"
-                       <#if item.chapterId?? && item.chapterId?has_content>data-chapter-id="${item.chapterId}" data-chapter-title="${item.title}"</#if>>
+                       <#if item.chapterId?? && item.chapterId?has_content>data-chapter-id="${item.chapterId}" data-chapter-title="${(item.chapterTitle)!item.title}"</#if>>
                         ${item.title}
                     </a>
                 <#else>

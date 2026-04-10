@@ -266,9 +266,50 @@ class BibliosIntegrationTest {
 
         String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
         assertTrue(html.contains("data-single-page-mode=\"true\""));
+        assertTrue(html.contains("data-chapter-breadcrumb=\"enabled\""));
+        assertTrue(html.contains("id=\"chapter-breadcrumb-root\""));
+        assertTrue(html.contains("id=\"chapter-breadcrumb-trail\""));
         assertTrue(html.contains("id=\"chapter-breadcrumb-current\""));
         assertTrue(html.contains("href=\"/mydocs/main/#"));
+        assertTrue(html.contains("class=\"anchor\""));
+        assertTrue(html.matches("(?s).*class=\"anchor\"\\s+href=\"#.+?\".*"));
+        assertFalse(html.matches("(?s).*\\b1\\.?\\s+Einleitung\\b.*"));
         assertFalse(html.contains("id=\"toc\""));
+    }
+
+    @Test
+    void singlePageSidebarTocNumbersOnPrefixesTitles() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-numbered-repo");
+        Path workRoot = tempDir.resolve("work-single-numbered");
+        Path outputRoot = tempDir.resolve("output-single-numbered");
+        Path configFile = tempDir.resolve("single-page-numbered-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withSinglePageNumberedDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Single Page Numbered Integration")
+            .withOutputDir(outputRoot)
+            .withSidebarTocDepth(3)
+            .withContentToc("off")
+            .withSinglePageSourceGitRepoWithTocNumbers(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "on", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(html.matches("(?s).*\\b1\\.?\\s+Einleitung\\b.*"));
+        assertTrue(html.matches("(?s).*\\b1\\.1\\.?\\s+Status\\b.*"));
+        assertTrue(html.contains("data-chapter-title=\"Einleitung\""));
     }
 
     private String extractHead(String html) {

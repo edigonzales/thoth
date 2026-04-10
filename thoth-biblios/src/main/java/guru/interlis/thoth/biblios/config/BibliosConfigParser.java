@@ -178,6 +178,7 @@ public final class BibliosConfigParser {
         String defaultVersion = (String) sourceMap.get("default_version");
         String startPage = (String) sourceMap.get("start_page");
         RenderMode renderMode = parseRenderMode(sourceMap, label);
+        SidebarTocNumbersMode sidebarTocNumbers = parseSidebarTocNumbersMode(sourceMap, label);
         String masterFile = null;
         Object masterFileValue = sourceMap.get("master_file");
         if (masterFileValue != null) {
@@ -216,7 +217,8 @@ public final class BibliosConfigParser {
             navigation,
             startPage,
             renderMode,
-            masterFile
+            masterFile,
+            sidebarTocNumbers
         );
     }
 
@@ -423,6 +425,29 @@ public final class BibliosConfigParser {
         }
         try {
             return RenderMode.parse(text);
+        } catch (IllegalArgumentException e) {
+            throw new ThothBuildException(
+                e.getMessage(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+    }
+
+    private SidebarTocNumbersMode parseSidebarTocNumbersMode(Map<String, Object> sourceMap, String label) {
+        Object value = sourceMap.get("sidebar_toc_numbers");
+        if (value == null) {
+            return SidebarTocNumbersMode.OFF;
+        }
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for '" + label + ".sidebar_toc_numbers', got: " + value.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        try {
+            return SidebarTocNumbersMode.parse(text);
         } catch (IllegalArgumentException e) {
             throw new ThothBuildException(
                 e.getMessage(),

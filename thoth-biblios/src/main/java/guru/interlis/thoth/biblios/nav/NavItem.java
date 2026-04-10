@@ -8,11 +8,17 @@ import java.util.Objects;
  */
 public final class NavItem {
     private final String title;
+    private final String rawTitle;
     private final String page;
     private final List<NavItem> children;
 
     public NavItem(String title, String page, List<NavItem> children) {
+        this(title, page, children, title);
+    }
+
+    public NavItem(String title, String page, List<NavItem> children, String rawTitle) {
         this.title = Objects.requireNonNull(title, "nav item title is required");
+        this.rawTitle = rawTitle != null && !rawTitle.isBlank() ? rawTitle : title;
         this.page = page;
         this.children = children != null ? List.copyOf(children) : List.of();
     }
@@ -22,6 +28,13 @@ public final class NavItem {
      */
     public String title() {
         return title;
+    }
+
+    /**
+     * Raw title without presentation-time TOC number prefixes.
+     */
+    public String rawTitle() {
+        return rawTitle;
     }
 
     /**

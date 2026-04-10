@@ -37,6 +37,11 @@ public final class BibliosConfigBuilder {
         return this;
     }
 
+    public BibliosConfigBuilder withSiteLanguage(String language) {
+        this.siteLanguage = language;
+        return this;
+    }
+
     public BibliosConfigBuilder withOutputDir(Path dir) {
         this.outputDir = dir;
         return this;
@@ -111,10 +116,23 @@ public final class BibliosConfigBuilder {
     public BibliosConfigBuilder withSinglePageSourceGitRepo(Path repoDir, String sourceId, String displayName,
                                                             String startPath, String defaultVersion, String masterFile,
                                                             String... branches) {
+        return withSinglePageSourceGitRepoWithTocNumbers(
+            repoDir, sourceId, displayName, startPath, defaultVersion, masterFile, null, branches
+        );
+    }
+
+    public BibliosConfigBuilder withSinglePageSourceGitRepoWithTocNumbers(Path repoDir, String sourceId, String displayName,
+                                                                           String startPath, String defaultVersion, String masterFile,
+                                                                           String sidebarTocNumbers, String... branches) {
         StringBuilder branchesYaml = new StringBuilder();
         for (String branch : branches) {
             branchesYaml.append("          - name: %s\n".formatted(branch));
             branchesYaml.append("            display_version: %s\n".formatted(branch));
+        }
+
+        String sidebarTocNumbersYaml = "";
+        if (sidebarTocNumbers != null && !sidebarTocNumbers.isBlank()) {
+            sidebarTocNumbersYaml = "  sidebar_toc_numbers: %s\n".formatted(sidebarTocNumbers.trim());
         }
 
         String sourceYaml = """
@@ -127,7 +145,8 @@ public final class BibliosConfigBuilder {
               default_version: %s
               render_mode: single_page
               master_file: %s
-            """.formatted(sourceId, displayName, repoDir.toString(), branchesYaml, startPath, defaultVersion, masterFile);
+            %s""".formatted(sourceId, displayName, repoDir.toString(), branchesYaml, startPath, defaultVersion,
+            masterFile, sidebarTocNumbersYaml);
 
         return withSource(new SourceEntry(sourceYaml));
     }

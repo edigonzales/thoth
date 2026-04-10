@@ -235,6 +235,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         Path assetsDest = outputRoot.resolve("site-assets");
         Files.createDirectories(assetsDest);
 
+        copyAsset(assetsDest, "frutiger-light.css");
+        copyAsset(assetsDest, "jetbrainsmono.css");
         copyAsset(assetsDest, "styles.css");
         copyAsset(assetsDest, "lunr.min.js");
         copyAsset(assetsDest, "search.js");
@@ -368,7 +370,11 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         List<Map<String, Object>> result = new ArrayList<>();
         for (guru.interlis.thoth.biblios.nav.NavItem item : items) {
             Map<String, Object> m = new HashMap<>();
-            m.put("title", item.title());
+            String displayTitle = item.title();
+            String chapterTitle = item.rawTitle() != null && !item.rawTitle().isBlank()
+                ? item.rawTitle()
+                : displayTitle;
+            m.put("title", displayTitle);
             m.put("group", item.isGroup());
 
             if (item.page() != null && !item.page().isBlank()) {
@@ -376,6 +382,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
                 m.put("page", chapterId);
                 m.put("chapter", true);
                 m.put("chapterId", chapterId);
+                m.put("chapterTitle", chapterTitle);
                 m.put("route", baseRoute + "#" + chapterId);
             } else {
                 m.put("chapter", false);

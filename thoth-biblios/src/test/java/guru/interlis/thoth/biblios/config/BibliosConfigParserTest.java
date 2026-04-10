@@ -54,6 +54,7 @@ class BibliosConfigParserTest {
         assertEquals("index.adoc", alpha.startPage());
         assertEquals(RenderMode.SPLIT, alpha.renderMode());
         assertNull(alpha.masterFile());
+        assertEquals(SidebarTocNumbersMode.OFF, alpha.sidebarTocNumbers());
         assertEquals(2, alpha.branches().size());
         assertEquals("main", alpha.branches().get(0).name());
         assertEquals("Latest", alpha.branches().get(0).displayVersion());
@@ -69,6 +70,7 @@ class BibliosConfigParserTest {
         assertEquals(1, beta.branches().size());
         assertEquals("Current", beta.branches().get(0).displayVersion());
         assertEquals(RenderMode.SPLIT, beta.renderMode());
+        assertEquals(SidebarTocNumbersMode.OFF, beta.sidebarTocNumbers());
     }
 
     @Test
@@ -360,6 +362,7 @@ class BibliosConfigParserTest {
         SourceConfig source = config.content().sources().get(0);
         assertEquals(RenderMode.SINGLE_PAGE, source.renderMode());
         assertEquals("master.adoc", source.masterFile());
+        assertEquals(SidebarTocNumbersMode.OFF, source.sidebarTocNumbers());
     }
 
     @Test
@@ -458,6 +461,56 @@ class BibliosConfigParserTest {
 
         ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
         assertTrue(ex.getMessage().contains("ui.content_toc"));
+        assertTrue(ex.getMessage().contains("off"));
+        assertTrue(ex.getMessage().contains("on"));
+    }
+
+    @Test
+    void parsesSidebarTocNumbersOnPerSource(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+                  render_mode: single_page
+                  master_file: master.adoc
+                  sidebar_toc_numbers: on
+            """;
+        Path file = tempDir.resolve("sidebar-toc-numbers-on.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(SidebarTocNumbersMode.ON, config.content().sources().get(0).sidebarTocNumbers());
+    }
+
+    @Test
+    void rejectsInvalidSidebarTocNumbersMode(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+                  sidebar_toc_numbers: maybe
+            """;
+        Path file = tempDir.resolve("invalid-sidebar-toc-numbers.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("sidebar_toc_numbers"));
         assertTrue(ex.getMessage().contains("off"));
         assertTrue(ex.getMessage().contains("on"));
     }

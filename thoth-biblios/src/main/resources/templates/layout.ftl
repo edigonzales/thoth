@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><#if pageTitle?has_content>${pageTitle} - </#if>${siteTitle}</title>
+    <link rel="stylesheet" href="${basePath}/site-assets/frutiger-light.css">
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">
     <script src="${basePath}/site-assets/lunr.min.js" defer></script>
     <script src="${basePath}/site-assets/search.js" defer></script>
@@ -60,18 +61,27 @@
         <main class="content">
             <#if breadcrumbs?has_content && breadcrumbs?size gt 1>
             <nav class="breadcrumbs" data-chapter-breadcrumb="${chapterBreadcrumbEnabled?string('enabled', 'disabled')}">
-                <#list breadcrumbs as crumb>
-                    <#if crumb_index gt 0><span class="separator">/</span></#if>
-                    <#if crumb.route?has_content>
-                        <a href="${basePath}${crumb.route}">${crumb.title}</a>
+                <#if chapterBreadcrumbEnabled>
+                    <#assign rootCrumb = breadcrumbs[0]>
+                    <#if rootCrumb.route?has_content>
+                        <a href="${basePath}${rootCrumb.route}" id="chapter-breadcrumb-root">${rootCrumb.title}</a>
                     <#else>
-                        <#if chapterBreadcrumbEnabled && crumb_index == (breadcrumbs?size - 1)>
-                            <span class="current" id="chapter-breadcrumb-current">${crumb.title}</span>
+                        <span class="current" id="chapter-breadcrumb-root">${rootCrumb.title}</span>
+                    </#if>
+                    <span class="separator">/</span>
+                    <span id="chapter-breadcrumb-trail">
+                        <span class="current" id="chapter-breadcrumb-current">${breadcrumbs[breadcrumbs?size - 1].title}</span>
+                    </span>
+                <#else>
+                    <#list breadcrumbs as crumb>
+                        <#if crumb_index gt 0><span class="separator">/</span></#if>
+                        <#if crumb.route?has_content>
+                            <a href="${basePath}${crumb.route}">${crumb.title}</a>
                         <#else>
                             <span class="current">${crumb.title}</span>
                         </#if>
-                    </#if>
-                </#list>
+                    </#list>
+                </#if>
             </nav>
             </#if>
 
@@ -80,10 +90,10 @@
             <#if !singlePageMode && (prevPage?has_content || nextPage?has_content)>
             <nav class="prev-next">
                 <#if prevPage?has_content>
-                    <a href="${basePath}${prevPage.route}" class="prev">&larr; ${prevPage.title}</a>
+                    <a href="${basePath}${prevPage.route}" class="prev">${prevPage.title}</a>
                 </#if>
                 <#if nextPage?has_content>
-                    <a href="${basePath}${nextPage.route}" class="next">${nextPage.title} &rarr;</a>
+                    <a href="${basePath}${nextPage.route}" class="next">${nextPage.title}</a>
                 </#if>
             </nav>
             </#if>

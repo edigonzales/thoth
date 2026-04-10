@@ -253,12 +253,24 @@ class BibliosE2ETest {
         assertions.assertDocPage("mydocs", "main", "");
         assertions.assertFileNotExists("mydocs/main/einleitung/index.html");
         assertions.assertFileContains("mydocs/main/index.html", "data-single-page-mode=\"true\"");
+        assertions.assertFileContains("mydocs/main/index.html", "data-chapter-breadcrumb=\"enabled\"");
         assertions.assertFileContains("mydocs/main/index.html", "data-chapter-id=");
+        assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-root\"");
+        assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-trail\"");
         assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-current\"");
         assertions.assertFileContains("mydocs/main/index.html", "href=\"/mydocs/main/#");
+        assertions.assertFileContains("mydocs/main/index.html", "class=\"anchor\"");
         assertions.assertFileContains("mydocs/main/index.html", "Einleitung");
         assertions.assertFileContains("mydocs/main/index.html", "Grundprinzipien");
+        assertions.assertFileNotContains("mydocs/main/index.html", ">1 Einleitung<");
         assertions.assertFileNotContains("mydocs/main/index.html", "id=\"toc\"");
+        assertions.assertFileContains("site-assets/styles.css", "scroll-padding-top: var(--anchor-offset);");
+        assertions.assertFileContains("site-assets/styles.css", "content: \"\\00A7\";");
+        assertions.assertFileContains("site-assets/styles.css", "h2:hover > a.anchor");
+        assertions.assertFileContains("site-assets/styles.css", ".breadcrumbs {");
+        assertions.assertFileContains("site-assets/styles.css", "top: var(--site-header-height);");
+        assertions.assertFileContains("site-assets/search.js", "IntersectionObserver");
+        assertions.assertFileNotContains("site-assets/search.js", "history.replaceState");
     }
 
     /**
@@ -284,6 +296,38 @@ class BibliosE2ETest {
         assertions.assertFileContains("index.html", "data-search-language-mode=\"english_default\"");
         assertions.assertFileContains("search/index.html", "data-search-language-mode=\"english_default\"");
         assertions.assertFileContains("mydocs/main/index.html", "data-search-language-mode=\"english_default\"");
+    }
+
+    /**
+     * E2E-7: NOTE admonitions are rendered and styled with localized caption.
+     */
+    @Test
+    void noteAdmonitionIsStyledAndLocalized() throws Exception {
+        Path repoDir = tempDir.resolve("note-admonition-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withNoteAdmonitionInGuide();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Localized Note Docs")
+            .withSiteLanguage("de")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"admonitionblock note\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "title=\"Hinweis\"");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.note {");
+        assertions.assertFileContains("site-assets/styles.css", "#f1fafe");
+        assertions.assertFileContains("site-assets/styles.css", "#d4e7f4");
+        assertions.assertFileContains("site-assets/styles.css", "#1E4ED8");
+        assertions.assertFileContains("site-assets/styles.css", "%2360A6FA");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.note td.icon .title::before");
     }
 
     /**

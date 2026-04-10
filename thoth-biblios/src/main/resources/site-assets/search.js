@@ -1,5 +1,7 @@
 (() => {
   const SEARCH_INDEX_URL = "/search-index.json";
+  const DESKTOP_BREADCRUMB_BREAKPOINT = 768;
+  const SINGLE_PAGE_BREADCRUMB_DEPTH = 3;
 
   function parseQuery() {
     const params = new URLSearchParams(window.location.search);
@@ -254,34 +256,118 @@
     }
   }
 
+  function syncStickyOffsets() {
+    const root = document.documentElement;
+    if (!root) {
+      return;
+    }
+
+    const header = document.querySelector(".site-header");
+    const breadcrumbs = document.querySelector(".breadcrumbs");
+    const isDesktop = window.innerWidth > DESKTOP_BREADCRUMB_BREAKPOINT;
+
+    const headerHeight = header ? Math.ceil(header.getBoundingClientRect().height) : 0;
+    const breadcrumbHeight = isDesktop && breadcrumbs
+      ? Math.ceil(breadcrumbs.getBoundingClientRect().height)
+      : 0;
+    const anchorOffset = headerHeight + breadcrumbHeight;
+
+    root.style.setProperty("--site-header-height", String(headerHeight) + "px");
+    root.style.setProperty("--breadcrumb-height", String(breadcrumbHeight) + "px");
+    root.style.setProperty("--anchor-offset", String(anchorOffset) + "px");
+  }
+
+  function readAnchorOffset() {
+    const root = document.documentElement;
+    if (!root) {
+      return 0;
+    }
+    const rawValue = window.getComputedStyle(root).getPropertyValue("--anchor-offset");
+    const parsed = Number.parseFloat(rawValue);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  }
+
   function initSinglePageChapterUi() {
     if (!document.body || document.body.dataset.singlePageMode !== "true") {
       return;
     }
 
     const chapterCurrent = document.getElementById("chapter-breadcrumb-current");
+    const chapterTrail = document.getElementById("chapter-breadcrumb-trail");
     const navLinks = Array.from(document.querySelectorAll(".sidebar-nav .nav-link[data-chapter-id]"));
-    if (!chapterCurrent || navLinks.length === 0) {
+    const sidebarRoot = document.querySelector(".sidebar-nav > .nav-list");
+    if (!chapterCurrent || !chapterTrail || !sidebarRoot || navLinks.length === 0) {
       return;
     }
 
-    const chaptersById = new Map();
+    const chapterPathById = new Map();
+    const chapterTitleById = new Map();
+
+    function collectChapterPaths(listElement, ancestors) {
+      const items = Array.from(listElement.children).filter((child) => child.matches("li.nav-item"));
+      for (const item of items) {
+        let currentPath = ancestors;
+        const children = Array.from(item.children);
+        const chapterLink = children.find((child) => child.matches(".nav-link[data-chapter-id]"));
+
+        if (chapterLink) {
+          const chapterId = (chapterLink.dataset.chapterId || "").trim();
+          const chapterTitle = (chapterLink.dataset.chapterTitle || "").trim();
+          if (chapterId && chapterTitle) {
+            currentPath = ancestors.concat([{ id: chapterId, title: chapterTitle }]);
+            if (!chapterPathById.has(chapterId)) {
+              chapterPathById.set(chapterId, currentPath);
+            }
+            if (!chapterTitleById.has(chapterId)) {
+              chapterTitleById.set(chapterId, chapterTitle);
+            }
+          }
+        }
+
+        const childLists = children.filter((child) => child.matches(".nav-list"));
+        for (const childList of childLists) {
+          collectChapterPaths(childList, currentPath);
+        }
+      }
+    }
+
+    collectChapterPaths(sidebarRoot, []);
+
     for (const link of navLinks) {
       const chapterId = (link.dataset.chapterId || "").trim();
       const chapterTitle = (link.dataset.chapterTitle || "").trim();
       if (!chapterId || !chapterTitle) {
         continue;
       }
-      if (!chaptersById.has(chapterId)) {
-        chaptersById.set(chapterId, chapterTitle);
+      if (!chapterTitleById.has(chapterId)) {
+        chapterTitleById.set(chapterId, chapterTitle);
+      }
+      if (!chapterPathById.has(chapterId)) {
+        chapterPathById.set(chapterId, [{ id: chapterId, title: chapterTitle }]);
       }
     }
 
-    if (chaptersById.size === 0) {
+    if (chapterPathById.size === 0) {
       return;
     }
 
     const initialChapterId = (document.body.dataset.initialChapterId || "").trim();
+    const sectionByChapterId = new Map();
+    const contentSections = Array.from(document.querySelectorAll(".doc-content [id]"));
+    for (const section of contentSections) {
+      if (!section.id || !chapterPathById.has(section.id)) {
+        continue;
+      }
+      if (!sectionByChapterId.has(section.id)) {
+        sectionByChapterId.set(section.id, section);
+      }
+    }
+
+    const chapterIdsInDocumentOrder = Array.from(sectionByChapterId.keys());
+    let activeChapterId = "";
+    let rafId = 0;
+    let viewportObserver = null;
+    let fallbackScrollHandler = null;
 
     function setActiveChapter(chapterId) {
       for (const link of navLinks) {
@@ -293,28 +379,172 @@
       }
     }
 
-    function applyChapterFromLocation() {
-      let chapterId = decodeHashChapterId();
-      if (!chapterId || !chaptersById.has(chapterId)) {
-        chapterId = chaptersById.has(initialChapterId) ? initialChapterId : (chaptersById.keys().next().value || "");
-      }
-      if (!chapterId || !chaptersById.has(chapterId)) {
+    function setChapterUi(chapterId) {
+      if (!chapterId || !chapterPathById.has(chapterId) || chapterId === activeChapterId) {
         return;
       }
-
-      chapterCurrent.textContent = chaptersById.get(chapterId) || chapterCurrent.textContent;
+      activeChapterId = chapterId;
+      renderChapterTrail(chapterId);
       setActiveChapter(chapterId);
     }
 
+    function appendSeparator(container) {
+      const separator = document.createElement("span");
+      separator.className = "separator";
+      separator.textContent = "/";
+      container.appendChild(separator);
+    }
+
+    function renderChapterTrail(chapterId) {
+      const path = chapterPathById.get(chapterId) || [];
+      const visiblePath = path.length > SINGLE_PAGE_BREADCRUMB_DEPTH
+        ? path.slice(path.length - SINGLE_PAGE_BREADCRUMB_DEPTH)
+        : path;
+
+      chapterTrail.innerHTML = "";
+      if (visiblePath.length === 0) {
+        chapterCurrent.textContent = chapterTitleById.get(chapterId) || chapterCurrent.textContent;
+        chapterTrail.appendChild(chapterCurrent);
+        return;
+      }
+
+      for (let i = 0; i < visiblePath.length; i++) {
+        const chapter = visiblePath[i];
+        const isLast = i === visiblePath.length - 1;
+
+        if (i > 0) {
+          appendSeparator(chapterTrail);
+        }
+
+        if (isLast) {
+          const current = document.createElement("span");
+          current.className = "current";
+          current.id = "chapter-breadcrumb-current";
+          current.textContent = chapter.title;
+          chapterTrail.appendChild(current);
+        } else {
+          const link = document.createElement("a");
+          link.href = "#" + encodeURIComponent(chapter.id);
+          link.textContent = chapter.title;
+          chapterTrail.appendChild(link);
+        }
+      }
+    }
+
+    function chapterFromViewport() {
+      if (chapterIdsInDocumentOrder.length === 0) {
+        return "";
+      }
+      const anchorOffset = readAnchorOffset();
+      let candidate = chapterIdsInDocumentOrder[0];
+      for (const chapterId of chapterIdsInDocumentOrder) {
+        const section = sectionByChapterId.get(chapterId);
+        if (!section) {
+          continue;
+        }
+        const top = section.getBoundingClientRect().top;
+        if ((top - anchorOffset) <= 1) {
+          candidate = chapterId;
+        } else {
+          break;
+        }
+      }
+      return candidate;
+    }
+
+    function scheduleViewportSync() {
+      if (rafId !== 0) {
+        return;
+      }
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0;
+        const viewportChapterId = chapterFromViewport();
+        if (viewportChapterId) {
+          setChapterUi(viewportChapterId);
+        }
+      });
+    }
+
+    function bindViewportObserver() {
+      if (!("IntersectionObserver" in window) || chapterIdsInDocumentOrder.length === 0) {
+        return false;
+      }
+      if (viewportObserver) {
+        viewportObserver.disconnect();
+      }
+      const topMargin = Math.ceil(readAnchorOffset()) + 8;
+      viewportObserver = new IntersectionObserver(
+        () => {
+          scheduleViewportSync();
+        },
+        {
+          root: null,
+          rootMargin: "-" + String(topMargin) + "px 0px -60% 0px",
+          threshold: [0, 0.01, 0.25]
+        }
+      );
+      for (const chapterId of chapterIdsInDocumentOrder) {
+        const section = sectionByChapterId.get(chapterId);
+        if (section) {
+          viewportObserver.observe(section);
+        }
+      }
+      return true;
+    }
+
+    function ensureViewportTracking() {
+      if (fallbackScrollHandler) {
+        window.removeEventListener("scroll", fallbackScrollHandler);
+        fallbackScrollHandler = null;
+      }
+      const observerBound = bindViewportObserver();
+      if (!observerBound) {
+        fallbackScrollHandler = () => {
+          scheduleViewportSync();
+        };
+        window.addEventListener("scroll", fallbackScrollHandler, { passive: true });
+      }
+    }
+
+    function applyChapterFromLocation() {
+      const chapterIdFromHash = decodeHashChapterId();
+      if (chapterIdFromHash && chapterPathById.has(chapterIdFromHash)) {
+        setChapterUi(chapterIdFromHash);
+        return;
+      }
+      const chapterIdFromViewport = chapterFromViewport();
+      if (chapterIdFromViewport) {
+        setChapterUi(chapterIdFromViewport);
+        return;
+      }
+      const fallbackChapterId = chapterPathById.has(initialChapterId)
+        ? initialChapterId
+        : (chapterPathById.keys().next().value || "");
+      if (fallbackChapterId && chapterPathById.has(fallbackChapterId)) {
+        setChapterUi(fallbackChapterId);
+      }
+    }
+
+    ensureViewportTracking();
     window.addEventListener("hashchange", applyChapterFromLocation);
+    window.addEventListener("resize", () => {
+      syncStickyOffsets();
+      ensureViewportTracking();
+      scheduleViewportSync();
+    });
     applyChapterFromLocation();
+    scheduleViewportSync();
   }
 
   function init() {
     const query = parseQuery();
     ensureSearchInputSync(query);
+    syncStickyOffsets();
+    window.addEventListener("resize", syncStickyOffsets);
+    window.addEventListener("hashchange", syncStickyOffsets);
     initSearchPage();
     initSinglePageChapterUi();
+    syncStickyOffsets();
   }
 
   if (document.readyState === "loading") {

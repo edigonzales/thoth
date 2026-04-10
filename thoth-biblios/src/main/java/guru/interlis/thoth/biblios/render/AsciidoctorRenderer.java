@@ -21,6 +21,7 @@ import java.util.Locale;
  */
 public final class AsciidoctorRenderer implements AutoCloseable {
 
+    private static final String DEFAULT_LANGUAGE = "en";
     private final Asciidoctor asciidoctor;
 
     public AsciidoctorRenderer() {
@@ -67,9 +68,25 @@ public final class AsciidoctorRenderer implements AutoCloseable {
      * @return rendered HTML content
      */
     public String renderString(String content) {
+        return renderString(content, DEFAULT_LANGUAGE);
+    }
+
+    /**
+     * Render AsciiDoc content from a string to HTML with an explicit language.
+     *
+     * @param content AsciiDoc content string
+     * @param language document language (for localized labels)
+     * @return rendered HTML content
+     */
+    public String renderString(String content, String language) {
         try {
             AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
             attributes.attribute("source-highlighter", "prettify");
+            attributes.attribute("icons", "font");
+            attributes.attribute("sectanchors", "");
+            String resolvedLanguage = normalizeLanguage(language);
+            attributes.attribute("lang", resolvedLanguage);
+            attributes.attribute("note-caption", localizedNoteCaption(resolvedLanguage));
 
             OptionsBuilder options = org.asciidoctor.Options.builder()
                 .backend("html5")
@@ -122,6 +139,10 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
         attributes.attribute("source-highlighter", "prettify");
         attributes.attribute("icons", "font");
+        attributes.attribute("sectanchors", "");
+        String resolvedLanguage = normalizeLanguage(options.language());
+        attributes.attribute("lang", resolvedLanguage);
+        attributes.attribute("note-caption", localizedNoteCaption(resolvedLanguage));
 
         if (options.sectionNumbers()) {
             attributes.attribute("sectnums", "");
@@ -144,6 +165,21 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             .baseDir(sourcePath.getParent().toFile())
             .attributes(attributes.build())
             .build();
+    }
+
+    private static String normalizeLanguage(String language) {
+        if (language == null || language.isBlank()) {
+            return DEFAULT_LANGUAGE;
+        }
+        return language.trim();
+    }
+
+    private static String localizedNoteCaption(String language) {
+        String normalized = normalizeLanguage(language).toLowerCase(Locale.ROOT);
+        if (normalized.startsWith("de")) {
+            return "Hinweis";
+        }
+        return "Note";
     }
 
     private List<Heading> extractHeadings(Document document, int maxDepth) {
@@ -182,8 +218,9 @@ public final class AsciidoctorRenderer implements AutoCloseable {
                 id = slug.isBlank() ? "section-" + normalizedLevel + "-" + index : slug;
             }
 
+            String sectionNumber = normalizeSectionNumber(section);
             List<Heading> children = mapSections(childSections(section), minLevel, maxDepth);
-            result.add(new Heading(id, title, normalizedLevel, List.copyOf(children)));
+            result.add(new Heading(id, title, normalizedLevel, sectionNumber, List.copyOf(children)));
         }
         return result;
     }
@@ -207,21 +244,57 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         return normalized;
     }
 
-    public record RenderOptions(boolean sectionNumbers, boolean contentToc, boolean collectHeadings, int headingDepth) {
+    private String normalizeSectionNumber(Section section) {
+        if (section == null || !section.isNumbered()) {
+            return "";
+        }
+        String raw = section.getSectnum();
+        if (raw == null || raw.isBlank()) {
+            raw = section.getNumeral();
+        }
+        if (raw == null) {
+            return "";
+        }
+        String normalized = raw.trim();
+        while (normalized.endsWith(".")) {
+            normalized = normalized.substring(0, normalized.length() - 1).trim();
+        }
+        return normalized;
+    }
+
+    public record RenderOptions(
+        boolean sectionNumbers,
+        boolean contentToc,
+        boolean collectHeadings,
+        int headingDepth,
+        String language
+    ) {
         public static RenderOptions legacyDefaults() {
-            return new RenderOptions(true, true, false, 2);
+            return legacyDefaults(DEFAULT_LANGUAGE);
+        }
+
+        public static RenderOptions legacyDefaults(String language) {
+            return new RenderOptions(true, true, false, 2, normalizeLanguage(language));
         }
 
         public static RenderOptions split(boolean contentToc) {
-            return new RenderOptions(true, contentToc, false, 2);
+            return split(contentToc, DEFAULT_LANGUAGE);
+        }
+
+        public static RenderOptions split(boolean contentToc, String language) {
+            return new RenderOptions(true, contentToc, false, 2, normalizeLanguage(language));
         }
 
         public static RenderOptions singlePage(boolean contentToc, int headingDepth) {
-            return new RenderOptions(true, contentToc, true, headingDepth);
+            return singlePage(contentToc, headingDepth, DEFAULT_LANGUAGE);
+        }
+
+        public static RenderOptions singlePage(boolean contentToc, int headingDepth, String language) {
+            return new RenderOptions(true, contentToc, true, headingDepth, normalizeLanguage(language));
         }
     }
 
-    public record Heading(String id, String title, int level, List<Heading> children) {
+    public record Heading(String id, String title, int level, String sectionNumber, List<Heading> children) {
     }
 
     public record RenderedDocument(String html, String title, List<Heading> headings) {

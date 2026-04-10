@@ -171,12 +171,13 @@ public final class CatalogBuilder implements AutoCloseable {
 
         boolean contentToc = ui != null && ui.contentToc().isEnabled();
         int headingDepth = ui != null ? ui.sidebarTocDepth() : 2;
+        String renderLanguage = config.site().defaultLanguage();
 
         AsciidoctorRenderer.RenderedDocument rendered;
         try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
             rendered = renderer.renderDocument(
                 masterPath,
-                AsciidoctorRenderer.RenderOptions.singlePage(contentToc, headingDepth)
+                AsciidoctorRenderer.RenderOptions.singlePage(contentToc, headingDepth, renderLanguage)
             );
         }
 
@@ -188,7 +189,9 @@ public final class CatalogBuilder implements AutoCloseable {
             ? rendered.title().trim()
             : source.displayName();
 
-        NavTree navigation = new NavTree(mapHeadingsToNavItems(rendered.headings()));
+        NavTree navigation = new NavTree(
+            mapHeadingsToNavItems(rendered.headings(), source.sidebarTocNumbers().isEnabled())
+        );
         String initialChapterTitle = firstHeadingTitle(rendered.headings(), title);
         List<DocPage.Breadcrumb> breadcrumbs = List.of(
             new DocPage.Breadcrumb(source.displayName(), route),
@@ -242,6 +245,7 @@ public final class CatalogBuilder implements AutoCloseable {
         // Create renderer for this version
         try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
             boolean contentToc = ui != null && ui.contentToc().isEnabled();
+            String renderLanguage = config.site().defaultLanguage();
             for (String pagePath : pagePaths) {
                 Path filePath = docRoot.resolve(pagePath);
                 if (!Files.exists(filePath)) {
@@ -258,7 +262,7 @@ public final class CatalogBuilder implements AutoCloseable {
                 try {
                     AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
                         filePath,
-                        AsciidoctorRenderer.RenderOptions.split(contentToc)
+                        AsciidoctorRenderer.RenderOptions.split(contentToc, renderLanguage)
                     );
                     html = rendered.html();
                     if (html == null || html.isEmpty()) {
@@ -311,7 +315,7 @@ public final class CatalogBuilder implements AutoCloseable {
         return pages;
     }
 
-    private List<NavItem> mapHeadingsToNavItems(List<AsciidoctorRenderer.Heading> headings) {
+    private List<NavItem> mapHeadingsToNavItems(List<AsciidoctorRenderer.Heading> headings, boolean showNumbers) {
         List<NavItem> items = new ArrayList<>();
         if (headings == null) {
             return items;
@@ -324,10 +328,16 @@ public final class CatalogBuilder implements AutoCloseable {
             if (chapterId.isBlank()) {
                 continue;
             }
+            String rawTitle = heading.title().trim();
+            String displayTitle = rawTitle;
+            if (showNumbers && heading.sectionNumber() != null && !heading.sectionNumber().isBlank()) {
+                displayTitle = heading.sectionNumber().trim() + " " + rawTitle;
+            }
             items.add(new NavItem(
-                heading.title().trim(),
+                displayTitle,
                 chapterId,
-                mapHeadingsToNavItems(heading.children())
+                mapHeadingsToNavItems(heading.children(), showNumbers),
+                rawTitle
             ));
         }
         return items;
