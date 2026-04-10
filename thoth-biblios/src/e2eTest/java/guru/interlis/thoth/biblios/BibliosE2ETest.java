@@ -326,7 +326,13 @@ class BibliosE2ETest {
         assertions.assertFileContains("site-assets/styles.css", "#f1fafe");
         assertions.assertFileContains("site-assets/styles.css", "#d4e7f4");
         assertions.assertFileContains("site-assets/styles.css", "#1E4ED8");
-        assertions.assertFileContains("site-assets/styles.css", "%2360A6FA");
+        assertions.assertFileContains("site-assets/styles.css", "background-color: #60A6FA");
+        assertions.assertFileContains("site-assets/styles.css", "mask-image: url(\"data:image/svg+xml");
+        assertions.assertFileContains("site-assets/styles.css", "-webkit-mask-image: url(\"data:image/svg+xml");
+        assertions.assertFileContains("site-assets/styles.css", "class='bi bi-info-circle'");
+        assertions.assertFileContains("site-assets/styles.css", "M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16");
+        assertions.assertFileContains("site-assets/styles.css", "m8.93 6.588-2.29.287-.082.38");
+        assertions.assertFileContains("site-assets/styles.css", "1.178-.252 1.465-.598");
         assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.note td.icon .title::before");
     }
 
