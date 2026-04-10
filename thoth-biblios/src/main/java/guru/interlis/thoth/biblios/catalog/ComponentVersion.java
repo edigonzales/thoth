@@ -1,5 +1,6 @@
 package guru.interlis.thoth.biblios.catalog;
 
+import guru.interlis.thoth.biblios.config.RenderMode;
 import guru.interlis.thoth.biblios.nav.NavTree;
 
 import java.util.List;
@@ -16,9 +17,15 @@ public final class ComponentVersion {
     private final String startPage;
     private final NavTree navigation;
     private final List<DocPage> pages;
+    private final RenderMode renderMode;
 
     public ComponentVersion(String componentId, String version, String displayVersion, String branchName,
                             String startPage, NavTree navigation, List<DocPage> pages) {
+        this(componentId, version, displayVersion, branchName, startPage, navigation, pages, RenderMode.SPLIT);
+    }
+
+    public ComponentVersion(String componentId, String version, String displayVersion, String branchName,
+                            String startPage, NavTree navigation, List<DocPage> pages, RenderMode renderMode) {
         this.componentId = Objects.requireNonNull(componentId, "componentId is required");
         this.version = Objects.requireNonNull(version, "version is required");
         this.displayVersion = Objects.requireNonNull(displayVersion, "displayVersion is required");
@@ -26,6 +33,7 @@ public final class ComponentVersion {
         this.startPage = startPage != null ? startPage : "index.adoc";
         this.navigation = navigation;
         this.pages = pages != null ? List.copyOf(pages) : List.of();
+        this.renderMode = renderMode != null ? renderMode : RenderMode.SPLIT;
     }
 
     public String componentId() {
@@ -54,6 +62,10 @@ public final class ComponentVersion {
 
     public List<DocPage> pages() {
         return pages;
+    }
+
+    public RenderMode renderMode() {
+        return renderMode;
     }
 
     /**

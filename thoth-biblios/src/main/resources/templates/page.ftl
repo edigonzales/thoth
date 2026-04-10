@@ -4,7 +4,11 @@
     docSwitcher=(docSwitcher)![] versionSwitcher=(versionSwitcher)![]
     currentComponentId=currentComponentId currentVersionStr=(currentVersion.version)!"" currentVersion=(currentVersion)!{} currentPagePath=currentPagePath
     navigation=(navigation)!{} breadcrumbs=(breadcrumbs)![]
-    prevPage=(prevPage)!{} nextPage=(nextPage)!{}>
+    prevPage=(prevPage)!{} nextPage=(nextPage)!{}
+    searchLanguageMode=(searchLanguageMode)!"multilingual_safe"
+    singlePageMode=(singlePageMode)!false
+    chapterBreadcrumbEnabled=(chapterBreadcrumbEnabled)!false
+    initialChapterId=(initialChapterId)!"">
     <article class="doc-page">
         <h1>${page.title}</h1>
         <#if (showEditLink)!false && (editUrl?? || sourceUrl??)>

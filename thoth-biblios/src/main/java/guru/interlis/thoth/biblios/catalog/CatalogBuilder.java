@@ -3,6 +3,7 @@ package guru.interlis.thoth.biblios.catalog;
 import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.BranchConfig;
 import guru.interlis.thoth.biblios.config.NavigationConfig;
+import guru.interlis.thoth.biblios.config.RenderMode;
 import guru.interlis.thoth.biblios.config.SourceConfig;
 import guru.interlis.thoth.biblios.config.UiSection;
 import guru.interlis.thoth.biblios.git.GitSourceResolver;
@@ -101,6 +102,10 @@ public final class CatalogBuilder implements AutoCloseable {
             );
         }
 
+        if (source.renderMode().isSinglePage()) {
+            return buildSinglePageVersion(source, branch, docRoot, ui);
+        }
+
         // Load navigation
         NavTree navigation = null;
         NavigationConfig navConfig = source.navigation();
@@ -133,10 +138,10 @@ public final class CatalogBuilder implements AutoCloseable {
         }
 
         // Validate startPage exists
-        String startPage = source.startPage() != null ? source.startPage() : "index.adoc";
-        boolean startPageExists = pages.stream().anyMatch(p -> p.sourcePath().equals(startPage));
+        String configuredStartPage = source.startPage() != null ? source.startPage() : "index.adoc";
+        boolean startPageExists = pages.stream().anyMatch(p -> p.sourcePath().equals(configuredStartPage));
         if (!startPageExists) {
-            System.err.println("[warn] Start page '" + startPage + "' not found for " + source.id() + "/" + branch.name());
+            System.err.println("[warn] Start page '" + configuredStartPage + "' not found for " + source.id() + "/" + branch.name());
             System.err.println("[warn] Available pages: " + pages.stream().map(DocPage::sourcePath).limit(10).collect(java.util.stream.Collectors.joining(", ")));
             if (!pages.isEmpty()) {
                 System.err.println("[warn] Falling back to first available page: " + pages.get(0).sourcePath());
@@ -148,9 +153,77 @@ public final class CatalogBuilder implements AutoCloseable {
             branch.name(),
             branch.displayVersion(),
             branch.name(),
-            source.startPage(),
+            configuredStartPage,
             navigation,
-            pages
+            pages,
+            RenderMode.SPLIT
+        );
+    }
+
+    private ComponentVersion buildSinglePageVersion(SourceConfig source, BranchConfig branch, Path docRoot, UiSection ui) throws IOException {
+        Path masterPath = docRoot.resolve(source.masterFile());
+        if (!Files.exists(masterPath) || !Files.isRegularFile(masterPath)) {
+            throw new IOException(
+                "Master file not found for single_page source '" + source.id() + "': " + masterPath + "\n" +
+                "Check the 'master_file' configuration and ensure the file exists under start_path."
+            );
+        }
+
+        boolean contentToc = ui != null && ui.contentToc().isEnabled();
+        int headingDepth = ui != null ? ui.sidebarTocDepth() : 2;
+
+        AsciidoctorRenderer.RenderedDocument rendered;
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            rendered = renderer.renderDocument(
+                masterPath,
+                AsciidoctorRenderer.RenderOptions.singlePage(contentToc, headingDepth)
+            );
+        }
+
+        String route = "/" + source.id() + "/" + branch.name() + "/";
+        String sourcePath = source.masterFile();
+        String pageId = pagePathToId(sourcePath);
+        String html = rendered.html() != null ? rendered.html() : "";
+        String title = rendered.title() != null && !rendered.title().isBlank()
+            ? rendered.title().trim()
+            : source.displayName();
+
+        NavTree navigation = new NavTree(mapHeadingsToNavItems(rendered.headings()));
+        String initialChapterTitle = firstHeadingTitle(rendered.headings(), title);
+        List<DocPage.Breadcrumb> breadcrumbs = List.of(
+            new DocPage.Breadcrumb(source.displayName(), route),
+            new DocPage.Breadcrumb(initialChapterTitle, null)
+        );
+
+        String editUrl = buildEditUrl(ui, source, branch, sourcePath);
+        String sourceUrl = buildSourceUrl(ui, source, branch, sourcePath);
+
+        DocPage page = new DocPage(
+            source.id(),
+            branch.name(),
+            sourcePath,
+            masterPath.toUri().toString(),
+            pageId,
+            title,
+            title,
+            route,
+            html,
+            breadcrumbs,
+            null,
+            null,
+            editUrl,
+            sourceUrl
+        );
+
+        return new ComponentVersion(
+            source.id(),
+            branch.name(),
+            branch.displayVersion(),
+            branch.name(),
+            source.masterFile(),
+            navigation,
+            List.of(page),
+            RenderMode.SINGLE_PAGE
         );
     }
 
@@ -168,6 +241,7 @@ public final class CatalogBuilder implements AutoCloseable {
 
         // Create renderer for this version
         try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            boolean contentToc = ui != null && ui.contentToc().isEnabled();
             for (String pagePath : pagePaths) {
                 Path filePath = docRoot.resolve(pagePath);
                 if (!Files.exists(filePath)) {
@@ -176,20 +250,28 @@ public final class CatalogBuilder implements AutoCloseable {
                 }
 
                 String pageId = pagePathToId(pagePath);
-                String route = buildRoute(source.id(), branch.name(), pagePath);
+                String route = buildRoute(source.id(), branch.name(), pagePath, source.startPage());
 
                 // Render AsciiDoc to HTML
                 String html;
                 String title;
                 try {
-                    html = renderer.renderFile(filePath);
+                    AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
+                        filePath,
+                        AsciidoctorRenderer.RenderOptions.split(contentToc)
+                    );
+                    html = rendered.html();
                     if (html == null || html.isEmpty()) {
                         // Fallback to raw content if renderer returns empty
                         String content = Files.readString(filePath);
                         html = "<pre><code>" + escapeHtml(content) + "</code></pre>";
                         title = extractTitleFallback(pagePath, content);
                     } else {
-                        title = extractTitle(filePath, html);
+                        if (rendered.title() != null && !rendered.title().isBlank()) {
+                            title = rendered.title().trim();
+                        } else {
+                            title = extractTitle(filePath, html);
+                        }
                     }
                 } catch (Exception e) {
                     System.err.println("[warn] Failed to render " + filePath + ": " + e.getMessage());
@@ -213,7 +295,7 @@ public final class CatalogBuilder implements AutoCloseable {
                     title,
                     route,
                     html,
-                    buildBreadcrumbs(navigation, pagePath, title, route),
+                    buildBreadcrumbs(navigation, source.id(), branch.name(), source.startPage(), pagePath, title),
                     null, // prev/next will be set after all pages are collected
                     null,
                     editUrl,
@@ -227,6 +309,39 @@ public final class CatalogBuilder implements AutoCloseable {
         linkPages(pages, navigation);
 
         return pages;
+    }
+
+    private List<NavItem> mapHeadingsToNavItems(List<AsciidoctorRenderer.Heading> headings) {
+        List<NavItem> items = new ArrayList<>();
+        if (headings == null) {
+            return items;
+        }
+        for (AsciidoctorRenderer.Heading heading : headings) {
+            if (heading == null || heading.title() == null || heading.title().isBlank()) {
+                continue;
+            }
+            String chapterId = heading.id() != null ? heading.id().trim() : "";
+            if (chapterId.isBlank()) {
+                continue;
+            }
+            items.add(new NavItem(
+                heading.title().trim(),
+                chapterId,
+                mapHeadingsToNavItems(heading.children())
+            ));
+        }
+        return items;
+    }
+
+    private String firstHeadingTitle(List<AsciidoctorRenderer.Heading> headings, String fallback) {
+        if (headings == null || headings.isEmpty()) {
+            return fallback;
+        }
+        AsciidoctorRenderer.Heading first = headings.get(0);
+        if (first == null || first.title() == null || first.title().isBlank()) {
+            return fallback;
+        }
+        return first.title().trim();
     }
 
     private List<String> collectPagePathsFromNav(NavTree nav) {
@@ -258,17 +373,36 @@ public final class CatalogBuilder implements AutoCloseable {
         return paths;
     }
 
-    private String buildRoute(String componentId, String version, String pagePath) {
+    private String buildRoute(String componentId, String version, String pagePath, String startPage) {
         // /<component>/<version>/<page>
         String base = "/" + componentId + "/" + version + "/";
-        String pageWithoutExtension = pagePath.endsWith(".adoc")
-            ? pagePath.substring(0, pagePath.length() - 5)
-            : pagePath;
+        String normalizedStartPage = normalizePagePath(startPage != null ? startPage : "index.adoc");
+        String normalizedStartPageWithoutExtension = normalizedStartPage.endsWith(".adoc")
+            ? normalizedStartPage.substring(0, normalizedStartPage.length() - 5)
+            : normalizedStartPage;
+        String normalizedPagePath = normalizePagePath(pagePath);
+        String pageWithoutExtension = normalizedPagePath.endsWith(".adoc")
+            ? normalizedPagePath.substring(0, normalizedPagePath.length() - 5)
+            : normalizedPagePath;
 
-        if ("index".equals(pageWithoutExtension)) {
+        if (pageWithoutExtension.equals(normalizedStartPageWithoutExtension)) {
             return base;
         }
         return base + pageWithoutExtension + "/";
+    }
+
+    private String normalizePagePath(String pagePath) {
+        if (pagePath == null || pagePath.isBlank()) {
+            return "index.adoc";
+        }
+        String normalized = pagePath.replace('\\', '/');
+        while (normalized.startsWith("./")) {
+            normalized = normalized.substring(2);
+        }
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
     }
 
     private String pagePathToId(String pagePath) {
@@ -354,13 +488,14 @@ public final class CatalogBuilder implements AutoCloseable {
             .replace("{path}", source.startPath() + "/" + pagePath);
     }
 
-    private List<DocPage.Breadcrumb> buildBreadcrumbs(NavTree nav, String pagePath, String title, String route) {
+    private List<DocPage.Breadcrumb> buildBreadcrumbs(NavTree nav, String componentId, String version,
+                                                      String startPage, String pagePath, String title) {
         List<DocPage.Breadcrumb> crumbs = new ArrayList<>();
         if (nav != null) {
             List<NavItem> path = nav.buildBreadcrumbs(pagePath);
             for (NavItem item : path) {
                 if (item.page() != null) {
-                    String itemRoute = buildRoute("", "", item.page());
+                    String itemRoute = buildRoute(componentId, version, item.page(), startPage);
                     crumbs.add(new DocPage.Breadcrumb(item.title(), itemRoute));
                 } else {
                     crumbs.add(new DocPage.Breadcrumb(item.title(), null));

@@ -2,7 +2,8 @@
 <#import "layout.ftl" as layout>
 <@layout.layout siteTitle=siteTitle basePath=(basePath)!"" locale=(locale)!"en"
     docSwitcher=(docSwitcher)![] versionSwitcher=(versionSwitcher)![]
-    currentComponentId=currentComponentId currentVersionStr=(currentVersion.version)!"" currentVersion=(currentVersion)!{} navigation=(navigation)!{}>
+    currentComponentId=currentComponentId currentVersionStr=(currentVersion.version)!"" currentVersion=(currentVersion)!{} navigation=(navigation)!{}
+    searchLanguageMode=(searchLanguageMode)!"multilingual_safe">
     <div class="component-home">
         <h1>${component.displayName}</h1>
         <p class="version-info">

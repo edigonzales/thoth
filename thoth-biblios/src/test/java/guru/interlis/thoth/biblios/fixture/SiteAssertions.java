@@ -105,6 +105,8 @@ public final class SiteAssertions {
      */
     public void assertSiteAssets() {
         assertFileExists("site-assets/styles.css");
+        assertFileExists("site-assets/lunr.min.js");
+        assertFileExists("site-assets/search.js");
     }
 
     /**

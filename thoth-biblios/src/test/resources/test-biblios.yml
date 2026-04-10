@@ -13,6 +13,9 @@ ui:
   theme: default
   show_version_badge: true
   show_edit_link: false
+  search_language_mode: english_default
+  sidebar_toc_depth: 3
+  content_toc: on
 
 content:
   sources:

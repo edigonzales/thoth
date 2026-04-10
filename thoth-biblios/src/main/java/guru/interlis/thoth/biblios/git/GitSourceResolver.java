@@ -4,6 +4,7 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.CheckoutCommand;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
@@ -87,8 +88,16 @@ public final class GitSourceResolver implements AutoCloseable {
                 // Try as a remote tracking branch
                 System.out.println("[info] Creating local branch from remote: " + branchName);
                 checkout.setCreateBranch(true);
+                checkout.setStartPoint("origin/" + branchName);
+                checkout.setUpstreamMode(org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode.TRACK);
                 checkout.call();
             }
+
+            // Ensure deterministic content from remote branch state.
+            git.reset()
+                .setMode(ResetCommand.ResetType.HARD)
+                .setRef("origin/" + branchName)
+                .call();
         } catch (Exception e) {
             throw new IOException(
                 "Failed to checkout branch '" + branchName + "' in source: " + e.getMessage() + "\n" +

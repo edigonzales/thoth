@@ -15,9 +15,17 @@ public final class SourceConfig {
     private final String defaultVersion;
     private final NavigationConfig navigation;
     private final String startPage;
+    private final RenderMode renderMode;
+    private final String masterFile;
 
     public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage) {
+        this(id, displayName, url, branches, startPath, defaultVersion, navigation, startPage, RenderMode.SPLIT, null);
+    }
+
+    public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
+                        String startPath, String defaultVersion, NavigationConfig navigation, String startPage,
+                        RenderMode renderMode, String masterFile) {
         this.id = Objects.requireNonNull(id, "source.id is required");
         this.displayName = Objects.requireNonNull(displayName, "source.display_name is required");
         this.url = Objects.requireNonNull(url, "source.url is required");
@@ -30,6 +38,12 @@ public final class SourceConfig {
         this.defaultVersion = defaultVersion;
         this.navigation = navigation;
         this.startPage = startPage != null ? startPage : "index.adoc";
+        this.renderMode = renderMode != null ? renderMode : RenderMode.SPLIT;
+        this.masterFile = masterFile != null && !masterFile.isBlank() ? masterFile.trim() : null;
+
+        if (this.renderMode == RenderMode.SINGLE_PAGE && this.masterFile == null) {
+            throw new IllegalArgumentException("source.master_file is required when source.render_mode is single_page");
+        }
     }
 
     public String id() {
@@ -62,6 +76,14 @@ public final class SourceConfig {
 
     public String startPage() {
         return startPage;
+    }
+
+    public RenderMode renderMode() {
+        return renderMode;
+    }
+
+    public String masterFile() {
+        return masterFile;
     }
 
     @Override

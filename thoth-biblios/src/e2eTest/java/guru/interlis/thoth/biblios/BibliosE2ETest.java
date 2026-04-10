@@ -20,6 +20,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -75,6 +76,15 @@ class BibliosE2ETest {
         assertions.assertDocPage("mydocs", "main", "");
         assertions.assertDocPage("mydocs", "main", "guide");
         assertions.assertSearchIndex("mydocs", "Welcome", "User Guide");
+        assertions.assertFileExists("search/index.html");
+        assertions.assertFileContains("index.html", "action=\"/search/\"");
+        assertions.assertFileContains("search/index.html", "id=\"search-results\"");
+
+        // Ensure page content is not rendered into <head>
+        String homePage = Files.readString(outputRoot.resolve("index.html"));
+        assertFalse(extractHead(homePage).contains("<div class=\"home\">"));
+        String guidePage = Files.readString(outputRoot.resolve("mydocs/main/guide/index.html"));
+        assertFalse(extractHead(guidePage).contains("<article class=\"doc-page\">"));
     }
 
     /**
@@ -107,6 +117,12 @@ class BibliosE2ETest {
         assertions.assertDocPage("docs-a", "main", "guide");
         assertions.assertDocPage("docs-b", "main", "guide");
         assertions.assertSearchIndex("docs-a", "docs-b", "Welcome");
+
+        // Verify home page doc switcher has placeholder selected and no project preselected
+        String homePage = Files.readString(outputRoot.resolve("index.html"));
+        assertTrue(optionSelected(homePage, ""), "Home page must select doc switcher placeholder.");
+        assertFalse(optionSelected(homePage, "/docs-a/main/"), "Home page must not preselect docs-a.");
+        assertFalse(optionSelected(homePage, "/docs-b/main/"), "Home page must not preselect docs-b.");
 
         // Verify doc switcher on pages
         assertions.assertDocSwitcher("docs-a/main/index.html", "Documentation A", "Documentation B");
@@ -161,7 +177,7 @@ class BibliosE2ETest {
 
         // Verify content differs between versions
         assertions.assertFileContains("mydocs/main/guide/index.html", "User Guide");
-        assertions.assertFileContains("mydocs/v1.x/guide/index.html", "v1.x");
+        assertions.assertFileContains("mydocs/v1.x/guide/index.html", "This is the v1.x user guide.");
     }
 
     /**
@@ -200,16 +216,78 @@ class BibliosE2ETest {
         // Navigation on content pages
         assertions.assertNavigation("mydocs/main/guide/index.html",
             "Welcome", "User Guide", "Advanced");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "href=\"/mydocs/main/\"");
+        assertions.assertFileNotContains("mydocs/main/guide/index.html", "href=\"/mydocs/main/index/\"");
 
         // Breadcrumbs
         assertions.assertBreadcrumbs("mydocs/main/guide/index.html");
+        assertions.assertFileNotContains("mydocs/main/guide/index.html", "href=\"///\"");
 
         // Search index
         assertions.assertSearchIndex("mydocs", "Welcome", "User Guide", "Configuration");
     }
 
     /**
-     * E2E-5: Global search index is correctly populated.
+     * E2E-5: Single-page mode renders one page with heading-based sidebar and chapter breadcrumb.
+     */
+    @Test
+    void singlePageModeRendersHeadingSidebarAndChapterBreadcrumb() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withSinglePageDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Single Page Portal")
+            .withOutputDir(outputRoot)
+            .withSidebarTocDepth(3)
+            .withContentToc("off")
+            .withSinglePageSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertDocPage("mydocs", "main", "");
+        assertions.assertFileNotExists("mydocs/main/einleitung/index.html");
+        assertions.assertFileContains("mydocs/main/index.html", "data-single-page-mode=\"true\"");
+        assertions.assertFileContains("mydocs/main/index.html", "data-chapter-id=");
+        assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-current\"");
+        assertions.assertFileContains("mydocs/main/index.html", "href=\"/mydocs/main/#");
+        assertions.assertFileContains("mydocs/main/index.html", "Einleitung");
+        assertions.assertFileContains("mydocs/main/index.html", "Grundprinzipien");
+        assertions.assertFileNotContains("mydocs/main/index.html", "id=\"toc\"");
+    }
+
+    /**
+     * E2E-6: Search language mode is exposed to the rendered HTML.
+     * Verifies: ui.search_language_mode reaches templates and can drive client-side mode selection.
+     */
+    @Test
+    void searchLanguageModeIsRendered() throws Exception {
+        Path repoDir = setupTestRepo("search-mode-repo");
+        setupOutputDirs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Search Mode Docs")
+            .withOutputDir(outputRoot)
+            .withSearchLanguageMode("english_default")
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("index.html", "data-search-language-mode=\"english_default\"");
+        assertions.assertFileContains("search/index.html", "data-search-language-mode=\"english_default\"");
+        assertions.assertFileContains("mydocs/main/index.html", "data-search-language-mode=\"english_default\"");
+    }
+
+    /**
+     * E2E-7: Global search index is correctly populated.
      * Verifies: search-index.json contains entries from all components/versions.
      */
     @Test
@@ -262,7 +340,7 @@ class BibliosE2ETest {
     }
 
     /**
-     * E2E-6: DevServer (serve) can start and deliver generated pages.
+     * E2E-8: DevServer (serve) can start and deliver generated pages.
      * Verifies: HTTP server starts, serves HTML content, correct routes.
      */
     @Test
@@ -325,6 +403,18 @@ class BibliosE2ETest {
         assertEquals(200, searchResponse.statusCode());
         assertTrue(searchResponse.body().contains("mydocs"));
 
+        // Test search page with query parameter
+        HttpResponse<String> searchPageResponse = client.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/search/?q=Welcome"))
+                .timeout(Duration.ofSeconds(5))
+                .build(),
+            HttpResponse.BodyHandlers.ofString()
+        );
+        assertEquals(200, searchPageResponse.statusCode());
+        assertTrue(searchPageResponse.body().contains("id=\"search-results\""));
+        assertTrue(searchPageResponse.body().contains("action=\"/search/\""));
+
         // Test CSS asset
         HttpResponse<String> cssResponse = client.send(
             HttpRequest.newBuilder()
@@ -338,7 +428,7 @@ class BibliosE2ETest {
     }
 
     /**
-     * E2E-7: Version switcher links to correct version start pages.
+     * E2E-9: Version switcher links to correct version start pages.
      * Verifies: switching from main to v1.x leads to correct version's start page.
      */
     @Test
@@ -414,11 +504,15 @@ class BibliosE2ETest {
         String docsAPage = Files.readString(outputRoot.resolve("docs-a/main/index.html"));
         assertTrue(docsAPage.contains("Documentation B"));
         assertTrue(docsAPage.contains("/docs-b/main/"));
+        assertTrue(optionSelected(docsAPage, "/docs-a/main/"), "docs-a page must keep docs-a selected.");
+        assertFalse(optionSelected(docsAPage, ""), "docs-a page must not select placeholder.");
 
         // Verify doc switcher on docs-b page links to docs-a
         String docsBPage = Files.readString(outputRoot.resolve("docs-b/main/index.html"));
         assertTrue(docsBPage.contains("Documentation A"));
         assertTrue(docsBPage.contains("/docs-a/main/"));
+        assertTrue(optionSelected(docsBPage, "/docs-b/main/"), "docs-b page must keep docs-b selected.");
+        assertFalse(optionSelected(docsBPage, ""), "docs-b page must not select placeholder.");
     }
 
     /**
@@ -502,6 +596,7 @@ class BibliosE2ETest {
         BibliosConfig config = new BibliosConfigBuilder()
             .withSiteTitle("Version Map Test Docs")
             .withOutputDir(outputRoot)
+            .withVersionSwitchMode("equivalent_page")
             .withSource(new BibliosConfigBuilder.SourceEntry("""
                 - id: mydocs
                   display_name: My Documentation
@@ -535,6 +630,79 @@ class BibliosE2ETest {
         String v1xGuide = Files.readString(outputRoot.resolve("mydocs/v1.x/guide/index.html"));
         assertTrue(v1xGuide.contains("/mydocs/main/guide/"),
             "Version switcher on v1.x/guide should link to main/guide");
+    }
+
+    /**
+     * E2E-12: Default version switch mode (start_page) links to version root.
+     */
+    @Test
+    void versionSwitcherDefaultsToStartPageMode() throws Exception {
+        Path repoDir = setupTestRepo("versionstart-repo");
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir)
+            .withBasicDocs()
+            .withSecondBranch("v1.x");
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Version Start Mode Test Docs")
+            .withOutputDir(outputRoot)
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: mydocs
+                  display_name: My Documentation
+                  url: file://%s
+                  branches:
+                    - name: main
+                      display_version: Latest
+                    - name: v1.x
+                      display_version: Version 1.x
+                  start_path: docs
+                  default_version: main
+                  navigation:
+                    file: nav.yml
+                """.formatted(repoDir.toString())))
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        String mainGuide = Files.readString(outputRoot.resolve("mydocs/main/guide/index.html"));
+        assertTrue(mainGuide.contains("option value=\"/mydocs/v1.x/\""),
+            "Default switch mode should link to target version root.");
+        assertFalse(mainGuide.contains("option value=\"/mydocs/v1.x/guide/\""),
+            "Default switch mode must not map to equivalent page.");
+    }
+
+    /**
+     * E2E-13: start_page is mapped to /<component>/<version>/ regardless of filename.
+     */
+    @Test
+    void customStartPageMapsToVersionRoot() throws Exception {
+        Path repoDir = setupTestRepo("custom-startpage-repo");
+        setupOutputDirs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Custom Start Page Test")
+            .withOutputDir(outputRoot)
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: mydocs
+                  display_name: My Documentation
+                  url: file://%s
+                  branches:
+                    - name: main
+                      display_version: Latest
+                  start_path: docs
+                  default_version: main
+                  start_page: guide.adoc
+                  navigation:
+                    file: nav.yml
+                """.formatted(repoDir.toString())))
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("mydocs/main/index.html", "User Guide");
+        assertions.assertFileNotExists("mydocs/main/guide/index.html");
     }
 
     // ================================================================
@@ -576,5 +744,22 @@ class BibliosE2ETest {
         } catch (IOException e) {
             return 8765; // fallback
         }
+    }
+
+    private String extractHead(String html) {
+        int headStart = html.indexOf("<head>");
+        int headEnd = html.indexOf("</head>");
+        if (headStart < 0 || headEnd < 0 || headEnd <= headStart) {
+            return "";
+        }
+        return html.substring(headStart, headEnd);
+    }
+
+    private boolean optionSelected(String html, String value) {
+        Pattern pattern = Pattern.compile(
+            "<option\\b[^>]*value=\"" + Pattern.quote(value) + "\"[^>]*\\bselected\\b",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL
+        );
+        return pattern.matcher(html).find();
     }
 }

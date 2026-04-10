@@ -1,6 +1,8 @@
 <#-- index.ftl - Global start page -->
 <#import "layout.ftl" as layout>
-<@layout.layout siteTitle=siteTitle basePath=(basePath)!"" locale=(locale)!"en" docSwitcher=(catalog.components)![]>
+<@layout.layout siteTitle=siteTitle basePath=(basePath)!"" locale=(locale)!"en"
+    docSwitcher=(catalog.components)![] currentComponentId=""
+    searchLanguageMode=(searchLanguageMode)!"multilingual_safe">
     <div class="home">
         <h1>${siteTitle}</h1>
         <#if siteDescription??>

@@ -112,6 +112,54 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Create a repo configured for single-page rendering via master.adoc includes.
+     */
+    public TestRepoBuilder withSinglePageDocs() throws Exception {
+        Files.createDirectories(repoDir);
+
+        try (Git git = Git.init().setDirectory(repoDir.toFile()).setInitialBranch(initialBranch).call()) {
+            configureUser(git);
+
+            Path docsDir = repoDir.resolve("docs");
+            Files.createDirectories(docsDir);
+
+            Files.writeString(docsDir.resolve("master.adoc"), """
+                = Reference Manual
+                :doctype: book
+
+                include::vorwort.adoc[]
+                include::einleitung.adoc[]
+                include::grundprinzipien.adoc[]
+                """);
+
+            Files.writeString(docsDir.resolve("vorwort.adoc"), """
+                Dieses Vorwort ist absichtlich ohne eigene Kapitelueberschrift.
+                """);
+
+            Files.writeString(docsDir.resolve("einleitung.adoc"), """
+                == Einleitung
+
+                === Status
+
+                Genehmigt.
+                """);
+
+            Files.writeString(docsDir.resolve("grundprinzipien.adoc"), """
+                == Grundprinzipien
+
+                === Modellierung
+
+                Grundlagen der Modellierung.
+                """);
+
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Initial single-page docs").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Create a second branch with different content.
      */
     public TestRepoBuilder withSecondBranch(String branchName) throws Exception {

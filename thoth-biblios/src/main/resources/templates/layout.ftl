@@ -1,4 +1,4 @@
-<#macro layout siteTitle pageTitle="" basePath="" locale="en" docSwitcher=[] versionSwitcher=[] currentComponentId="" currentVersionStr="" currentVersion={} currentPagePath="" navigation={} breadcrumbs=[] prevPage={} nextPage={}>
+<#macro layout siteTitle pageTitle="" basePath="" locale="en" docSwitcher=[] versionSwitcher=[] currentComponentId="" currentVersionStr="" currentVersion={} currentPagePath="" navigation={} breadcrumbs=[] prevPage={} nextPage={} searchQuery="" searchLanguageMode="multilingual_safe" singlePageMode=false chapterBreadcrumbEnabled=false initialChapterId="">
 <!DOCTYPE html>
 <html lang="${locale}">
 <head>
@@ -6,9 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><#if pageTitle?has_content>${pageTitle} - </#if>${siteTitle}</title>
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">
-    <#nested "head">
+    <script src="${basePath}/site-assets/lunr.min.js" defer></script>
+    <script src="${basePath}/site-assets/search.js" defer></script>
 </head>
-<body>
+<body data-search-language-mode="${searchLanguageMode}" data-single-page-mode="${singlePageMode?string('true', 'false')}" data-initial-chapter-id="${initialChapterId}">
     <header class="site-header">
         <div class="header-content">
             <a href="${basePath}/" class="site-title">${siteTitle}</a>
@@ -16,10 +17,10 @@
                 <nav class="doc-switcher">
                     <label for="doc-switch">Documentation:</label>
                     <select id="doc-switch" onchange="window.location.href=this.value">
-                        <option disabled>Documentation</option>
+                        <option value="" disabled <#if !currentComponentId?has_content>selected</#if>>Select documentation</option>
                         <#list docSwitcher as doc>
                             <option value="${basePath}/${doc.id}/${doc.defaultVersion}/"
-                                <#if currentComponentId == doc.id>selected</#if>>
+                                <#if currentComponentId?has_content && currentComponentId == doc.id>selected</#if>>
                                 ${doc.displayName}
                             </option>
                         </#list>
@@ -40,6 +41,10 @@
                     </select>
                 </nav>
             </#if>
+            <form class="search-form" action="${basePath}/search/" method="get" role="search">
+                <label for="search-input">Search:</label>
+                <input id="search-input" type="search" name="q" value="${searchQuery}" placeholder="Search documentation">
+            </form>
         </div>
     </header>
 
@@ -54,21 +59,25 @@
 
         <main class="content">
             <#if breadcrumbs?has_content && breadcrumbs?size gt 1>
-            <nav class="breadcrumbs">
+            <nav class="breadcrumbs" data-chapter-breadcrumb="${chapterBreadcrumbEnabled?string('enabled', 'disabled')}">
                 <#list breadcrumbs as crumb>
                     <#if crumb_index gt 0><span class="separator">/</span></#if>
                     <#if crumb.route?has_content>
                         <a href="${basePath}${crumb.route}">${crumb.title}</a>
                     <#else>
-                        <span class="current">${crumb.title}</span>
+                        <#if chapterBreadcrumbEnabled && crumb_index == (breadcrumbs?size - 1)>
+                            <span class="current" id="chapter-breadcrumb-current">${crumb.title}</span>
+                        <#else>
+                            <span class="current">${crumb.title}</span>
+                        </#if>
                     </#if>
                 </#list>
             </nav>
             </#if>
 
-            <#nested "content">
+            <#nested>
 
-            <#if prevPage?has_content || nextPage?has_content>
+            <#if !singlePageMode && (prevPage?has_content || nextPage?has_content)>
             <nav class="prev-next">
                 <#if prevPage?has_content>
                     <a href="${basePath}${prevPage.route}" class="prev">&larr; ${prevPage.title}</a>

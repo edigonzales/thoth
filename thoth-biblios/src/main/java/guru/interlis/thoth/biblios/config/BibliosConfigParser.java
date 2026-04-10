@@ -115,7 +115,11 @@ public final class BibliosConfigParser {
             getBoolean(uiMap, "show_edit_link", false),
             getBoolean(uiMap, "show_source_link", false),
             (String) uiMap.get("edit_url_pattern"),
-            (String) uiMap.get("source_url_pattern")
+            (String) uiMap.get("source_url_pattern"),
+            parseVersionSwitchMode(uiMap),
+            parseSearchLanguageMode(uiMap),
+            parseSidebarTocDepth(uiMap),
+            parseContentTocMode(uiMap)
         );
 
         // Parse content section
@@ -173,6 +177,19 @@ public final class BibliosConfigParser {
         String startPath = (String) sourceMap.get("start_path");
         String defaultVersion = (String) sourceMap.get("default_version");
         String startPage = (String) sourceMap.get("start_page");
+        RenderMode renderMode = parseRenderMode(sourceMap, label);
+        String masterFile = null;
+        Object masterFileValue = sourceMap.get("master_file");
+        if (masterFileValue != null) {
+            if (!(masterFileValue instanceof String text)) {
+                throw new ThothBuildException(
+                    "Expected string for '" + label + ".master_file', got: " + masterFileValue.getClass().getSimpleName(),
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            masterFile = text;
+        }
 
         NavigationConfig navigation = null;
         if (sourceMap.containsKey("navigation")) {
@@ -181,7 +198,26 @@ public final class BibliosConfigParser {
             navigation = new NavigationConfig(navFile);
         }
 
-        return new SourceConfig(id, displayName, url, branches, startPath, defaultVersion, navigation, startPage);
+        if (renderMode == RenderMode.SINGLE_PAGE && (masterFile == null || masterFile.isBlank())) {
+            throw new ThothBuildException(
+                label + ".master_file is required when render_mode is single_page",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+
+        return new SourceConfig(
+            id,
+            displayName,
+            url,
+            branches,
+            startPath,
+            defaultVersion,
+            navigation,
+            startPage,
+            renderMode,
+            masterFile
+        );
     }
 
     // Helper methods for safe type casting and extraction
@@ -272,6 +308,128 @@ public final class BibliosConfigParser {
             return b;
         }
         return Boolean.parseBoolean(value.toString());
+    }
+
+    private VersionSwitchMode parseVersionSwitchMode(Map<String, Object> map) {
+        Object value = map.get("version_switch_mode");
+        if (value == null) {
+            return VersionSwitchMode.START_PAGE;
+        }
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for 'ui.version_switch_mode', got: " + value.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        try {
+            return VersionSwitchMode.parse(text);
+        } catch (IllegalArgumentException e) {
+            throw new ThothBuildException(
+                e.getMessage(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+    }
+
+    private SearchLanguageMode parseSearchLanguageMode(Map<String, Object> map) {
+        Object value = map.get("search_language_mode");
+        if (value == null) {
+            return SearchLanguageMode.MULTILINGUAL_SAFE;
+        }
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for 'ui.search_language_mode', got: " + value.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        try {
+            return SearchLanguageMode.parse(text);
+        } catch (IllegalArgumentException e) {
+            throw new ThothBuildException(
+                e.getMessage(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+    }
+
+    private int parseSidebarTocDepth(Map<String, Object> map) {
+        Object value = map.get("sidebar_toc_depth");
+        if (value == null) {
+            return 2;
+        }
+        final int depth;
+        if (value instanceof Number number) {
+            depth = number.intValue();
+        } else {
+            try {
+                depth = Integer.parseInt(value.toString().trim());
+            } catch (NumberFormatException e) {
+                throw new ThothBuildException(
+                    "Expected integer for 'ui.sidebar_toc_depth', got: " + value,
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+        }
+
+        if (depth < 1 || depth > 6) {
+            throw new ThothBuildException(
+                "Invalid ui.sidebar_toc_depth: " + depth + ". Allowed range: 1..6",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return depth;
+    }
+
+    private ContentTocMode parseContentTocMode(Map<String, Object> map) {
+        Object value = map.get("content_toc");
+        if (value == null) {
+            return ContentTocMode.OFF;
+        }
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for 'ui.content_toc', got: " + value.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        try {
+            return ContentTocMode.parse(text);
+        } catch (IllegalArgumentException e) {
+            throw new ThothBuildException(
+                e.getMessage(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+    }
+
+    private RenderMode parseRenderMode(Map<String, Object> sourceMap, String label) {
+        Object value = sourceMap.get("render_mode");
+        if (value == null) {
+            return RenderMode.SPLIT;
+        }
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for '" + label + ".render_mode', got: " + value.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        try {
+            return RenderMode.parse(text);
+        } catch (IllegalArgumentException e) {
+            throw new ThothBuildException(
+                e.getMessage(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
     }
 
     @SuppressWarnings("unchecked")

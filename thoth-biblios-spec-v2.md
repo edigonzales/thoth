@@ -434,6 +434,11 @@ Im MVP:
 - Wechsel auf die Startseite der Zielversion
 - Anzeige erfolgt über `display_version`
 
+Erweiterung (rückwärtskompatibel):
+- optionaler Schalter `ui.version_switch_mode` in `biblios.yml`
+- `start_page` (Default): entspricht dem MVP-Verhalten
+- `equivalent_page`: versucht die äquivalente Seite in der Zielversion, sonst Fallback auf Startseite
+
 Später:
 - falls äquivalente Seite existiert, Wechsel auf diese Seite
 - sonst Fallback auf Startseite der Version

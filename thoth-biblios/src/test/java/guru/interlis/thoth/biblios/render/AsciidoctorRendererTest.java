@@ -77,4 +77,34 @@ class AsciidoctorRendererTest {
             assertNotNull(html);
         }
     }
+
+    @Test
+    void extractsHeadingsFromRenderedDocument(@TempDir Path tempDir) throws Exception {
+        Path adoc = tempDir.resolve("master.adoc");
+        Files.writeString(adoc, """
+            = Manual
+            :doctype: book
+
+            == Einleitung
+
+            === Status
+
+            OK
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
+                adoc,
+                AsciidoctorRenderer.RenderOptions.singlePage(false, 3)
+            );
+
+            assertNotNull(rendered);
+            assertFalse(rendered.headings().isEmpty());
+            assertEquals("Einleitung", rendered.headings().get(0).title());
+            assertEquals(1, rendered.headings().get(0).level());
+            assertFalse(rendered.headings().get(0).children().isEmpty());
+            assertEquals("Status", rendered.headings().get(0).children().get(0).title());
+            assertFalse(rendered.html().contains("id=\"toc\""));
+        }
+    }
 }

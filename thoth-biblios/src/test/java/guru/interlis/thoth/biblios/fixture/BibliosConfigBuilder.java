@@ -21,6 +21,10 @@ public final class BibliosConfigBuilder {
     private boolean showSourceLink = false;
     private String editUrlPattern = null;
     private String sourceUrlPattern = null;
+    private String versionSwitchMode = null;
+    private String searchLanguageMode = null;
+    private Integer sidebarTocDepth = null;
+    private String contentToc = null;
     private final java.util.ArrayList<SourceEntry> sources = new java.util.ArrayList<>();
 
     public BibliosConfigBuilder withSiteTitle(String title) {
@@ -60,6 +64,26 @@ public final class BibliosConfigBuilder {
         return this;
     }
 
+    public BibliosConfigBuilder withVersionSwitchMode(String mode) {
+        this.versionSwitchMode = mode;
+        return this;
+    }
+
+    public BibliosConfigBuilder withSearchLanguageMode(String mode) {
+        this.searchLanguageMode = mode;
+        return this;
+    }
+
+    public BibliosConfigBuilder withSidebarTocDepth(int depth) {
+        this.sidebarTocDepth = depth;
+        return this;
+    }
+
+    public BibliosConfigBuilder withContentToc(String mode) {
+        this.contentToc = mode;
+        return this;
+    }
+
     public BibliosConfigBuilder withSingleSourceGitRepo(Path repoDir, String sourceId, String displayName,
                                                         String startPath, String defaultVersion,
                                                         String... branches) {
@@ -84,6 +108,30 @@ public final class BibliosConfigBuilder {
         return withSource(new SourceEntry(sourceYaml));
     }
 
+    public BibliosConfigBuilder withSinglePageSourceGitRepo(Path repoDir, String sourceId, String displayName,
+                                                            String startPath, String defaultVersion, String masterFile,
+                                                            String... branches) {
+        StringBuilder branchesYaml = new StringBuilder();
+        for (String branch : branches) {
+            branchesYaml.append("          - name: %s\n".formatted(branch));
+            branchesYaml.append("            display_version: %s\n".formatted(branch));
+        }
+
+        String sourceYaml = """
+            - id: %s
+              display_name: %s
+              url: file://%s
+              branches:
+            %s
+              start_path: %s
+              default_version: %s
+              render_mode: single_page
+              master_file: %s
+            """.formatted(sourceId, displayName, repoDir.toString(), branchesYaml, startPath, defaultVersion, masterFile);
+
+        return withSource(new SourceEntry(sourceYaml));
+    }
+
     public BibliosConfig writeTo(Path configFile) throws IOException {
         if (outputDir == null) {
             throw new IllegalStateException("Output directory must be set");
@@ -101,10 +149,23 @@ public final class BibliosConfigBuilder {
         }
 
         StringBuilder uiSection = new StringBuilder();
-        if (showEditLink || showSourceLink) {
+        if (showEditLink || showSourceLink || versionSwitchMode != null || searchLanguageMode != null
+            || sidebarTocDepth != null || contentToc != null) {
             uiSection.append("ui:\n");
             uiSection.append("  show_edit_link: %s\n".formatted(showEditLink));
             uiSection.append("  show_source_link: %s\n".formatted(showSourceLink));
+            if (versionSwitchMode != null) {
+                uiSection.append("  version_switch_mode: %s\n".formatted(versionSwitchMode));
+            }
+            if (searchLanguageMode != null) {
+                uiSection.append("  search_language_mode: %s\n".formatted(searchLanguageMode));
+            }
+            if (sidebarTocDepth != null) {
+                uiSection.append("  sidebar_toc_depth: %s\n".formatted(sidebarTocDepth));
+            }
+            if (contentToc != null) {
+                uiSection.append("  content_toc: %s\n".formatted(contentToc));
+            }
             if (editUrlPattern != null) {
                 uiSection.append("  edit_url_pattern: \"%s\"\n".formatted(editUrlPattern));
             }

@@ -36,6 +36,10 @@ class BibliosConfigParserTest {
         assertEquals("default", config.ui().theme());
         assertTrue(config.ui().showVersionBadge());
         assertFalse(config.ui().showEditLink());
+        assertEquals(VersionSwitchMode.START_PAGE, config.ui().versionSwitchMode());
+        assertEquals(SearchLanguageMode.ENGLISH_DEFAULT, config.ui().searchLanguageMode());
+        assertEquals(3, config.ui().sidebarTocDepth());
+        assertEquals(ContentTocMode.ON, config.ui().contentToc());
 
         // Content sources
         assertEquals(2, config.content().sources().size());
@@ -48,6 +52,8 @@ class BibliosConfigParserTest {
         assertEquals("docs", alpha.startPath());
         assertEquals("main", alpha.defaultVersion());
         assertEquals("index.adoc", alpha.startPage());
+        assertEquals(RenderMode.SPLIT, alpha.renderMode());
+        assertNull(alpha.masterFile());
         assertEquals(2, alpha.branches().size());
         assertEquals("main", alpha.branches().get(0).name());
         assertEquals("Latest", alpha.branches().get(0).displayVersion());
@@ -62,6 +68,7 @@ class BibliosConfigParserTest {
         assertEquals("Beta API", beta.displayName());
         assertEquals(1, beta.branches().size());
         assertEquals("Current", beta.branches().get(0).displayVersion());
+        assertEquals(RenderMode.SPLIT, beta.renderMode());
     }
 
     @Test
@@ -175,6 +182,284 @@ class BibliosConfigParserTest {
 
         BibliosConfig config = parser.parse(file);
         assertEquals("index.adoc", config.content().sources().get(0).startPage());
+    }
+
+    @Test
+    void parsesVersionSwitchModeEquivalentPage(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              version_switch_mode: equivalent_page
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("equivalent-mode.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(VersionSwitchMode.EQUIVALENT_PAGE, config.ui().versionSwitchMode());
+    }
+
+    @Test
+    void defaultsVersionSwitchModeToStartPage(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              show_version_badge: true
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("default-switch-mode.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(VersionSwitchMode.START_PAGE, config.ui().versionSwitchMode());
+        assertEquals(SearchLanguageMode.MULTILINGUAL_SAFE, config.ui().searchLanguageMode());
+        assertEquals(2, config.ui().sidebarTocDepth());
+        assertEquals(ContentTocMode.OFF, config.ui().contentToc());
+    }
+
+    @Test
+    void rejectsInvalidVersionSwitchMode(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              version_switch_mode: something_else
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("invalid-switch-mode.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("ui.version_switch_mode"));
+        assertTrue(ex.getMessage().contains("start_page"));
+        assertTrue(ex.getMessage().contains("equivalent_page"));
+    }
+
+    @Test
+    void parsesSearchLanguageModeEnglishDefault(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              search_language_mode: english_default
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("search-language-english.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(SearchLanguageMode.ENGLISH_DEFAULT, config.ui().searchLanguageMode());
+    }
+
+    @Test
+    void defaultsSearchLanguageModeToMultilingualSafe(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              show_version_badge: true
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("search-language-default.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(SearchLanguageMode.MULTILINGUAL_SAFE, config.ui().searchLanguageMode());
+    }
+
+    @Test
+    void rejectsInvalidSearchLanguageMode(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              search_language_mode: german
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("invalid-search-language.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("ui.search_language_mode"));
+        assertTrue(ex.getMessage().contains("multilingual_safe"));
+        assertTrue(ex.getMessage().contains("english_default"));
+    }
+
+    @Test
+    void parsesSinglePageRenderModeAndMasterFile(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+                  start_path: docs
+                  render_mode: single_page
+                  master_file: master.adoc
+            """;
+        Path file = tempDir.resolve("single-page.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        SourceConfig source = config.content().sources().get(0);
+        assertEquals(RenderMode.SINGLE_PAGE, source.renderMode());
+        assertEquals("master.adoc", source.masterFile());
+    }
+
+    @Test
+    void rejectsSinglePageWithoutMasterFile(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+                  start_path: docs
+                  render_mode: single_page
+            """;
+        Path file = tempDir.resolve("single-page-missing-master.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("master_file"));
+        assertTrue(ex.getMessage().contains("single_page"));
+    }
+
+    @Test
+    void rejectsInvalidSidebarTocDepth(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              sidebar_toc_depth: 8
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("invalid-sidebar-depth.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("sidebar_toc_depth"));
+        assertTrue(ex.getMessage().contains("1..6"));
+    }
+
+    @Test
+    void parsesContentTocOn(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              content_toc: on
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("content-toc-on.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(ContentTocMode.ON, config.ui().contentToc());
+    }
+
+    @Test
+    void rejectsInvalidContentTocMode(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              content_toc: maybe
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("invalid-content-toc.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("ui.content_toc"));
+        assertTrue(ex.getMessage().contains("off"));
+        assertTrue(ex.getMessage().contains("on"));
     }
 
     private Path resourcePath(String name) {

@@ -100,6 +100,8 @@ ui:
   theme: default
   show_version_badge: true
   show_edit_link: true
+  version_switch_mode: start_page
+  search_language_mode: multilingual_safe
 
 content:
   sources:
@@ -158,6 +160,8 @@ content:
 | `theme` | No | Theme name. Currently only `default` is supported. |
 | `show_version_badge` | No | Show version badges on pages. Default: `true` |
 | `show_edit_link` | No | Show edit links on pages. Default: `true` |
+| `version_switch_mode` | No | Version switch behavior. `start_page` (default) always jumps to version root. `equivalent_page` tries same source page in target version, otherwise version root. |
+| `search_language_mode` | No | Lunr language/ranking mode. `multilingual_safe` (default) removes stemmer/stop-word filters for mixed-language docs. `english_default` keeps Lunr defaults. |
 
 #### `content.sources` – Content Sources
 
@@ -320,7 +324,11 @@ If `display_version` is not specified, the branch name is used as-is.
 
 ## Global Search
 
-Biblios generates a global search index (`search-index.json`) that covers **all** documentation sources and **all** versions.
+Biblios provides a client-side search experience with:
+- Header search field on all pages
+- Dedicated search page at `/search/`
+- Global `search-index.json` covering all sources and versions
+- Lunr-based ranking in the browser
 
 ### Search Index Contents
 
@@ -338,7 +346,18 @@ Each entry in the search index contains:
 <output-dir>/search-index.json
 ```
 
-The search index is consumed by client-side search implementations. The default template includes a basic search UI.
+### Search Language Mode
+
+Configure Lunr behavior in `biblios.yml`:
+
+```yaml
+ui:
+  search_language_mode: multilingual_safe
+```
+
+Available modes:
+- `multilingual_safe` (default): removes stemmer and stop-word filters for more robust DE/EN (or mixed-language) matching.
+- `english_default`: uses Lunr's default English-oriented pipeline.
 
 ## CLI Commands
 
@@ -489,7 +508,7 @@ Each branch (`main`, `stable`, `v1.x`) is checked out independently and rendered
 ## Known MVP Limitations
 
 1. **No Redirects**: Navigating to `/<component>/` does NOT redirect to `/<component>/<default-version>/`. Component landing pages show an overview instead.
-2. **Page-Level Version Switching**: The version switcher links to the equivalent page in the target version when the same source file path exists. If the page does not exist in the target version, it falls back to the version start page. Component landing pages always link to the version start page.
+2. **Version Switch Mode**: By default (`ui.version_switch_mode: start_page`) the switcher always jumps to the target version start page. Set `ui.version_switch_mode: equivalent_page` to prefer same-source-page mapping with fallback to the target version start page.
 3. **No Branch Patterns**: Patterns like `release/*` are listed in the spec but not yet implemented in the MVP. Use exact branch names.
 4. **No Tag-Based Versions**: Only branch-based versions are supported.
 5. **Global Search Only**: Search covers all documentation and versions without faceting or filtering.
@@ -508,7 +527,7 @@ Each branch (`main`, `stable`, `v1.x`) is checked out independently and rendered
 | **Versioning** | None (chronological) | Branch-based versions |
 | **Navigation** | Archive, tags, homepage | `nav.yml` sidebar, breadcrumbs, prev/next |
 | **Switchers** | None | Doc switcher + version switcher |
-| **Search** | Client-side Lunr search | Global JSON search index |
+| **Search** | Client-side Lunr search | Header search + `/search/` page (Lunr + global index) |
 | **Output** | Blog homepage, archive, tag pages, RSS | Global start page, component pages, doc pages |
 | **Config** | `thoth.properties` | `biblios.yml` |
 

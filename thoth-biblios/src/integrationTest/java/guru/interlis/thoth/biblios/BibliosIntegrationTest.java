@@ -92,13 +92,23 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("index.html")));
         assertTrue(Files.exists(outputRoot.resolve("mydocs/main/index.html")));
         assertTrue(Files.exists(outputRoot.resolve("mydocs/main/guide/index.html")));
+        assertTrue(Files.exists(outputRoot.resolve("search/index.html")));
         assertTrue(Files.exists(outputRoot.resolve("search-index.json")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/styles.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/lunr.min.js")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/search.js")));
 
         // 5. Verify content
         String homePage = Files.readString(outputRoot.resolve("index.html"));
         assertTrue(homePage.contains("Integration Test Docs"));
         assertTrue(homePage.contains("My Documentation"));
+        assertTrue(homePage.contains("action=\"/search/\""));
+        String homeHead = extractHead(homePage);
+        assertFalse(homeHead.contains("<div class=\"home\">"));
+
+        String searchPage = Files.readString(outputRoot.resolve("search/index.html"));
+        assertTrue(searchPage.contains("id=\"search-results\""));
+        assertTrue(searchPage.contains("data-search-language-mode=\"multilingual_safe\""));
 
         String indexPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
         assertTrue(indexPage.contains("Welcome"));
@@ -161,6 +171,8 @@ class BibliosIntegrationTest {
             assertNotNull(v1x);
             assertEquals("Latest", main.displayVersion());
             assertEquals("Version 1.x", v1x.displayVersion());
+            assertNotNull(v1x.findPageBySourcePath("guide.adoc"));
+            assertTrue(v1x.findPageBySourcePath("guide.adoc").html().contains("v1.x"));
         }
     }
 
@@ -203,5 +215,68 @@ class BibliosIntegrationTest {
             assertEquals("Documentation A", catalog.findById("docs-a").displayName());
             assertEquals("Documentation B", catalog.findById("docs-b").displayName());
         }
+    }
+
+    @Test
+    void singlePageModeBuildPipeline() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-repo");
+        Path workRoot = tempDir.resolve("work-single");
+        Path outputRoot = tempDir.resolve("output-single");
+        Path configFile = tempDir.resolve("single-page-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withSinglePageDocs();
+
+        new BibliosConfigBuilder()
+            .withSiteTitle("Single Page Integration")
+            .withOutputDir(outputRoot)
+            .withSidebarTocDepth(3)
+            .withContentToc("off")
+            .withSinglePageSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "main")
+            .writeTo(configFile);
+
+        BibliosConfigParser parser = new BibliosConfigParser();
+        BibliosConfig config = parser.parse(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            DocComponent component = catalog.findById("mydocs");
+            assertNotNull(component);
+
+            ComponentVersion version = component.getVersion("main");
+            assertNotNull(version);
+            assertEquals(1, version.pages().size());
+            assertTrue(version.renderMode().isSinglePage());
+            assertFalse(version.navigation().items().isEmpty());
+        }
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        assertTrue(Files.exists(outputRoot.resolve("mydocs/main/index.html")));
+        assertFalse(Files.exists(outputRoot.resolve("mydocs/main/guide/index.html")));
+
+        String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(html.contains("data-single-page-mode=\"true\""));
+        assertTrue(html.contains("id=\"chapter-breadcrumb-current\""));
+        assertTrue(html.contains("href=\"/mydocs/main/#"));
+        assertFalse(html.contains("id=\"toc\""));
+    }
+
+    private String extractHead(String html) {
+        int headStart = html.indexOf("<head>");
+        int headEnd = html.indexOf("</head>");
+        if (headStart < 0 || headEnd < 0 || headEnd <= headStart) {
+            return "";
+        }
+        return html.substring(headStart, headEnd);
     }
 }
