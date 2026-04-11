@@ -1,0 +1,15 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Common technical infrastructure for Thoth products'
+
+dependencies {
+    // Shared dependencies - technical infrastructure only
+    api 'org.freemarker:freemarker:2.3.34'
+    api 'org.asciidoctor:asciidoctorj:3.0.1'
+    api 'org.jsoup:jsoup:1.22.1'
+    
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.14.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

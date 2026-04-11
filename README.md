@@ -1,249 +1,197 @@
 # Thoth
+
+Thoth is a family of JVM-based static site generators for AsciiDoc content.
+
+## Product Family
+
+| Product | Purpose | Status |
+|---------|---------|--------|
+| **`thoth-blog`** | Static site generator for AsciiDoc blogs | Production-ready |
+| **`thoth-biblios`** | Multi-repo documentation site generator with versioning | MVP complete |
+| **`thoth-core`** | Shared technical infrastructure | Production-ready |
+
+## Quick Start
+
+```bash
+# Build all modules
+./gradlew build
+
+# Run tests
+./gradlew test integrationTest e2eTest
+```
+
+## Products
+
+### thoth-blog
+
 Plain text. Real websites.
 
-Thoth is a Java-based static site generator for AsciiDoc blogs.
-It builds pretty URLs, tag pages, RSS, local assets, Lunr search, and a watch-based dev server.
+Thoth Blog builds pretty URLs, tag pages, RSS, local assets, Lunr search, and a watch-based dev server.
 
-## Requirements
-- Java: 25 (toolchain configured in Gradle)
-- Gradle: wrapper included (`./gradlew`)
+**Details:** See [thoth-blog/README.md](thoth-blog/README.md)
 
-## Build
 ```bash
-./gradlew test
-./gradlew build
+./gradlew :thoth-blog:build
+java -jar thoth-blog/build/libs/thoth-blog-<version>-all.jar --help
 ```
 
-The executable fat JAR is generated as:
-- `build/libs/thoth-<version>-all.jar` (for example `build/libs/thoth-0.0.1-all.jar`)
+### thoth-biblios
 
-Run it with:
+Multi-repo documentation site generator with versioning support. Think of it as a lightweight, JVM-native alternative to Antora.
+
+**Details:** See [thoth-biblios/README.md](thoth-biblios/README.md)
+
 ```bash
-java -jar build/libs/thoth-<version>-all.jar --help
+./gradlew :thoth-biblios:build
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar --help
 ```
 
-## CLI
+### thoth-core
+
+Shared technical infrastructure:
+- `DevServer` – HTTP static file server
+- `InputWatcher` – Recursive file system watcher
+- `ServeHandle` – Serve/watch orchestration helper
+- AsciidoctorJ, FreeMarker, jsoup dependencies
+
+## Testing
+
+### Test Strategy
+
+Thoth uses a three-tier test strategy across all modules:
+
+| Category | Purpose | Scope |
+|----------|---------|-------|
+| **Unit Tests** (`test`) | Isolated component tests | Parsers, config, slugging, templates, routing |
+| **Integration Tests** (`integrationTest`) | Full build pipeline tests | Realistic input with local Git repos |
+| **E2E Tests** (`e2eTest`) | End-to-end user flows | Build + serve + HTTP verification |
+
+### Running Tests
+
 ```bash
-java -jar build/libs/thoth-<version>-all.jar <command> [options]
+# All modules
+./gradlew test integrationTest e2eTest
+
+# Specific module
+./gradlew :thoth-blog:test :thoth-blog:integrationTest :thoth-blog:e2eTest
+./gradlew :thoth-biblios:test :thoth-biblios:integrationTest :thoth-biblios:e2eTest
 ```
 
-Commands:
-1. `build`
-2. `serve`
+### Coverage
 
-### `build`
+Both `thoth-blog` and `thoth-biblios` use JaCoCo for coverage reporting:
+
 ```bash
-java -jar build/libs/thoth-<version>-all.jar build \
-  --input /path/to/input \
-  --output /path/to/output \
-  --clean
+./gradlew :thoth-blog:jacocoTestReport
+./gradlew :thoth-biblios:jacocoTestReport
 ```
 
-Options:
-- `--input <dir>`: input root
-- `--output <dir>`: output root
-- `--clean`: delete output before generating
+HTML reports: `<module>/build/reports/jacoco/test/html/index.html`
 
-### `serve`
-```bash
-java -jar build/libs/thoth-<version>-all.jar serve \
-  --input /path/to/input \
-  --output /path/to/output \
-  --port 8080
+## Input Structures
+
+### thoth-blog
+
+Single directory with `.adoc` files and `thoth.properties`:
+
 ```
-
-Options:
-- `--input <dir>`: input root
-- `--output <dir>`: output root
-- `--port <port>`: dev server port (default from `thoth.properties` or `8080`)
-
-`serve` behavior:
-- performs an initial build
-- serves output via a local HTTP server
-- watches input recursively
-- incremental changes:
-  - changed `.adoc`: re-render only that post + regenerate aggregate pages
-  - changed non-`.adoc`: copy only that file
-  - deleted `.adoc`: remove generated post + regenerate aggregate pages
-
-## Input Structure
-Input root contains:
-- `.adoc` blog posts
-- arbitrary assets (images, CSS, JS, fonts, etc.)
-- `thoth.properties`
-
-Example:
-```text
 input/
   thoth.properties
   blog/
     2026/
       hello.adoc
       image.png
-      custom.js
 ```
 
-## AsciiDoc Header Block (Front Matter)
-Each post must begin with a header block between the first and second `---` lines.
+### thoth-biblios
 
-```adoc
----
-= My Post Title
-Author Name
-2026-01-12
-:thoth-status: published
-:thoth-tags: Java,AI,Thoth
-:thoth-teaser: Optional teaser override
-:thoth-cover-image: Optional cover override
----
-AsciiDoc body starts here.
+YAML configuration (`biblios.yml`) pointing to Git repositories:
+
+```yaml
+site:
+  title: My Docs Portal
+  url: https://docs.example.org
+
+content:
+  sources:
+    - id: mydocs
+      display_name: My Documentation
+      url: https://github.com/example/docs.git
+      branches:
+        - name: main
+          display_version: Latest
+      start_path: docs
+      default_version: main
+      navigation:
+        file: nav.yml
 ```
 
-Parsing rules implemented:
-1. Header block is text between first and second `---`
-2. Title is line 1 (`= ...`)
-3. Author is line 2
-4. Date is line 3 (`YYYY-MM-DD`)
-5. Supported attributes:
-   - `:thoth-status:` `published|draft` (available in model)
-   - `:thoth-tags:` comma-separated, trimmed, empty entries removed
-   - `:thoth-teaser:` optional homepage teaser override
-   - `:thoth-cover-image:` optional homepage cover override
+## Architecture
 
-Timezone used for publication/feed logic:
-- `Europe/Zurich`
+For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Configuration (`thoth.properties`)
-Required keys:
-1. `site.title`: blog title (homepage + feed)
-2. `site.description`: feed description
-3. `site.baseUrl`: absolute base URL (used for feed links)
-4. `site.language`: feed language (for example `en-gb`)
-5. `site.dateFormat`: date format used in HTML pages (for example `dd.MM.yyyy`)
+Key decisions:
+- **Java 25** target platform
+- **AsciidoctorJ** for rendering (not Asciidoctor.js)
+- **nav.yml** as navigation standard for Biblios
+- **Gradle multi-project** with clear module boundaries
+- **DevServer + InputWatcher** centralized in thoth-core
 
-Optional keys:
-1. `dev.port`: default `serve` port
+## Project Structure
 
-Example:
-```properties
-site.title=Thoth Blog
-site.description=My notes and projects
-site.baseUrl=https://example.com
-site.language=en-gb
-site.dateFormat=yyyy-MM-dd
-dev.port=8080
+```
+thoth/
+├── thoth-core/          Shared technical infrastructure
+├── thoth-blog/          Blog-specific product
+└── thoth-biblios/       Multi-repo documentation generator
 ```
 
-## Output Structure
-Generated output includes:
-- per post: `path/to/post/index.html`
-- `index.html`
-- `archive.html`
-- `search.html`
-- `feed.xml`
-- tag pages: `tags/<tag-slug>/index.html`
+### Module Responsibilities
 
-All non-`.adoc` files from input are copied 1:1 recursively to output.
+| Module | Contains |
+|--------|----------|
+| **thoth-core** | DevServer, InputWatcher, ServeHandle, shared dependencies (AsciidoctorJ, FreeMarker, jsoup) |
+| **thoth-blog** | Post parsing, tags, RSS, templates, blog CLI |
+| **thoth-biblios** | YAML config, Git fetching, catalog building, doc templates, biblios CLI |
 
-## Assets
-Thoth writes bundled assets to `assets/`:
-- `assets/styles-light.css`
-- `assets/styles-dark.css`
-- `assets/theme.js`
-- `assets/search.js`
-- `assets/search-index.json`
-- `assets/lunr.min.js`
-- `assets/prism/prism.css`
-- `assets/prism/prism.js`
-- `assets/prism/components/*.js` (markup, clike, javascript, css, ini, java, typescript, json, bash, sql, python, yaml, kotlin, go, c, cpp)
-- `assets/prism/plugins/line-highlight/*`
-- `assets/prism/plugins/line-numbers/*`
+## Known MVP Limitations (thoth-biblios)
 
-Enable line numbers per code block with:
-```adoc
-[source,ini,linenums]
-----
-[ch.ehi.ili2db]
-defaultSrsCode=2056
-----
-```
+1. No redirects from `/<component>/` to default version
+2. No branch patterns (`release/*`) – use exact branch names
+3. No tag-based versions – only branch-based
+4. Global search only – no faceting
+5. Single theme only
+6. No PDF output – HTML only
+7. No multi-language per component
 
-### Navbar and Theming
-Every page uses the same sticky navbar:
-- left: Home, Archive, Subscribe
-- right: search field (`#search-input`) + dark mode toggle (`#theme-toggle`)
+See [thoth-biblios/README.md](thoth-biblios/README.md) for the full list.
 
-Theme behavior (`theme.js`):
-1. respects `prefers-color-scheme` by default
-2. allows manual toggle
-3. persists choice in `localStorage`
+## Troubleshooting
 
-## Search (Lunr)
-- Build generates `assets/search-index.json`
-- Each document contains:
-  - `title`
-  - `date`
-  - `tags`
-  - `url`
-  - `body` (plain text)
-  - `teaser`
-- `search.html?q=...` performs client-side search via `lunr.min.js`
+### Java Version
 
-To customize search UI, edit:
-- `src/main/resources/site-assets/search.js`
-- `src/main/resources/templates/search.ftl`
+Both products require Java 25:
 
-## RSS Feed
-`feed.xml` is generated as RSS 2.0 with Atom self-link.
-
-Characteristics:
-1. items sorted by date descending
-2. item `link` points to pretty URL
-3. `guid` is relative path with `isPermaLink="false"`
-4. description stored in CDATA
-
-## Tag Pages and Slugs
-For each tag, Thoth generates:
-- `tags/<slug>/index.html`
-
-Slug normalization:
-1. lower-case
-2. spaces/commas => `-`
-3. remove special characters
-4. normalize umlauts (`ä->ae`, `ö->oe`, `ü->ue`, `ß->ss`)
-
-## Templates and Layout
-FreeMarker templates are packaged in:
-- `src/main/resources/templates`
-
-Main templates:
-- `layout.ftl`
-- `post.ftl`
-- `index.ftl`
-- `archive.ftl`
-- `tag.ftl`
-- `search.ftl`
-- `feed.ftl`
-
-## Tests
-Implemented tests cover:
-1. header parsing (title, author, date, tags, overrides)
-2. tag slugging
-3. pretty output paths (`post/index.html`)
-4. generation of homepage/archive/tag/feed/search index
-5. asset copy for non-`.adoc` files
-
-Run:
 ```bash
-./gradlew test
+java -version
+# If not Java 25:
+sdk use java 25.0.1-tem
 ```
 
-## Notes on Dependencies
-Build dependencies are resolved from Maven Central via Gradle.
-The generator uses:
-- FreeMarker
-- AsciidoctorJ
-- Lunr (client-side)
-- Prism.js (client-side syntax highlighting)
+### Clean Build
 
-All are packaged into `thoth-<version>-all.jar` by the `fatJar` task.
+```bash
+./gradlew clean build
+```
+
+### Git Cache (Biblios)
+
+```bash
+rm -rf .thoth/cache
+```
+
+## Specifications
+
+- Blog: [thoth-blog/README.md](thoth-blog/README.md)
+- Biblios spec: [thoth-biblios-spec-v2.md](thoth-biblios-spec-v2.md)
+- Architecture: [ARCHITECTURE.md](ARCHITECTURE.md)

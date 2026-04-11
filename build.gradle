@@ -1,67 +1,215 @@
 plugins {
     id 'java'
-    id 'application'
 }
 
+// Root project - no application plugin, just common configuration
 group = 'guru.interlis'
 version = '0.0.1'
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+subprojects {
+    apply plugin: 'java'
+
+    group = 'guru.interlis'
+    version = '0.0.1'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+    // ========================================
+    // Integration Test Source Set (all modules)
+    // ========================================
+    sourceSets {
+        integrationTest {
+            java {
+                srcDir 'src/integrationTest/java'
+            }
+            resources {
+                srcDir 'src/integrationTest/resources'
+            }
+            compileClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testCompileClasspath
+            runtimeClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testRuntimeClasspath
+        }
+    }
+
+    configurations {
+        integrationTestImplementation.extendsFrom testImplementation
+        integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+    }
+
+    tasks.register('integrationTest', Test) {
+        group = 'verification'
+        description = 'Runs integration tests.'
+        testClassesDirs = sourceSets.integrationTest.output.classesDirs
+        classpath = sourceSets.integrationTest.runtimeClasspath
+        useJUnitPlatform()
+        shouldRunAfter test
+    }
+
+    // ========================================
+    // E2E Test Source Set (all modules)
+    // ========================================
+    sourceSets {
+        e2eTest {
+            java {
+                srcDir 'src/e2eTest/java'
+            }
+            resources {
+                srcDir 'src/e2eTest/resources'
+            }
+            compileClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testCompileClasspath
+            runtimeClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testRuntimeClasspath
+        }
+    }
+
+    configurations {
+        e2eTestImplementation.extendsFrom testImplementation
+        e2eTestRuntimeOnly.extendsFrom testRuntimeOnly
+    }
+
+    tasks.register('e2eTest', Test) {
+        group = 'verification'
+        description = 'Runs end-to-end (E2E) tests.'
+        testClassesDirs = sourceSets.e2eTest.output.classesDirs
+        classpath = sourceSets.e2eTest.runtimeClasspath
+        useJUnitPlatform()
+        shouldRunAfter integrationTest
     }
 }
 
-application {
-    mainClass = 'guru.interlis.thoth.ThothCli'
-}
+// ========================================
+// Shared conventions for CLI application modules
+// Applied to thoth-blog and thoth-biblios
+// ========================================
+def configureCliModule = { Project proj ->
+    // JAR manifest with version from build
+    proj.jar {
+        manifest {
+            attributes(
+                'Implementation-Title': proj.description ?: proj.name,
+                'Implementation-Version': proj.version,
+                'Main-Class': proj.application.mainClass.get()
+            )
+        }
+    }
 
-repositories {
-    mavenCentral()
-}
+    // fatJar convention – same pattern for all CLI modules
+    proj.tasks.register('fatJar', Jar) {
+        group = 'build'
+        description = "Assembles an executable fat jar for ${proj.name}"
+        archiveBaseName = proj.name
+        archiveClassifier = 'all'
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
-dependencies {
-    implementation 'info.picocli:picocli:4.7.7'
-    implementation 'org.freemarker:freemarker:2.3.34'
-    implementation 'org.asciidoctor:asciidoctorj:3.0.1'
-    implementation 'org.jsoup:jsoup:1.22.1'
+        manifest {
+            attributes(
+                'Implementation-Title': proj.description ?: proj.name,
+                'Implementation-Version': proj.version,
+                'Main-Class': proj.application.mainClass.get()
+            )
+        }
 
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.14.2'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
+        // WICHTIG: Signaturdateien aus eingebetteten JARs ausschließen
+        exclude 'META-INF/*.SF'
+        exclude 'META-INF/*.DSA'
+        exclude 'META-INF/*.RSA'
+        exclude 'META-INF/INDEX.LIST'
 
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-}
-
-test {
-    useJUnitPlatform()
-}
-
-jar {
-    manifest {
-        attributes 'Main-Class': 'guru.interlis.thoth.ThothCli'
+        from proj.sourceSets.main.output
+        dependsOn proj.configurations.runtimeClasspath
+        from {
+            proj.configurations.runtimeClasspath
+                .findAll { it.name.endsWith('.jar') }
+                .collect { zipTree(it) }
+        }
+    }
+    proj.tasks.named('build') {
+        dependsOn proj.tasks.named('fatJar')
     }
 }
 
-tasks.register('fatJar', Jar) {
-    group = 'build'
-    description = 'Assembles an executable fat jar.'
-    archiveBaseName = 'thoth'
-    archiveClassifier = 'all'
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+// ---- thoth-blog ----
+project(':thoth-blog') {
+    apply plugin: 'application'
+    apply plugin: 'jacoco'
 
-    manifest {
-        attributes 'Main-Class': 'guru.interlis.thoth.ThothCli'
+    application {
+        mainClass = 'guru.interlis.thoth.blog.ThothBlogCli'
     }
 
-    from sourceSets.main.output
-    dependsOn configurations.runtimeClasspath
-    from {
-        configurations.runtimeClasspath.findAll { it.name.endsWith('.jar') }.collect { zipTree(it) }
+    dependencies {
+        implementation project(':thoth-core')
+        implementation 'info.picocli:picocli:4.7.7'
+
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.14.2'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
+
+    // JaCoCo coverage – runs after all test types
+    jacoco {
+        toolVersion = '0.8.13'
+    }
+
+    jacocoTestReport {
+        dependsOn test, integrationTest, e2eTest
+        executionData fileTree(project.buildDir).include('jacoco/*.exec')
+        reports {
+            html.required = true
+            xml.required = false
+        }
+    }
+
+    // Apply shared CLI conventions
+    configureCliModule(delegate)
 }
 
-build {
-    dependsOn tasks.named('fatJar')
+// ---- thoth-biblios ----
+project(':thoth-biblios') {
+    apply plugin: 'application'
+    apply plugin: 'jacoco'
+
+    application {
+        mainClass = 'guru.interlis.thoth.biblios.ThothBibliosCli'
+    }
+
+    dependencies {
+        implementation project(':thoth-core')
+        implementation 'info.picocli:picocli:4.7.7'
+        implementation 'org.snakeyaml:snakeyaml-engine:2.9'
+        implementation 'org.eclipse.jgit:org.eclipse.jgit:7.1.0.202411261347-r'
+
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.14.2'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    // JaCoCo coverage – same convention as thoth-blog
+    jacoco {
+        toolVersion = '0.8.13'
+    }
+
+    jacocoTestReport {
+        dependsOn test, integrationTest, e2eTest
+        executionData fileTree(project.buildDir).include('jacoco/*.exec')
+        reports {
+            html.required = true
+            xml.required = false
+        }
+    }
+
+    // Apply shared CLI conventions
+    configureCliModule(delegate)
 }

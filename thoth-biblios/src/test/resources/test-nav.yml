@@ -1,0 +1,15 @@
+items:
+  - title: Introduction
+    page: index.adoc
+  - title: Getting Started
+    page: getting-started.adoc
+  - title: User Guide
+    children:
+      - title: Installation
+        page: installation.adoc
+      - title: Configuration
+        page: config.adoc
+      - title: CLI Usage
+        page: cli.adoc
+  - title: API Reference
+    page: api.adoc
