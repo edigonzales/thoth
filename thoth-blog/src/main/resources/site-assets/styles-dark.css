@@ -27,14 +27,16 @@ html {
 }
 
 :root {
-  --bg: #0f141d;
+  /*--bg: #0f141d;*/
+  --bg: #111315;
   --bg-accent: #243346;
   --surface: #18202d;
   --surface-alt: #1d2736;
   --surface-soft: #223044;
   --border: #314156;
 
-  --text: #e6edf6;
+  /*--text: #e6edf6;*/
+  --text: #E8E6E3;
   --text-soft: #d7e0eb;
   --muted: #a8b6ca;
 

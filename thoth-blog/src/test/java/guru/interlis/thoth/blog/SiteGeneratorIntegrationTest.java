@@ -109,6 +109,62 @@ public class SiteGeneratorIntegrationTest {
         assertPostFooter(output);
     }
 
+    @Test
+    public void appliesThothIgnorePatternsDuringBuild() throws Exception {
+        Path input = Files.createTempDirectory("thoth-input");
+        Path output = Files.createTempDirectory("thoth-output");
+        writeSampleSite(input, false);
+
+        write(input.resolve(".thothignore"), """
+            # Ignore generated scratch files
+            tmp/**
+            **/*.map
+            secrets/*
+            """);
+        write(input.resolve("tmp/keep.txt"), "ignored");
+        write(input.resolve("blog/2026/app.map"), "ignored");
+        write(input.resolve("secrets/token.txt"), "ignored");
+        write(input.resolve("custom/allowed.txt"), "allowed");
+
+        try (SiteGenerator generator = new SiteGenerator(input, output)) {
+            generator.buildAll(true);
+        }
+
+        assertFalse(Files.exists(output.resolve("tmp/keep.txt")));
+        assertFalse(Files.exists(output.resolve("blog/2026/app.map")));
+        assertFalse(Files.exists(output.resolve("secrets/token.txt")));
+        assertFalse(Files.exists(output.resolve(".thothignore")));
+        assertTrue(Files.exists(output.resolve("custom/allowed.txt")));
+    }
+
+    @Test
+    public void ignoresExcludedAssetsForWatchEvents() throws Exception {
+        Path input = Files.createTempDirectory("thoth-input");
+        Path output = Files.createTempDirectory("thoth-output");
+        writeSampleSite(input, false);
+        write(input.resolve(".thothignore"), "tmp/**\n");
+
+        try (SiteGenerator generator = new SiteGenerator(input, output)) {
+            generator.buildAll(true);
+
+            Path ignoredGitAsset = input.resolve(".git/objects/aa/new-object");
+            write(ignoredGitAsset, "ignored");
+            generator.handleInputEvent(ignoredGitAsset, "MODIFY");
+
+            Path ignoredTmpAsset = input.resolve("tmp/ignored.txt");
+            write(ignoredTmpAsset, "ignored");
+            generator.handleInputEvent(ignoredTmpAsset, "MODIFY");
+
+            Path copiedAsset = input.resolve("blog/2026/new.js");
+            write(copiedAsset, "console.log('new');");
+            generator.handleInputEvent(copiedAsset, "MODIFY");
+        }
+
+        assertFalse(Files.exists(output.resolve(".git/objects/aa/new-object")));
+        assertFalse(Files.exists(output.resolve("tmp/ignored.txt")));
+        assertTrue(Files.exists(output.resolve("blog/2026/new.js")));
+    }
+
     private void assertCommonSiteArtifacts(Path output) throws Exception {
         assertTrue(Files.exists(output.resolve("blog/2026/post-one/index.html")));
         assertTrue(Files.exists(output.resolve("blog/2026/post-two/index.html")));
@@ -153,6 +209,13 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("blog/2026/site.js")));
         assertFalse(Files.exists(output.resolve(".DS_Store")));
         assertFalse(Files.exists(output.resolve("blog/.DS_Store")));
+        assertFalse(Files.exists(output.resolve(".git/objects/aa/object")));
+        assertFalse(Files.exists(output.resolve(".idea/workspace.xml")));
+        assertFalse(Files.exists(output.resolve(".vscode/settings.json")));
+        assertFalse(Files.exists(output.resolve("node_modules/some-package/index.js")));
+        assertFalse(Files.exists(output.resolve("build/generated/asset.txt")));
+        assertFalse(Files.exists(output.resolve("target/generated/asset.txt")));
+        assertFalse(Files.exists(output.resolve(".gradle/metadata.bin")));
     }
 
     private void assertCommonCss(Path output) throws Exception {
@@ -588,6 +651,13 @@ public class SiteGeneratorIntegrationTest {
         write(input.resolve("blog/2026/site.js"), "console.log('ok');");
         write(input.resolve(".DS_Store"), "ignored");
         write(input.resolve("blog/.DS_Store"), "ignored");
+        write(input.resolve(".git/objects/aa/object"), "ignored");
+        write(input.resolve(".idea/workspace.xml"), "ignored");
+        write(input.resolve(".vscode/settings.json"), "ignored");
+        write(input.resolve("node_modules/some-package/index.js"), "ignored");
+        write(input.resolve("build/generated/asset.txt"), "ignored");
+        write(input.resolve("target/generated/asset.txt"), "ignored");
+        write(input.resolve(".gradle/metadata.bin"), "ignored");
     }
 
     private void write(Path path, String content) throws Exception {

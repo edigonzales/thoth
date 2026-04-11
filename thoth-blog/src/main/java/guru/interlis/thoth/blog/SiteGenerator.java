@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -35,11 +36,24 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class SiteGenerator implements AutoCloseable {
+    private static final String THOTH_IGNORE_FILE_NAME = ".thothignore";
     private static final DateTimeFormatter FEED_DATE_FORMATTER =
         DateTimeFormatter.RFC_1123_DATE_TIME.withLocale(Locale.ENGLISH);
     private static final int INDEX_THUMBNAIL_MAX_WIDTH = 360;
     private static final int INDEX_THUMBNAIL_MAX_HEIGHT = 240;
     private static final Set<String> THUMBNAIL_EXTENSIONS = Set.of("png", "jpg", "jpeg");
+    private static final Set<String> DEFAULT_EXCLUDED_DIRECTORIES = Set.of(
+        ".git",
+        ".hg",
+        ".svn",
+        ".idea",
+        ".vscode",
+        "node_modules",
+        "build",
+        "target",
+        ".gradle",
+        "thoth.properties"
+    );
 
     private static final List<String> BUNDLED_ASSETS = List.of(
         "site-assets/zurich.css::assets/zurich.css",
@@ -86,6 +100,7 @@ public final class SiteGenerator implements AutoCloseable {
     private final PostParser postParser;
     private final Map<Path, Post> posts;
     private final Set<String> generatedTagSlugs;
+    private final List<PathMatcher> ignoreMatchers;
 
     private SiteConfig config;
 
@@ -98,6 +113,7 @@ public final class SiteGenerator implements AutoCloseable {
         this.postParser = new PostParser(asciidoctor);
         this.posts = new ConcurrentHashMap<>();
         this.generatedTagSlugs = new HashSet<>();
+        this.ignoreMatchers = loadIgnoreMatchers();
     }
 
     public SiteConfig config() {
@@ -197,21 +213,38 @@ public final class SiteGenerator implements AutoCloseable {
     }
 
     private void copyAllNonAdocAssets() throws IOException {
-        try (var stream = Files.walk(inputRoot)) {
-            stream
-                .filter(Files::isRegularFile)
-                .filter(path -> !path.toString().endsWith(".adoc"))
-                .filter(path -> !shouldIgnoreAsset(inputRoot.relativize(path)))
-                .forEach(path -> {
-                    Path relativePath = inputRoot.relativize(path);
-                    try {
-                        copyFile(path, outputRoot.resolve(relativePath));
-                        System.out.println("[copy] " + toUnixPath(relativePath));
-                    } catch (IOException ex) {
-                        throw new IllegalStateException("Failed copying asset " + path, ex);
-                    }
-                });
-        }
+        Files.walkFileTree(inputRoot, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                if (inputRoot.equals(dir)) {
+                    return FileVisitResult.CONTINUE;
+                }
+
+                Path relativePath = inputRoot.relativize(dir);
+                if (shouldIgnoreDirectory(relativePath)) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                Path relativePath = inputRoot.relativize(file);
+                if (relativePath.toString().endsWith(".adoc") || shouldIgnoreAsset(relativePath)) {
+                    return FileVisitResult.CONTINUE;
+                }
+
+                try {
+                    copyFile(file, outputRoot.resolve(relativePath));
+                    System.out.println("[copy] " + toUnixPath(relativePath));
+                } catch (IOException ex) {
+                    throw new IllegalStateException("Failed copying asset " + file, ex);
+                }
+
+                return FileVisitResult.CONTINUE;
+            }
+        });
     }
 
     private void copySingleAsset(Path relativePath) throws IOException {
@@ -230,7 +263,92 @@ public final class SiteGenerator implements AutoCloseable {
 
     private boolean shouldIgnoreAsset(Path relativePath) {
         Path fileName = relativePath.getFileName();
-        return fileName != null && ".DS_Store".equals(fileName.toString());
+        if (fileName == null) {
+            return false;
+        }
+
+        String fileNameValue = fileName.toString();
+        if (".DS_Store".equals(fileNameValue) || THOTH_IGNORE_FILE_NAME.equals(fileNameValue)) {
+            return true;
+        }
+
+        if (isInDefaultExcludedDirectory(relativePath)) {
+            return true;
+        }
+
+        return matchesIgnorePatterns(relativePath);
+    }
+
+    private boolean shouldIgnoreDirectory(Path relativePath) {
+        if (isInDefaultExcludedDirectory(relativePath)) {
+            return true;
+        }
+
+        if (matchesIgnorePatterns(relativePath)) {
+            return true;
+        }
+
+        Path directoryProbe = relativePath.resolve("probe");
+        return matchesIgnorePatterns(directoryProbe);
+    }
+
+    private boolean isInDefaultExcludedDirectory(Path relativePath) {
+        for (Path part : relativePath) {
+            if (DEFAULT_EXCLUDED_DIRECTORIES.contains(part.toString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean matchesIgnorePatterns(Path relativePath) {
+        if (ignoreMatchers.isEmpty()) {
+            return false;
+        }
+
+        Path normalizedPath = Path.of(toUnixPath(relativePath));
+        for (PathMatcher matcher : ignoreMatchers) {
+            if (matcher.matches(normalizedPath)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private List<PathMatcher> loadIgnoreMatchers() {
+        Path ignoreFile = inputRoot.resolve(THOTH_IGNORE_FILE_NAME);
+        if (!Files.exists(ignoreFile) || Files.isDirectory(ignoreFile)) {
+            return List.of();
+        }
+
+        List<PathMatcher> matchers = new ArrayList<>();
+
+        try {
+            List<String> lines = Files.readAllLines(ignoreFile, StandardCharsets.UTF_8);
+            for (String line : lines) {
+                String pattern = line.trim();
+                if (pattern.isEmpty() || pattern.startsWith("#")) {
+                    continue;
+                }
+
+                String normalizedPattern = pattern.startsWith("/") ? pattern.substring(1) : pattern;
+                if (normalizedPattern.endsWith("/")) {
+                    normalizedPattern = normalizedPattern + "**";
+                }
+
+                try {
+                    matchers.add(Path.of(".").getFileSystem().getPathMatcher("glob:" + normalizedPattern));
+                } catch (IllegalArgumentException ex) {
+                    System.err.println("[warn] Ignoring invalid .thothignore pattern '" + pattern + "': " + ex.getMessage());
+                }
+            }
+        } catch (IOException ex) {
+            System.err.println("[warn] Failed reading " + THOTH_IGNORE_FILE_NAME + ": " + ex.getMessage());
+            return List.of();
+        }
+
+        return List.copyOf(matchers);
     }
 
     private void writeBundledAssets() throws IOException {

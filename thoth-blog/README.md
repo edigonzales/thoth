@@ -78,6 +78,26 @@ site.dateFormat=yyyy-MM-dd
 dev.port=8080
 ```
 
+## Ignored Files/Directories
+
+`thoth-blog` copies all non-`.adoc` assets from the input tree except ignored paths.
+
+Always ignored:
+- `.DS_Store`
+- `.thothignore`
+- Directories named `.git`, `.hg`, `.svn`, `.idea`, `.vscode`, `node_modules`, `build`, `target`, `.gradle` (and everything inside them)
+
+Optional project-specific ignores can be configured via `.thothignore` in the input root:
+
+```gitignore
+# Comments and empty lines are ignored
+tmp/**
+**/*.map
+secrets/*
+```
+
+Patterns are glob-style and matched against paths relative to `--input`.
+
 ## Post Front Matter
 
 Each `.adoc` post must begin with a header block between the first and second `---` lines:
