@@ -92,16 +92,21 @@ HTML reports: `<module>/build/reports/jacoco/test/html/index.html`
 
 ### thoth-blog
 
-Single directory with `.adoc` files and `thoth.properties`:
+Input root with required content directory plus optional theme overrides:
 
 ```
 input/
   thoth.properties
-  blog/
+  blog/        # required
     2026/
       hello.adoc
       image.png
+  templates/   # optional template overrides
+  assets/      # optional theme asset overrides
 ```
+
+Breaking change: the old flat input layout is no longer supported.
+`blog/2026/hello.adoc` now generates `/2026/hello/` (without `/blog` prefix).
 
 ### thoth-biblios
 

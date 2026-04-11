@@ -10,6 +10,9 @@ Plain text. Real websites.
 
 ## Quick Start
 
+> [!WARNING]
+> Breaking change: old input layouts are no longer supported. `thoth-blog` now requires `blog/` in the input root.
+
 ### Prerequisites
 
 - Java 25 or later
@@ -48,9 +51,11 @@ The `serve` command:
 - Starts a local HTTP server
 - Watches input directory recursively
 - Incrementally rebuilds on changes:
-  - Changed `.adoc`: re-renders that post + regenerates aggregate pages
-  - Changed non-`.adoc`: copies only that file
-  - Deleted `.adoc`: removes generated post + regenerates aggregate pages
+  - Changed `blog/**/*.adoc`: re-renders that post + regenerates aggregate pages
+  - Changed `blog/**` non-`.adoc`: copies only that file
+  - Changed `templates/**`: re-renders all pages
+  - Changed `assets/**`: updates only `output/assets/**`
+  - Deleted `blog/**/*.adoc`: removes generated post + regenerates aggregate pages
 
 ## Configuration: `thoth.properties`
 
@@ -80,9 +85,34 @@ dev.port=8080
 site.indexThumbnails.enabled=false
 ```
 
+## Input Structure (Required)
+
+`--input` must follow this structure:
+
+```
+input/
+  thoth.properties
+  blog/                 # required: .adoc + content-adjacent files
+    2026/
+      hello.adoc
+      images/
+        cover.png
+  templates/            # optional: FreeMarker overrides
+    index.ftl
+  assets/               # optional: theme overrides (CSS/JS/images/fonts)
+    styles-light.css
+    home-hero.jpg
+```
+
+Behavior:
+- Public URLs are derived from paths inside `blog/`, but without the `blog/` prefix.
+- Example: `blog/2026/hello.adoc` -> `/2026/hello/`.
+- `templates/` overrides bundled templates selectively (missing files fall back to defaults).
+- `assets/` overrides bundled files in `output/assets/` selectively.
+
 ## Ignored Files/Directories
 
-`thoth-blog` copies all non-`.adoc` assets from the input tree except ignored paths.
+`thoth-blog` copies all non-`.adoc` assets from `input/blog/` (and override assets from `input/assets/`) except ignored paths.
 
 Always ignored:
 - `.DS_Store`
@@ -94,10 +124,10 @@ Optional project-specific ignores can be configured via `.thothignore` in the in
 
 ```gitignore
 # Comments and empty lines are ignored
-tmp/**
-**/*.map
-/assets/private/**
-cache/
+blog/tmp/**
+blog/**/*.map
+assets/private/**
+blog/cache/
 ```
 
 Rules:
@@ -168,7 +198,7 @@ java -jar thoth-blog-<version>-all.jar <command> [options]
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--input` | Yes | Input directory with `.adoc` files and `thoth.properties` |
+| `--input` | Yes | Input root with `thoth.properties` and required `blog/` directory |
 | `--output` | Yes | Output directory for generated HTML |
 | `--clean` | No | Delete output directory before building |
 
@@ -176,7 +206,7 @@ java -jar thoth-blog-<version>-all.jar <command> [options]
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--input` | Yes | Input directory |
+| `--input` | Yes | Input root with `thoth.properties` and required `blog/` directory |
 | `--output` | Yes | Output directory |
 | `--port` | No | HTTP server port (default from `thoth.properties` or `8080`) |
 

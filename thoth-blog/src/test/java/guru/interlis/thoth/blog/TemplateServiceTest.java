@@ -33,7 +33,7 @@ class TemplateServiceTest {
             tagEntry("Java", "java"),
             tagEntry("AI", "ai")
         ));
-        post.put("url", "/blog/2026/my-post/");
+        post.put("url", "/2026/my-post/");
 
         model.put("post", post);
 
@@ -59,7 +59,7 @@ class TemplateServiceTest {
                 "date", "12.01.2026",
                 "author", "Alice",
                 "wordCount", 100,
-                "url", "/blog/2026/first/",
+                "url", "/2026/first/",
                 "tags", List.of(tagEntry("Java", "java")),
                 "teaser", "This is the first post teaser."
             ),
@@ -68,7 +68,7 @@ class TemplateServiceTest {
                 "date", "13.01.2026",
                 "author", "Bob",
                 "wordCount", 200,
-                "url", "/blog/2026/second/",
+                "url", "/2026/second/",
                 "tags", List.of(),
                 "teaser", "Second post teaser."
             )
@@ -81,8 +81,8 @@ class TemplateServiceTest {
         assertTrue(result.contains("Second Post"));
         assertTrue(result.contains("Alice"));
         assertTrue(result.contains("Bob"));
-        assertTrue(result.contains("/blog/2026/first/"));
-        assertTrue(result.contains("/blog/2026/second/"));
+        assertTrue(result.contains("/2026/first/"));
+        assertTrue(result.contains("/2026/second/"));
         assertTrue(result.contains("#Java"));
     }
 
@@ -94,14 +94,14 @@ class TemplateServiceTest {
             Map.of(
                 "heading", "January 2026",
                 "posts", List.of(
-                    Map.of("day", "12", "title", "First Post", "url", "/blog/2026/first/"),
-                    Map.of("day", "13", "title", "Second Post", "url", "/blog/2026/second/")
+                    Map.of("day", "12", "title", "First Post", "url", "/2026/first/"),
+                    Map.of("day", "13", "title", "Second Post", "url", "/2026/second/")
                 )
             ),
             Map.of(
                 "heading", "February 2026",
                 "posts", List.of(
-                    Map.of("day", "01", "title", "Third Post", "url", "/blog/2026/third/")
+                    Map.of("day", "01", "title", "Third Post", "url", "/2026/third/")
                 )
             )
         ));
@@ -115,7 +115,7 @@ class TemplateServiceTest {
         assertTrue(result.contains("First Post"));
         assertTrue(result.contains("Second Post"));
         assertTrue(result.contains("Third Post"));
-        assertTrue(result.contains("/blog/2026/first/"));
+        assertTrue(result.contains("/2026/first/"));
     }
 
     @Test
@@ -129,7 +129,7 @@ class TemplateServiceTest {
                 "date", "12.01.2026",
                 "author", "Jane",
                 "wordCount", 150,
-                "url", "/blog/2026/java-post/",
+                "url", "/2026/java-post/",
                 "tags", List.of(tagEntry("Java", "java"))
             )
         ));
@@ -139,7 +139,7 @@ class TemplateServiceTest {
         assertNotNull(result);
         assertTrue(result.contains("Tag: Java"));
         assertTrue(result.contains("Java Post"));
-        assertTrue(result.contains("/blog/2026/java-post/"));
+        assertTrue(result.contains("/2026/java-post/"));
     }
 
     @Test
@@ -166,16 +166,16 @@ class TemplateServiceTest {
         model.put("items", List.of(
             Map.of(
                 "title", "First Post",
-                "link", "https://example.com/blog/2026/first/",
+                "link", "https://example.com/2026/first/",
                 "pubDate", "Mon, 12 Jan 2026 00:00:00 +0100",
-                "guid", "blog/2026/first/",
+                "guid", "2026/first/",
                 "description", "<p>First post content.</p>"
             ),
             Map.of(
                 "title", "Second Post",
-                "link", "https://example.com/blog/2026/second/",
+                "link", "https://example.com/2026/second/",
                 "pubDate", "Mon, 13 Jan 2026 00:00:00 +0100",
-                "guid", "blog/2026/second/",
+                "guid", "2026/second/",
                 "description", "<p>Second post content.</p>"
             )
         ));
@@ -188,8 +188,8 @@ class TemplateServiceTest {
         assertTrue(result.contains("https://example.com/feed.xml"));
         assertTrue(result.contains("First Post"));
         assertTrue(result.contains("Second Post"));
-        assertTrue(result.contains("<guid isPermaLink=\"false\">blog/2026/first/</guid>"));
-        assertTrue(result.contains("<link>https://example.com/blog/2026/first/</link>"));
+        assertTrue(result.contains("<guid isPermaLink=\"false\">2026/first/</guid>"));
+        assertTrue(result.contains("<link>https://example.com/2026/first/</link>"));
     }
 
     @Test
@@ -207,6 +207,32 @@ class TemplateServiceTest {
         // index.ftl overrides pageTitle with site.title in its layout.page call
         assertTrue(content.contains("Thoth Blog"), "Output should contain site title");
         assertTrue(content.contains("post-grid"), "Output should contain post-grid section");
+    }
+
+    @Test
+    void rendersTemplateOverrideFromInputDirectory() throws Exception {
+        Path templatesDir = Files.createTempDirectory("template-overrides");
+        Files.writeString(
+            templatesDir.resolve("index.ftl"),
+            "CUSTOM INDEX ${site.title}",
+            StandardCharsets.UTF_8
+        );
+
+        TemplateService overridden = new TemplateService(templatesDir);
+        String result = overridden.render("index.ftl", baseModel("Index Page"));
+        assertTrue(result.contains("CUSTOM INDEX Thoth Blog"));
+    }
+
+    @Test
+    void fallsBackToBundledTemplateWhenOverrideIsMissing() throws Exception {
+        Path templatesDir = Files.createTempDirectory("template-overrides");
+        TemplateService overridden = new TemplateService(templatesDir);
+
+        Map<String, Object> model = baseModel("Index Page");
+        model.put("posts", List.of());
+        String result = overridden.render("index.ftl", model);
+
+        assertTrue(result.contains("post-grid"), "Should still render bundled template when no override exists");
     }
 
     private Map<String, String> tagEntry(String name, String slug) {

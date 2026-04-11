@@ -59,8 +59,8 @@ class BlogE2ETest {
         assertFileExists(output, "archive.html");
         assertFileExists(output, "search.html");
         assertFileExists(output, "feed.xml");
-        assertFileExists(output, "blog/2026/hello/index.html");
-        assertFileExists(output, "blog/2026/without-tags/index.html");
+        assertFileExists(output, "2026/hello/index.html");
+        assertFileExists(output, "2026/without-tags/index.html");
         assertFileExists(output, "tags/java/index.html");
         assertFileExists(output, "tags/ai/index.html");
         assertFileExists(output, "assets/search-index.json");
@@ -79,7 +79,7 @@ class BlogE2ETest {
         String feed = Files.readString(output.resolve("feed.xml"), StandardCharsets.UTF_8);
         assertTrue(feed.contains("<rss version=\"2.0\""));
         assertTrue(feed.contains("Hello World"));
-        assertTrue(feed.contains("<guid isPermaLink=\"false\">blog/2026/hello/</guid>"));
+        assertTrue(feed.contains("<guid isPermaLink=\"false\">2026/hello/</guid>"));
 
         // Verify search index
         String searchIndex = Files.readString(output.resolve("assets/search-index.json"), StandardCharsets.UTF_8);
@@ -125,7 +125,7 @@ class BlogE2ETest {
         // Test post page (pretty URL)
         HttpResponse<String> postResponse = client.send(
             HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:" + port + "/blog/2026/hello/"))
+                .uri(URI.create("http://localhost:" + port + "/2026/hello/"))
                 .timeout(Duration.ofSeconds(5))
                 .build(),
             HttpResponse.BodyHandlers.ofString()
@@ -194,7 +194,7 @@ class BlogE2ETest {
 
     /**
      * E2E-3: DevServer serves pages via pretty URLs (without .html extension).
-     * Verifies: /blog/2026/hello/ resolves to blog/2026/hello/index.html
+     * Verifies: /2026/hello/ resolves to 2026/hello/index.html
      */
     @Test
     void serveDeliversPrettyUrlPages() throws Exception {
@@ -216,7 +216,7 @@ class BlogE2ETest {
         // Test pretty URL without trailing slash (should redirect or serve index)
         HttpResponse<String> response1 = client.send(
             HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:" + port + "/blog/2026/hello/"))
+                .uri(URI.create("http://localhost:" + port + "/2026/hello/"))
                 .timeout(Duration.ofSeconds(5))
                 .build(),
             HttpResponse.BodyHandlers.ofString()
@@ -227,7 +227,7 @@ class BlogE2ETest {
         // Test direct index.html access
         HttpResponse<String> response2 = client.send(
             HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:" + port + "/blog/2026/hello/index.html"))
+                .uri(URI.create("http://localhost:" + port + "/2026/hello/index.html"))
                 .timeout(Duration.ofSeconds(5))
                 .build(),
             HttpResponse.BodyHandlers.ofString()
@@ -286,7 +286,7 @@ class BlogE2ETest {
             dev.port=9090
             """);
 
-        write(input.resolve("posts/code-post.adoc"), """
+        write(input.resolve("blog/code-post.adoc"), """
             ---
             = Code Post
             Dev Developer
@@ -308,15 +308,15 @@ class BlogE2ETest {
             """);
 
         // Custom CSS asset
-        write(input.resolve("custom.css"), "body { margin: 0; }");
+        write(input.resolve("assets/custom.css"), "body { margin: 0; }");
 
         try (SiteGenerator generator = new SiteGenerator(input, output)) {
             generator.buildAll(true);
         }
 
         // Verify post page
-        assertFileExists(output, "posts/code-post/index.html");
-        String postHtml = Files.readString(output.resolve("posts/code-post/index.html"), StandardCharsets.UTF_8);
+        assertFileExists(output, "code-post/index.html");
+        String postHtml = Files.readString(output.resolve("code-post/index.html"), StandardCharsets.UTF_8);
         assertTrue(postHtml.contains("Code Post"));
         assertTrue(postHtml.contains("language-java"));
         assertTrue(postHtml.contains("line-numbers"));
@@ -326,7 +326,7 @@ class BlogE2ETest {
         assertFileExists(output, "assets/prism/prism.js");
 
         // Verify custom asset copied
-        assertFileExists(output, "custom.css");
+        assertFileExists(output, "assets/custom.css");
 
         // Verify search index
         String searchIndex = Files.readString(output.resolve("assets/search-index.json"), StandardCharsets.UTF_8);
@@ -404,7 +404,7 @@ class BlogE2ETest {
             site.dateFormat=yyyy-MM-dd
             """);
 
-        write(input.resolve("post.adoc"), """
+        write(input.resolve("blog/post.adoc"), """
             ---
             = Branded Post
             Jane Doe

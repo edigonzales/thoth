@@ -14,6 +14,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SiteGeneratorIntegrationTest {
@@ -29,7 +30,7 @@ public class SiteGeneratorIntegrationTest {
         }
 
         assertCommonSiteArtifacts(output);
-        assertFalse(Files.exists(output.resolve("assets/thumbnails/blog/2026/images/cover-thumb.png")));
+        assertFalse(Files.exists(output.resolve("assets/thumbnails/2026/images/cover-thumb.png")));
 
         String index = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
         assertTrue(index.contains("First Post"));
@@ -47,7 +48,7 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(index.contains("Alice Author"));
         assertTrue(index.contains(" | "));
         assertTrue(index.contains("5 words"));
-        assertFalse(index.contains("/assets/thumbnails/blog/2026/images/cover-thumb.png"));
+        assertFalse(index.contains("/assets/thumbnails/2026/images/cover-thumb.png"));
         assertFalse(index.contains("class=\"post-card-body post-card-body--with-cover\""));
         assertIndexTeasers(output);
         assertHomeHero(output, "Thoth Blog", "");
@@ -70,10 +71,10 @@ public class SiteGeneratorIntegrationTest {
         }
 
         assertCommonSiteArtifacts(output);
-        assertTrue(Files.exists(output.resolve("assets/thumbnails/blog/2026/images/cover-thumb.png")));
+        assertTrue(Files.exists(output.resolve("assets/thumbnails/2026/images/cover-thumb.png")));
 
         String index = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
-        assertTrue(index.contains("/assets/thumbnails/blog/2026/images/cover-thumb.png"));
+        assertTrue(index.contains("/assets/thumbnails/2026/images/cover-thumb.png"));
         assertTrue(index.contains("class=\"post-card-body post-card-body--with-cover\""));
         assertTrue(index.contains("bi bi-calendar3"));
         assertTrue(index.contains("bi bi-file-text"));
@@ -117,21 +118,21 @@ public class SiteGeneratorIntegrationTest {
 
         write(input.resolve(".thothignore"), """
             # Ignore generated scratch files
-            tmp/**
-            **/*.map
-            secrets/*
+            blog/tmp/**
+            blog/**/*.map
+            blog/secrets/*
             """);
-        write(input.resolve("tmp/keep.txt"), "ignored");
+        write(input.resolve("blog/tmp/keep.txt"), "ignored");
         write(input.resolve("blog/2026/app.map"), "ignored");
-        write(input.resolve("secrets/token.txt"), "ignored");
-        write(input.resolve("custom/allowed.txt"), "allowed");
+        write(input.resolve("blog/secrets/token.txt"), "ignored");
+        write(input.resolve("blog/custom/allowed.txt"), "allowed");
 
         try (SiteGenerator generator = new SiteGenerator(input, output)) {
             generator.buildAll(true);
         }
 
         assertFalse(Files.exists(output.resolve("tmp/keep.txt")));
-        assertFalse(Files.exists(output.resolve("blog/2026/app.map")));
+        assertFalse(Files.exists(output.resolve("2026/app.map")));
         assertFalse(Files.exists(output.resolve("secrets/token.txt")));
         assertFalse(Files.exists(output.resolve(".thothignore")));
         assertTrue(Files.exists(output.resolve("custom/allowed.txt")));
@@ -142,7 +143,7 @@ public class SiteGeneratorIntegrationTest {
         Path input = Files.createTempDirectory("thoth-input");
         Path output = Files.createTempDirectory("thoth-output");
         writeSampleSite(input, false);
-        write(input.resolve(".thothignore"), "tmp/**\n");
+        write(input.resolve(".thothignore"), "blog/tmp/**\n");
 
         try (SiteGenerator generator = new SiteGenerator(input, output)) {
             generator.buildAll(true);
@@ -151,7 +152,7 @@ public class SiteGeneratorIntegrationTest {
             write(ignoredGitAsset, "ignored");
             generator.handleInputEvent(ignoredGitAsset, "MODIFY");
 
-            Path ignoredTmpAsset = input.resolve("tmp/ignored.txt");
+            Path ignoredTmpAsset = input.resolve("blog/tmp/ignored.txt");
             write(ignoredTmpAsset, "ignored");
             generator.handleInputEvent(ignoredTmpAsset, "MODIFY");
 
@@ -162,14 +163,88 @@ public class SiteGeneratorIntegrationTest {
 
         assertFalse(Files.exists(output.resolve(".git/objects/aa/new-object")));
         assertFalse(Files.exists(output.resolve("tmp/ignored.txt")));
-        assertTrue(Files.exists(output.resolve("blog/2026/new.js")));
+        assertTrue(Files.exists(output.resolve("2026/new.js")));
+    }
+
+    @Test
+    public void requiresBlogContentDirectory() throws Exception {
+        Path input = Files.createTempDirectory("thoth-input");
+        Path output = Files.createTempDirectory("thoth-output");
+        write(input.resolve("thoth.properties"), """
+            site.title=Thoth Blog
+            site.description=Demo feed
+            site.baseUrl=https://example.com
+            site.language=en-gb
+            site.dateFormat=yyyy-MM-dd
+            """);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> new SiteGenerator(input, output));
+        assertTrue(ex.getMessage().contains("Missing required content directory"));
+    }
+
+    @Test
+    public void appliesTemplateAndAssetOverridesFromInputRoot() throws Exception {
+        Path input = Files.createTempDirectory("thoth-input");
+        Path output = Files.createTempDirectory("thoth-output");
+        writeSampleSite(input, false);
+
+        write(
+            input.resolve("templates/index.ftl"),
+            "<!doctype html><html><body><main id=\"override-marker\">Template Override</main></body></html>"
+        );
+        write(input.resolve("assets/styles-light.css"), "/* custom styles */ body { color: #123456; }");
+
+        try (SiteGenerator generator = new SiteGenerator(input, output)) {
+            generator.buildAll(true);
+        }
+
+        String index = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
+        assertTrue(index.contains("Template Override"));
+        assertTrue(index.contains("override-marker"));
+
+        String css = Files.readString(output.resolve("assets/styles-light.css"), StandardCharsets.UTF_8);
+        assertTrue(css.contains("custom styles"));
+        assertTrue(css.contains("#123456"));
+    }
+
+    @Test
+    public void updatesTemplatesAndAssetOverridesDuringWatchEvents() throws Exception {
+        Path input = Files.createTempDirectory("thoth-input");
+        Path output = Files.createTempDirectory("thoth-output");
+        writeSampleSite(input, false);
+
+        Path templateOverride = input.resolve("templates/index.ftl");
+        Path assetOverride = input.resolve("assets/theme.js");
+
+        try (SiteGenerator generator = new SiteGenerator(input, output)) {
+            generator.buildAll(true);
+
+            write(
+                templateOverride,
+                "<!doctype html><html><body><main id=\"watch-template\">Watch Template</main></body></html>"
+            );
+            generator.handleInputEvent(templateOverride, "MODIFY");
+
+            write(assetOverride, "// watch override marker\nconsole.log('theme override');\n");
+            generator.handleInputEvent(assetOverride, "MODIFY");
+
+            Files.delete(assetOverride);
+            generator.handleInputEvent(assetOverride, "DELETE");
+        }
+
+        String index = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
+        assertTrue(index.contains("Watch Template"));
+        assertTrue(index.contains("watch-template"));
+
+        String themeJs = Files.readString(output.resolve("assets/theme.js"), StandardCharsets.UTF_8);
+        assertFalse(themeJs.contains("watch override marker"));
     }
 
     private void assertCommonSiteArtifacts(Path output) throws Exception {
-        assertTrue(Files.exists(output.resolve("blog/2026/post-one/index.html")));
-        assertTrue(Files.exists(output.resolve("blog/2026/post-two/index.html")));
-        assertTrue(Files.exists(output.resolve("blog/2026/post-three/index.html")));
-        assertTrue(Files.exists(output.resolve("blog/2026/post-four/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/post-one/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/post-two/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/post-three/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/post-four/index.html")));
         assertTrue(Files.exists(output.resolve("index.html")));
         assertTrue(Files.exists(output.resolve("archive.html")));
         assertTrue(Files.exists(output.resolve("search.html")));
@@ -205,10 +280,10 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("assets/fonts/JetBrainsMono/JetBrainsMono-Bold.woff2")));
         assertTrue(Files.exists(output.resolve("assets/fonts/JetBrainsMono/JetBrainsMono-Italic.woff2")));
 
-        assertTrue(Files.exists(output.resolve("blog/2026/images/cover.png")));
-        assertTrue(Files.exists(output.resolve("blog/2026/site.js")));
+        assertTrue(Files.exists(output.resolve("2026/images/cover.png")));
+        assertTrue(Files.exists(output.resolve("2026/site.js")));
         assertFalse(Files.exists(output.resolve(".DS_Store")));
-        assertFalse(Files.exists(output.resolve("blog/.DS_Store")));
+        assertFalse(Files.exists(output.resolve(".DS_Store")));
         assertFalse(Files.exists(output.resolve(".git/objects/aa/object")));
         assertFalse(Files.exists(output.resolve(".idea/workspace.xml")));
         assertFalse(Files.exists(output.resolve(".vscode/settings.json")));
@@ -412,7 +487,7 @@ public class SiteGeneratorIntegrationTest {
             archiveDoc.select(".archive-group").get(1).select("li").eachText()
         );
         assertEquals(
-            "/blog/2026/post-three/",
+            "/2026/post-three/",
             archiveDoc.select(".archive-group").get(0).selectFirst("a").attr("href")
         );
         assertEquals(
@@ -426,16 +501,16 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(feed.contains("<rss version=\"2.0\""));
         assertTrue(feed.contains("atom:link"));
         assertTrue(feed.contains("https://example.com/feed.xml"));
-        assertTrue(feed.contains("<guid isPermaLink=\"false\">blog/2026/post-one/</guid>"));
-        assertTrue(feed.contains("<link>https://example.com/blog/2026/post-two/</link>"));
-        assertTrue(feed.contains("<img src=\"https://example.com/blog/2026/images/cover.png\""));
+        assertTrue(feed.contains("<guid isPermaLink=\"false\">2026/post-one/</guid>"));
+        assertTrue(feed.contains("<link>https://example.com/2026/post-two/</link>"));
+        assertTrue(feed.contains("<img src=\"https://example.com/2026/images/cover.png\""));
         assertTrue(feed.contains("defaultSrsCode=2056"));
     }
 
     private void assertCommonSearchIndex(Path output) throws Exception {
         String searchIndex = Files.readString(output.resolve("assets/search-index.json"), StandardCharsets.UTF_8);
         assertTrue(searchIndex.contains("\"title\":\"Second Post\""));
-        assertTrue(searchIndex.contains("\"url\":\"/blog/2026/post-one/\""));
+        assertTrue(searchIndex.contains("\"url\":\"/2026/post-one/\""));
     }
 
     private void assertIndexTeasers(Path output) throws Exception {
@@ -518,7 +593,7 @@ public class SiteGeneratorIntegrationTest {
     }
 
     private void assertPostFooter(Path output) throws Exception {
-        String postHtml = Files.readString(output.resolve("blog/2026/post-one/index.html"), StandardCharsets.UTF_8);
+        String postHtml = Files.readString(output.resolve("2026/post-one/index.html"), StandardCharsets.UTF_8);
         assertTrue(postHtml.contains("id=\"navbar\""));
         assertTrue(postHtml.contains("id=\"search-input\""));
         assertTrue(postHtml.contains("id=\"theme-toggle\""));

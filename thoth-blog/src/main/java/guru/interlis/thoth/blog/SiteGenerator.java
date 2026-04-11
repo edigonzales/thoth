@@ -34,8 +34,12 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public final class SiteGenerator implements AutoCloseable {
+    private static final String CONTENT_DIR_NAME = "blog";
+    private static final String TEMPLATES_DIR_NAME = "templates";
+    private static final String ASSET_OVERRIDES_DIR_NAME = "assets";
     private static final String THOTH_IGNORE_FILE_NAME = ".thothignore";
     private static final DateTimeFormatter FEED_DATE_FORMATTER =
         DateTimeFormatter.RFC_1123_DATE_TIME.withLocale(Locale.ENGLISH);
@@ -51,8 +55,7 @@ public final class SiteGenerator implements AutoCloseable {
         "node_modules",
         "build",
         "target",
-        ".gradle",
-        "thoth.properties"
+        ".gradle"
     );
 
     private static final List<String> BUNDLED_ASSETS = List.of(
@@ -92,10 +95,16 @@ public final class SiteGenerator implements AutoCloseable {
         "site-assets/fonts/JetBrainsMono/JetBrainsMono-Bold.woff2::assets/fonts/JetBrainsMono/JetBrainsMono-Bold.woff2",
         "site-assets/fonts/JetBrainsMono/JetBrainsMono-Italic.woff2::assets/fonts/JetBrainsMono/JetBrainsMono-Italic.woff2"
     );
+    private static final Map<String, String> BUNDLED_ASSET_RESOURCE_BY_OUTPUT = BUNDLED_ASSETS.stream()
+        .map(descriptor -> descriptor.split("::", 2))
+        .collect(Collectors.toUnmodifiableMap(parts -> parts[1], parts -> parts[0]));
 
     private final Path inputRoot;
+    private final Path contentRoot;
+    private final Path templateOverrideRoot;
+    private final Path assetOverrideRoot;
     private final Path outputRoot;
-    private final TemplateService templateService;
+    private TemplateService templateService;
     private final Asciidoctor asciidoctor;
     private final PostParser postParser;
     private final Map<Path, Post> posts;
@@ -106,9 +115,13 @@ public final class SiteGenerator implements AutoCloseable {
 
     public SiteGenerator(Path inputRoot, Path outputRoot) throws IOException {
         this.inputRoot = inputRoot.toAbsolutePath().normalize();
+        this.contentRoot = this.inputRoot.resolve(CONTENT_DIR_NAME);
+        this.templateOverrideRoot = this.inputRoot.resolve(TEMPLATES_DIR_NAME);
+        this.assetOverrideRoot = this.inputRoot.resolve(ASSET_OVERRIDES_DIR_NAME);
         this.outputRoot = outputRoot.toAbsolutePath().normalize();
+        requireContentRoot();
         this.config = SiteConfig.load(this.inputRoot);
-        this.templateService = new TemplateService();
+        this.templateService = new TemplateService(templateOverrideRoot);
         this.asciidoctor = Asciidoctor.Factory.create();
         this.postParser = new PostParser(asciidoctor);
         this.posts = new ConcurrentHashMap<>();
@@ -127,9 +140,11 @@ public final class SiteGenerator implements AutoCloseable {
 
         Files.createDirectories(outputRoot);
         reloadConfig();
+        reloadTemplateService();
         loadAllPosts();
         copyAllNonAdocAssets();
         writeBundledAssets();
+        copyAllAssetOverrides();
         renderAllPosts();
         renderAggregatedPages();
     }
@@ -146,25 +161,57 @@ public final class SiteGenerator implements AutoCloseable {
                 return;
             }
 
-            if (shouldIgnoreAsset(relativePath)) {
-                return;
-            }
-
-            boolean isAdoc = relativePath.toString().endsWith(".adoc");
-            if ("DELETE".equals(eventType)) {
-                handleDelete(relativePath, isAdoc);
-                return;
-            }
-
-            if (isAdoc) {
-                updateSinglePost(relativePath);
-                renderAggregatedPages();
-            } else {
-                copySingleAsset(relativePath);
-                if (SiteConfig.FILE_NAME.equals(relativePath.toString())) {
+            if (SiteConfig.FILE_NAME.equals(relativePath.toString())) {
+                if (!"DELETE".equals(eventType)) {
                     reloadConfig();
                     renderAllPosts();
                     renderAggregatedPages();
+                }
+                return;
+            }
+
+            Path contentRelativePath = toNestedRelativePath(relativePath, CONTENT_DIR_NAME);
+            if (contentRelativePath != null) {
+                if (shouldIgnoreAsset(toInputContentRelativePath(contentRelativePath))) {
+                    return;
+                }
+
+                boolean isAdoc = contentRelativePath.toString().endsWith(".adoc");
+                if ("DELETE".equals(eventType)) {
+                    handleContentDelete(contentRelativePath, isAdoc);
+                    return;
+                }
+
+                if (isAdoc) {
+                    updateSinglePost(contentRelativePath);
+                    renderAggregatedPages();
+                } else {
+                    copySingleContentAsset(contentRelativePath);
+                }
+                return;
+            }
+
+            Path templateRelativePath = toNestedRelativePath(relativePath, TEMPLATES_DIR_NAME);
+            if (templateRelativePath != null) {
+                if (!"DELETE".equals(eventType) && shouldIgnoreAsset(relativePath)) {
+                    return;
+                }
+                reloadTemplateService();
+                renderAllPosts();
+                renderAggregatedPages();
+                return;
+            }
+
+            Path assetOverrideRelativePath = toNestedRelativePath(relativePath, ASSET_OVERRIDES_DIR_NAME);
+            if (assetOverrideRelativePath != null) {
+                if (!"DELETE".equals(eventType) && shouldIgnoreAsset(relativePath)) {
+                    return;
+                }
+
+                if ("DELETE".equals(eventType)) {
+                    deleteSingleAssetOverride(assetOverrideRelativePath);
+                } else {
+                    copySingleAssetOverride(assetOverrideRelativePath);
                 }
             }
         } catch (Exception ex) {
@@ -176,7 +223,7 @@ public final class SiteGenerator implements AutoCloseable {
         return commandLinePort != null ? commandLinePort : config.devPort();
     }
 
-    private void handleDelete(Path relativePath, boolean isAdoc) throws IOException {
+    private void handleContentDelete(Path relativePath, boolean isAdoc) throws IOException {
         if (isAdoc) {
             posts.remove(relativePath);
             deletePostOutput(relativePath);
@@ -190,20 +237,30 @@ public final class SiteGenerator implements AutoCloseable {
         System.out.println("[delete] " + toUnixPath(relativePath));
     }
 
+    private void requireContentRoot() {
+        if (!Files.isDirectory(contentRoot)) {
+            throw new IllegalArgumentException("Missing required content directory: " + contentRoot);
+        }
+    }
+
     private void reloadConfig() throws IOException {
         this.config = SiteConfig.load(inputRoot);
+    }
+
+    private void reloadTemplateService() {
+        this.templateService = new TemplateService(templateOverrideRoot);
     }
 
     private void loadAllPosts() throws IOException {
         posts.clear();
 
-        try (var stream = Files.walk(inputRoot)) {
+        try (var stream = Files.walk(contentRoot)) {
             stream
                 .filter(Files::isRegularFile)
                 .filter(path -> path.toString().endsWith(".adoc"))
                 .forEach(path -> {
                     try {
-                        Post post = postParser.parse(path, inputRoot);
+                        Post post = postParser.parse(path, contentRoot);
                         posts.put(post.sourceRelativePath(), post);
                     } catch (Exception ex) {
                         throw new IllegalStateException("Failed to parse post " + path, ex);
@@ -213,15 +270,15 @@ public final class SiteGenerator implements AutoCloseable {
     }
 
     private void copyAllNonAdocAssets() throws IOException {
-        Files.walkFileTree(inputRoot, new SimpleFileVisitor<>() {
+        Files.walkFileTree(contentRoot, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                if (inputRoot.equals(dir)) {
+                if (contentRoot.equals(dir)) {
                     return FileVisitResult.CONTINUE;
                 }
 
-                Path relativePath = inputRoot.relativize(dir);
-                if (shouldIgnoreDirectory(relativePath)) {
+                Path relativePath = contentRoot.relativize(dir);
+                if (shouldIgnoreDirectory(toInputContentRelativePath(relativePath))) {
                     return FileVisitResult.SKIP_SUBTREE;
                 }
 
@@ -230,8 +287,9 @@ public final class SiteGenerator implements AutoCloseable {
 
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                Path relativePath = inputRoot.relativize(file);
-                if (relativePath.toString().endsWith(".adoc") || shouldIgnoreAsset(relativePath)) {
+                Path relativePath = contentRoot.relativize(file);
+                if (relativePath.toString().endsWith(".adoc")
+                    || shouldIgnoreAsset(toInputContentRelativePath(relativePath))) {
                     return FileVisitResult.CONTINUE;
                 }
 
@@ -247,18 +305,78 @@ public final class SiteGenerator implements AutoCloseable {
         });
     }
 
-    private void copySingleAsset(Path relativePath) throws IOException {
-        Path source = inputRoot.resolve(relativePath);
+    private void copySingleContentAsset(Path relativePath) throws IOException {
+        Path source = contentRoot.resolve(relativePath);
         if (!Files.exists(source)) {
             return;
         }
 
-        if (shouldIgnoreAsset(relativePath)) {
+        if (shouldIgnoreAsset(toInputContentRelativePath(relativePath))) {
             return;
         }
 
         copyFile(source, outputRoot.resolve(relativePath));
         System.out.println("[copy] " + toUnixPath(relativePath));
+    }
+
+    private void copyAllAssetOverrides() throws IOException {
+        if (!Files.isDirectory(assetOverrideRoot)) {
+            return;
+        }
+
+        Files.walkFileTree(assetOverrideRoot, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                if (assetOverrideRoot.equals(dir)) {
+                    return FileVisitResult.CONTINUE;
+                }
+
+                Path relativePath = assetOverrideRoot.relativize(dir);
+                if (shouldIgnoreDirectory(Path.of(ASSET_OVERRIDES_DIR_NAME).resolve(relativePath))) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                Path relativePath = assetOverrideRoot.relativize(file);
+                if (shouldIgnoreAsset(Path.of(ASSET_OVERRIDES_DIR_NAME).resolve(relativePath))) {
+                    return FileVisitResult.CONTINUE;
+                }
+
+                try {
+                    copySingleAssetOverride(relativePath);
+                } catch (IOException ex) {
+                    throw new IllegalStateException("Failed copying asset override " + file, ex);
+                }
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    private void copySingleAssetOverride(Path relativePath) throws IOException {
+        Path source = assetOverrideRoot.resolve(relativePath);
+        if (!Files.exists(source)) {
+            return;
+        }
+
+        Path outputRelativePath = Path.of("assets").resolve(relativePath);
+        copyFile(source, outputRoot.resolve(outputRelativePath));
+        System.out.println("[copy] " + toUnixPath(outputRelativePath));
+    }
+
+    private void deleteSingleAssetOverride(Path relativePath) throws IOException {
+        Path outputRelativePath = Path.of("assets").resolve(relativePath);
+        String bundledResource = BUNDLED_ASSET_RESOURCE_BY_OUTPUT.get(toUnixPath(outputRelativePath));
+        if (bundledResource != null) {
+            writeBundledAsset(bundledResource, outputRoot.resolve(outputRelativePath));
+            System.out.println("[copy] " + toUnixPath(outputRelativePath));
+            return;
+        }
+
+        Files.deleteIfExists(outputRoot.resolve(outputRelativePath));
+        System.out.println("[delete] " + toUnixPath(outputRelativePath));
     }
 
     private boolean shouldIgnoreAsset(Path relativePath) {
@@ -353,17 +471,18 @@ public final class SiteGenerator implements AutoCloseable {
 
     private void writeBundledAssets() throws IOException {
         for (String descriptor : BUNDLED_ASSETS) {
-            String[] parts = descriptor.split("::");
-            String resourcePath = parts[0];
-            Path targetPath = outputRoot.resolve(parts[1]);
+            String[] parts = descriptor.split("::", 2);
+            writeBundledAsset(parts[0], outputRoot.resolve(parts[1]));
+        }
+    }
 
-            try (InputStream in = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-                if (in == null) {
-                    throw new IllegalStateException("Missing bundled asset: " + resourcePath);
-                }
-                Files.createDirectories(targetPath.getParent());
-                Files.copy(in, targetPath, StandardCopyOption.REPLACE_EXISTING);
+    private void writeBundledAsset(String resourcePath, Path targetPath) throws IOException {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (in == null) {
+                throw new IllegalStateException("Missing bundled asset: " + resourcePath);
             }
+            Files.createDirectories(targetPath.getParent());
+            Files.copy(in, targetPath, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -374,14 +493,30 @@ public final class SiteGenerator implements AutoCloseable {
     }
 
     private void updateSinglePost(Path relativePath) throws IOException {
-        Path source = inputRoot.resolve(relativePath);
+        Path source = contentRoot.resolve(relativePath);
         if (!Files.exists(source)) {
             return;
         }
 
-        Post post = postParser.parse(source, inputRoot);
+        Post post = postParser.parse(source, contentRoot);
         posts.put(relativePath, post);
         renderPost(post);
+    }
+
+    private Path toNestedRelativePath(Path inputRelativePath, String topLevelDirectory) {
+        if (inputRelativePath.getNameCount() < 2) {
+            return null;
+        }
+
+        if (!topLevelDirectory.equals(inputRelativePath.getName(0).toString())) {
+            return null;
+        }
+
+        return inputRelativePath.subpath(1, inputRelativePath.getNameCount());
+    }
+
+    private Path toInputContentRelativePath(Path contentRelativePath) {
+        return Path.of(CONTENT_DIR_NAME).resolve(contentRelativePath);
     }
 
     private void renderPost(Post post) throws IOException {

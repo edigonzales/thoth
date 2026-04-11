@@ -71,11 +71,11 @@ class BlogIntegrationTest {
         }
 
         // Verify thumbnails exist
-        assertTrue(Files.exists(output.resolve("assets/thumbnails/blog/2026/images/cover-thumb.png")));
+        assertTrue(Files.exists(output.resolve("assets/thumbnails/2026/images/cover-thumb.png")));
 
         // Verify index references thumbnails
         String index = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
-        assertTrue(index.contains("/assets/thumbnails/blog/2026/images/cover-thumb.png"));
+        assertTrue(index.contains("/assets/thumbnails/2026/images/cover-thumb.png"));
         assertTrue(index.contains("post-card-body post-card-body--with-cover"));
     }
 
@@ -94,7 +94,7 @@ class BlogIntegrationTest {
             site.dateFormat=yyyy-MM-dd
             """);
 
-        write(input.resolve("posts/linenums.adoc"), """
+        write(input.resolve("blog/linenums.adoc"), """
             ---
             = Line Numbers Test
             Dev Dev
@@ -121,7 +121,7 @@ class BlogIntegrationTest {
             generator.buildAll(true);
         }
 
-        String postHtml = Files.readString(output.resolve("posts/linenums/index.html"), StandardCharsets.UTF_8);
+        String postHtml = Files.readString(output.resolve("linenums/index.html"), StandardCharsets.UTF_8);
         Document doc = Jsoup.parse(postHtml);
 
         // Verify line-numbers class on first block
@@ -150,7 +150,7 @@ class BlogIntegrationTest {
             site.dateFormat=yyyy-MM-dd
             """);
 
-        write(input.resolve("post.adoc"), """
+        write(input.resolve("blog/post.adoc"), """
             ---
             = No Tags
             Jane Doe
@@ -187,7 +187,7 @@ class BlogIntegrationTest {
             site.dateFormat=yyyy-MM-dd
             """);
 
-        write(input.resolve("p1.adoc"), """
+        write(input.resolve("blog/p1.adoc"), """
             ---
             = Post One
             Jane Doe
@@ -197,7 +197,7 @@ class BlogIntegrationTest {
             Body one.
             """);
 
-        write(input.resolve("p2.adoc"), """
+        write(input.resolve("blog/p2.adoc"), """
             ---
             = Post Two
             Bob Dev
@@ -241,7 +241,7 @@ class BlogIntegrationTest {
             site.dateFormat=yyyy-MM-dd
             """);
 
-        write(input.resolve("post.adoc"), """
+        write(input.resolve("blog/post.adoc"), """
             ---
             = Special Tags
             Jane Doe
@@ -274,10 +274,10 @@ class BlogIntegrationTest {
 
     private void assertOutputFilesExist(Path output) throws Exception {
         // Post pages (pretty URLs)
-        assertTrue(Files.exists(output.resolve("blog/2026/hello/index.html")));
-        assertTrue(Files.exists(output.resolve("blog/2026/without-tags/index.html")));
-        assertTrue(Files.exists(output.resolve("blog/2026/with-code/index.html")));
-        assertTrue(Files.exists(output.resolve("blog/2026/draft-post/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/hello/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/without-tags/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/with-code/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/draft-post/index.html")));
 
         // Aggregate pages
         assertTrue(Files.exists(output.resolve("index.html")));
@@ -338,14 +338,14 @@ class BlogIntegrationTest {
         assertTrue(feed.contains("<title>Draft Post</title>"));
 
         // GUIDs
-        assertTrue(feed.contains("<guid isPermaLink=\"false\">blog/2026/hello/</guid>"));
-        assertTrue(feed.contains("<guid isPermaLink=\"false\">blog/2026/without-tags/</guid>"));
+        assertTrue(feed.contains("<guid isPermaLink=\"false\">2026/hello/</guid>"));
+        assertTrue(feed.contains("<guid isPermaLink=\"false\">2026/without-tags/</guid>"));
 
         // Links
-        assertTrue(feed.contains("<link>https://example.com/blog/2026/hello/</link>"));
+        assertTrue(feed.contains("<link>https://example.com/2026/hello/</link>"));
 
         // Cover image in feed
-        assertTrue(feed.contains("<img src=\"https://example.com/blog/2026/images/cover.png\""));
+        assertTrue(feed.contains("<img src=\"https://example.com/2026/images/cover.png\""));
     }
 
     private void assertTagPagesCorrect(Path output) throws Exception {
@@ -363,7 +363,7 @@ class BlogIntegrationTest {
         assertTrue(aiPage.contains("Hello World"));
 
         // Verify tag links on post footer
-        String postHtml = Files.readString(output.resolve("blog/2026/hello/index.html"), StandardCharsets.UTF_8);
+        String postHtml = Files.readString(output.resolve("2026/hello/index.html"), StandardCharsets.UTF_8);
         Document postDoc = Jsoup.parse(postHtml);
         var tagLinks = postDoc.select(".post-tags a");
         assertFalse(tagLinks.isEmpty());
@@ -379,8 +379,8 @@ class BlogIntegrationTest {
         assertTrue(searchIndex.contains("\"title\":\"With Code\""));
 
         // Contains URLs
-        assertTrue(searchIndex.contains("\"url\":\"/blog/2026/hello/\""));
-        assertTrue(searchIndex.contains("\"url\":\"/blog/2026/without-tags/\""));
+        assertTrue(searchIndex.contains("\"url\":\"/2026/hello/\""));
+        assertTrue(searchIndex.contains("\"url\":\"/2026/without-tags/\""));
 
         // Contains tags
         assertTrue(searchIndex.contains("\"tags\":\"Java, AI\""));
@@ -395,23 +395,23 @@ class BlogIntegrationTest {
 
     private void assertAssetsCopied(Path output) throws Exception {
         // Custom image asset
-        assertTrue(Files.exists(output.resolve("blog/2026/images/cover.png")));
+        assertTrue(Files.exists(output.resolve("2026/images/cover.png")));
 
         // Custom JS asset
-        assertTrue(Files.exists(output.resolve("blog/2026/custom.js")));
+        assertTrue(Files.exists(output.resolve("2026/custom.js")));
     }
 
     private void assertPrettyUrlsCorrect(Path output) throws Exception {
         // Post pages use pretty URL pattern (directory/index.html)
-        assertTrue(Files.exists(output.resolve("blog/2026/hello/index.html")));
-        assertTrue(Files.exists(output.resolve("blog/2026/without-tags/index.html")));
-        assertTrue(Files.exists(output.resolve("blog/2026/with-code/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/hello/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/without-tags/index.html")));
+        assertTrue(Files.exists(output.resolve("2026/with-code/index.html")));
 
         // HTML content links to pretty URLs
         String index = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
-        assertTrue(index.contains("/blog/2026/hello/"));
-        assertTrue(index.contains("/blog/2026/without-tags/"));
-        assertTrue(index.contains("/blog/2026/with-code/"));
+        assertTrue(index.contains("/2026/hello/"));
+        assertTrue(index.contains("/2026/without-tags/"));
+        assertTrue(index.contains("/2026/with-code/"));
     }
 
     // ================================================================
