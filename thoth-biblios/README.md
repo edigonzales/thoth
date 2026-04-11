@@ -98,10 +98,15 @@ output:
 
 ui:
   theme: default
-  show_version_badge: true
-  show_edit_link: true
+  show_version_badge: false
+  show_edit_link: false
+  show_source_link: false
   version_switch_mode: start_page
   search_language_mode: multilingual_safe
+  sidebar_toc_depth: 2
+  content_toc: off
+  edit_url_pattern: "https://github.com/org/repo/edit/{branch}/{path}"
+  source_url_pattern: "https://github.com/org/repo/blob/{branch}/{path}"
 
 content:
   sources:
@@ -127,8 +132,8 @@ content:
       branches:
         - name: main
           display_version: Current
-        - name: release/*
-          display_version: Release
+        - name: v3.x
+          display_version: 3.x
       start_path: handbook
       default_version: main
       navigation:
@@ -158,10 +163,15 @@ content:
 | Key | Required | Description |
 |-----|----------|-------------|
 | `theme` | No | Theme name. Currently only `default` is supported. |
-| `show_version_badge` | No | Show version badges on pages. Default: `true` |
-| `show_edit_link` | No | Show edit links on pages. Default: `true` |
+| `show_version_badge` | No | Show version badges on pages. Default: `false` |
+| `show_edit_link` | No | Show edit links on pages. Default: `false` |
+| `show_source_link` | No | Show source links on pages. Default: `false` |
+| `edit_url_pattern` | No | URL pattern for edit links. Supports `{repo_url}`, `{branch}`, `{path}` placeholders. |
+| `source_url_pattern` | No | URL pattern for source links. Supports `{repo_url}`, `{branch}`, `{path}` placeholders. |
 | `version_switch_mode` | No | Version switch behavior. `start_page` (default) always jumps to version root. `equivalent_page` tries same source page in target version, otherwise version root. |
 | `search_language_mode` | No | Lunr language/ranking mode. `multilingual_safe` (default) removes stemmer/stop-word filters for mixed-language docs. `english_default` keeps Lunr defaults. |
+| `sidebar_toc_depth` | No | Sidebar heading depth for generated TOC entries. Allowed: `1..6`. Default: `2` |
+| `content_toc` | No | Render AsciiDoc in-content TOC. Allowed values: `off`, `on`. Default: `off` |
 
 #### `content.sources` – Content Sources
 
@@ -177,6 +187,9 @@ Each entry defines a Git repository as a documentation source.
 | `default_version` | Yes | Which version to show when navigating to `/<id>/` without explicit version |
 | `navigation.file` | Yes | Navigation file name relative to `start_path`. Must be `nav.yml` in MVP |
 | `start_page` | No | Start page filename relative to `start_path`. Default: `index.adoc` |
+| `render_mode` | No | Rendering mode. Allowed values: `split`, `single_page`. Default: `split` |
+| `master_file` | Conditionally | Required when `render_mode: single_page`. Path to the AsciiDoc master file under `start_path` |
+| `sidebar_toc_numbers` | No | Show chapter numbers in the sidebar TOC. Allowed values: `off`, `on`. Default: `off` |
 
 #### `branches` – Published Versions
 
@@ -184,7 +197,7 @@ Each branch entry maps a Git branch to a published documentation version.
 
 | Key | Required | Description |
 |-----|----------|-------------|
-| `name` | Yes | Git branch name (exact name or pattern). Examples: `main`, `v1.x`, `release/*` |
+| `name` | Yes | Git branch name (exact name only in MVP). Examples: `main`, `v1.x`, `v2.0` |
 | `display_version` | No | Human-readable label shown in the version switcher. Defaults to the branch name |
 
 ## Navigation: `nav.yml`

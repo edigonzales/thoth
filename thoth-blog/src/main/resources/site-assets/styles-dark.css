@@ -256,7 +256,6 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
   gap: 0;
   color: #f7fbff;
   text-decoration: none;
-  font-family: "Outfit", sans-serif;
   font-size: clamp(2.5rem, 5.25vw, 5.6rem);
   line-height: 1;
   letter-spacing: -0.04em;

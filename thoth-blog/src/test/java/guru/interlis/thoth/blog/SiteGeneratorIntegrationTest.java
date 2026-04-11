@@ -284,7 +284,6 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(lightCss.contains(".home-hero__overlay {\n  display: flex;\n  flex-direction: column;\n  justify-content: flex-start;"));
         assertTrue(lightCss.contains(".home-hero__copy {\n  display: flex;\n  flex: 1 1 auto;\n  align-items: center;\n  justify-content: center;\n  min-height: 0;\n  padding: 1rem;\n}"));
         assertTrue(lightCss.contains(".brand {"));
-        assertTrue(lightCss.contains("font-family: \"Outfit\", sans-serif;"));
         assertTrue(lightCss.contains("font-size: clamp(2.5rem, 5.25vw, 5.6rem);"));
         assertTrue(lightCss.contains(".brand-main {"));
         assertTrue(lightCss.contains(".brand-domain {"));
@@ -374,7 +373,6 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(darkCss.contains(".home-hero__overlay {\n  display: flex;\n  flex-direction: column;\n  justify-content: flex-start;"));
         assertTrue(darkCss.contains(".home-hero__copy {\n  display: flex;\n  flex: 1 1 auto;\n  align-items: center;\n  justify-content: center;\n  min-height: 0;\n  padding: 1rem;\n}"));
         assertTrue(darkCss.contains(".brand {"));
-        assertTrue(darkCss.contains("font-family: \"Outfit\", sans-serif;"));
         assertTrue(darkCss.contains("font-size: clamp(2.5rem, 5.25vw, 5.6rem);"));
         assertTrue(darkCss.contains(".brand-main {"));
         assertTrue(darkCss.contains(".brand-domain {"));
@@ -472,9 +470,6 @@ public class SiteGeneratorIntegrationTest {
     private void assertHomeHero(Path output, String expectedBrandMain, String expectedBrandDomain) throws Exception {
         String indexHtml = Files.readString(output.resolve("index.html"), StandardCharsets.UTF_8);
         Document indexDoc = Jsoup.parse(indexHtml);
-
-        assertTrue(indexHtml.contains("fonts.googleapis.com"));
-        assertTrue(indexHtml.contains("fonts.gstatic.com"));
 
         Element hero = indexDoc.selectFirst(".home-hero");
         assertNotNull(hero);

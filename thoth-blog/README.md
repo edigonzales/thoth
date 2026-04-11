@@ -67,6 +67,7 @@ Optional keys:
 | Key | Description |
 |-----|-------------|
 | `dev.port` | Default `serve` port |
+| `site.indexThumbnails.enabled` | Enable thumbnail generation on index/archive pages. Default: `false` |
 
 Example:
 ```properties
@@ -76,6 +77,7 @@ site.baseUrl=https://example.com
 site.language=en-gb
 site.dateFormat=yyyy-MM-dd
 dev.port=8080
+site.indexThumbnails.enabled=false
 ```
 
 ## Ignored Files/Directories
@@ -85,6 +87,7 @@ dev.port=8080
 Always ignored:
 - `.DS_Store`
 - `.thothignore`
+- `thoth.properties`
 - Directories named `.git`, `.hg`, `.svn`, `.idea`, `.vscode`, `node_modules`, `build`, `target`, `.gradle` (and everything inside them)
 
 Optional project-specific ignores can be configured via `.thothignore` in the input root:
@@ -93,10 +96,16 @@ Optional project-specific ignores can be configured via `.thothignore` in the in
 # Comments and empty lines are ignored
 tmp/**
 **/*.map
-secrets/*
+/assets/private/**
+cache/
 ```
 
-Patterns are glob-style and matched against paths relative to `--input`.
+Rules:
+- `.thothignore` is only loaded from the `--input` root.
+- Patterns are glob-style and matched against paths relative to `--input`.
+- Patterns starting with `/` are resolved from the input root (example: `/assets/private/**`).
+- Patterns ending with `/` are treated as recursive directory patterns (`cache/` behaves like `cache/**`).
+- Invalid patterns are skipped with a warning; the build continues.
 
 ## Post Front Matter
 
