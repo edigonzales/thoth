@@ -464,6 +464,35 @@ a:hover { text-decoration: underline; }
     margin-top: 0.5625rem;
 }
 
+.doc-content table.tableblock {
+    width: 100%;
+    margin: 1rem 0;
+    border-collapse: collapse;
+    border: 1px solid var(--color-border);
+}
+
+.doc-content table.tableblock th,
+.doc-content table.tableblock td {
+    border: 1px solid var(--color-border);
+    padding: 0.5rem 0.75rem;
+    line-height: 1.15;
+    text-align: left;
+    vertical-align: top;
+}
+
+.doc-content table.tableblock td > p,
+.doc-content table.tableblock td p:last-child {
+    margin-bottom: 0;
+}
+
+.doc-content table.tableblock > caption.title {
+    margin-bottom: 0.5rem;
+    font-style: italic;
+    font-size: 0.9rem;
+    text-align: left;
+    caption-side: top;
+}
+
 .doc-content .imageblock > .title {
     margin-bottom: 1rem;
     font-style: italic;

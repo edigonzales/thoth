@@ -287,7 +287,7 @@ class BibliosIntegrationTest {
     }
 
     @Test
-    void singlePageModeSkipsUnnumberedChapterSubtreeInSidebar() throws Exception {
+    void singlePageModeShowsAppendixRoleButSkipsOtherUnnumberedChaptersInSidebar() throws Exception {
         Path repoDir = tempDir.resolve("single-page-unnumbered-repo");
         Path workRoot = tempDir.resolve("work-single-unnumbered");
         Path outputRoot = tempDir.resolve("output-single-unnumbered");
@@ -319,7 +319,9 @@ class BibliosIntegrationTest {
         assertTrue(html.contains("data-chapter-title=\"Einleitung\""));
         assertTrue(html.contains("data-chapter-title=\"Grundprinzipien\""));
         assertFalse(html.contains("data-chapter-title=\"Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3\""));
+        assertTrue(html.contains("data-chapter-title=\"Anhang A - foo bar\""));
         assertTrue(html.contains("id=\"chapter-breadcrumb-current\">Einleitung<"));
+        assertTrue(html.contains("href=\"/mydocs/main/#_anhang_a_foo_bar\""));
         assertTrue(html.contains("Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3"));
     }
 

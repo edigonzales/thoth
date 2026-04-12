@@ -181,6 +181,47 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Extend the basic docs fixture with a table and caption in guide.adoc.
+     */
+    public TestRepoBuilder withTableInGuide() throws Exception {
+        withBasicDocs();
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Path guide = repoDir.resolve("docs/guide.adoc");
+            Files.writeString(guide, """
+                = User Guide
+                :doctype: book
+
+                This is the user guide.
+
+                == Installation
+
+                Follow these steps to install the software.
+
+                .Deployment Matrix
+                |===
+                |Environment |Status
+
+                |Development
+                |Ready
+
+                |Production
+                |Planned
+                |===
+
+                == Configuration
+
+                Configure the software to your needs.
+                """);
+
+            git.add().addFilepattern("docs/guide.adoc").call();
+            git.commit().setMessage("Add table with caption to guide").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Create a repo configured for single-page rendering via master.adoc includes.
      */
     public TestRepoBuilder withSinglePageDocs() throws Exception {
@@ -253,6 +294,12 @@ public final class TestRepoBuilder {
                 == Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3
 
                 Nicht im TOC anzeigen.
+
+                [unnumbered]
+                [.appendix]
+                == Anhang A - foo bar
+
+                Im TOC anzeigen.
                 
                 == Grundprinzipien
 

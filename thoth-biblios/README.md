@@ -196,6 +196,15 @@ Each entry defines a Git repository as a documentation source.
 | `master_file` | Conditionally | Required when `render_mode: single_page`. Path to the AsciiDoc master file under `start_path` |
 | `sidebar_toc_numbers` | No | Show chapter numbers in the sidebar TOC. Allowed values: `off`, `on`. Default: `off` |
 
+For `render_mode: single_page`, chapter entries with `[unnumbered]` are hidden from the sidebar TOC by default.  
+If you want an unnumbered chapter to be shown (for example appendices like `Anhang A - ...`), add role `[.appendix]` to that section:
+
+```adoc
+[unnumbered]
+[.appendix]
+== Anhang A - foo bar
+```
+
 #### `branches` – Published Versions
 
 Each branch entry maps a Git branch to a published documentation version.

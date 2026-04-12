@@ -329,7 +329,7 @@ public final class CatalogBuilder implements AutoCloseable {
             if (heading == null || heading.title() == null || heading.title().isBlank()) {
                 continue;
             }
-            if (heading.unnumbered()) {
+            if (heading.unnumbered() && !heading.appendix()) {
                 continue;
             }
             String chapterId = heading.id() != null ? heading.id().trim() : "";

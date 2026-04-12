@@ -300,7 +300,7 @@ class BibliosE2ETest {
     }
 
     @Test
-    void singlePageModeHidesUnnumberedChapterSubtreeFromSidebar() throws Exception {
+    void singlePageModeShowsAppendixRoleButHidesOtherUnnumberedChaptersFromSidebar() throws Exception {
         Path repoDir = tempDir.resolve("single-page-unnumbered-repo");
         Files.createDirectories(repoDir);
         setupOutputDirs();
@@ -322,6 +322,8 @@ class BibliosE2ETest {
         assertions.assertFileContains("mydocs/main/index.html", "data-chapter-title=\"Einleitung\"");
         assertions.assertFileContains("mydocs/main/index.html", "data-chapter-title=\"Grundprinzipien\"");
         assertions.assertFileNotContains("mydocs/main/index.html", "data-chapter-title=\"Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3\"");
+        assertions.assertFileContains("mydocs/main/index.html", "data-chapter-title=\"Anhang A - foo bar\"");
+        assertions.assertFileContains("mydocs/main/index.html", "href=\"/mydocs/main/#_anhang_a_foo_bar\"");
         assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-current\">Einleitung<");
         assertions.assertFileContains("mydocs/main/index.html", "Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3");
     }
@@ -390,7 +392,45 @@ class BibliosE2ETest {
     }
 
     /**
-     * E2E-8: Sidebar blocks (****) are rendered and styled.
+     * E2E-8: Tables render with caption and dedicated table styles.
+     */
+    @Test
+    void tableCaptionAndGridStylesAreApplied() throws Exception {
+        Path repoDir = tempDir.resolve("table-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withTableInGuide();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Table Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"tableblock");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "<caption class=\"title\">Table");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "Deployment Matrix");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content table.tableblock {");
+        assertions.assertFileContains("site-assets/styles.css", "border-collapse: collapse;");
+        assertions.assertFileContains("site-assets/styles.css", "border: 1px solid var(--color-border);");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content table.tableblock th,");
+        assertions.assertFileContains("site-assets/styles.css", "line-height: 1.15;");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content table.tableblock td > p,");
+        assertions.assertFileContains("site-assets/styles.css", "margin-bottom: 0;");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content table.tableblock > caption.title {");
+        assertions.assertFileContains("site-assets/styles.css", "font-style: italic;");
+        assertions.assertFileContains("site-assets/styles.css", "font-size: 0.9rem;");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .imageblock > .title {");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.note {");
+    }
+
+    /**
+     * E2E-9: Sidebar blocks (****) are rendered and styled.
      */
     @Test
     void sidebarBlockIsStyled() throws Exception {

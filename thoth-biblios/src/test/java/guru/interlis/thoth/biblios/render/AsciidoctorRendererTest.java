@@ -137,9 +137,36 @@ class AsciidoctorRendererTest {
             assertEquals("Vorwort", rendered.headings().get(0).title());
             assertTrue(rendered.headings().get(0).sectionNumber().isBlank());
             assertTrue(rendered.headings().get(0).unnumbered());
+            assertFalse(rendered.headings().get(0).appendix());
             assertEquals("Einleitung", rendered.headings().get(1).title());
             assertEquals("1", rendered.headings().get(1).sectionNumber());
             assertFalse(rendered.headings().get(1).unnumbered());
+            assertFalse(rendered.headings().get(1).appendix());
+        }
+    }
+
+    @Test
+    void marksAppendixRoleOnUnnumberedSections(@TempDir Path tempDir) throws Exception {
+        Path adoc = tempDir.resolve("master.adoc");
+        Files.writeString(adoc, """
+            = Manual
+            :doctype: book
+
+            [unnumbered]
+            [.appendix]
+            == Anhang A - foo bar
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
+                adoc,
+                AsciidoctorRenderer.RenderOptions.singlePage(false, 2)
+            );
+
+            assertEquals("Anhang A - foo bar", rendered.headings().get(0).title());
+            assertTrue(rendered.headings().get(0).unnumbered());
+            assertTrue(rendered.headings().get(0).appendix());
+            assertTrue(rendered.headings().get(0).sectionNumber().isBlank());
         }
     }
 
