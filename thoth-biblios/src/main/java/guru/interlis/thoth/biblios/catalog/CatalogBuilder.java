@@ -220,7 +220,9 @@ public final class CatalogBuilder implements AutoCloseable {
             null,
             null,
             editUrl,
-            sourceUrl
+            sourceUrl,
+            rendered.imagesDir(),
+            rendered.baseDir()
         );
 
         return new ComponentVersion(
@@ -264,11 +266,17 @@ public final class CatalogBuilder implements AutoCloseable {
                 // Render AsciiDoc to HTML
                 String html;
                 String title;
+                String imagesDir = "";
+                String baseDir = filePath.getParent() != null
+                    ? filePath.getParent().toAbsolutePath().normalize().toString()
+                    : "";
                 try {
                     AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
                         filePath,
                         AsciidoctorRenderer.RenderOptions.split(contentToc, renderLanguage)
                     );
+                    imagesDir = rendered.imagesDir();
+                    baseDir = rendered.baseDir();
                     html = rendered.html();
                     if (html == null || html.isEmpty()) {
                         // Fallback to raw content if renderer returns empty
@@ -308,7 +316,9 @@ public final class CatalogBuilder implements AutoCloseable {
                     null, // prev/next will be set after all pages are collected
                     null,
                     editUrl,
-                    sourceUrl
+                    sourceUrl,
+                    imagesDir,
+                    baseDir
                 );
                 pages.add(page);
             }
@@ -559,7 +569,8 @@ public final class CatalogBuilder implements AutoCloseable {
                 page.componentId(), page.version(), page.sourcePath(), page.sourceUri(),
                 page.pageId(), page.title(), page.navTitle(), page.route(), page.html(),
                 page.breadcrumbs(), prev, next,
-                page.editUrl(), page.sourceUrl()
+                page.editUrl(), page.sourceUrl(),
+                page.imagesDir(), page.sourceBaseDir()
             );
             pages.set(i, updated);
             pageMap.put(orderedPaths.get(i), updated);

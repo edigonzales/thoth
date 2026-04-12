@@ -122,7 +122,9 @@ public final class BibliosConfigParser {
             parseVersionSwitchMode(uiMap),
             parseSearchLanguageMode(uiMap),
             parseSidebarTocDepth(uiMap),
-            parseContentTocMode(uiMap)
+            parseContentTocMode(uiMap),
+            parseSyntaxHighlightingMode(uiMap),
+            parsePrismCustomComponents(uiMap, configPath)
         );
 
         // Parse content section
@@ -483,6 +485,101 @@ public final class BibliosConfigParser {
                 "config"
             );
         }
+    }
+
+    private SyntaxHighlightingMode parseSyntaxHighlightingMode(Map<String, Object> map) {
+        Object value = map.get("syntax_highlighting");
+        if (value == null) {
+            return SyntaxHighlightingMode.PRISM;
+        }
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for 'ui.syntax_highlighting', got: " + value.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        try {
+            return SyntaxHighlightingMode.parse(text);
+        } catch (IllegalArgumentException e) {
+            throw new ThothBuildException(
+                e.getMessage(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+    }
+
+    private List<String> parsePrismCustomComponents(Map<String, Object> map, Path configPath) {
+        Object value = map.get("prism_custom_components");
+        if (value == null) {
+            return List.of();
+        }
+        if (!(value instanceof List<?> rawList)) {
+            throw new ThothBuildException(
+                "Expected list for 'ui.prism_custom_components', got: " + value.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+
+        List<String> resolvedPaths = new ArrayList<>();
+        for (int i = 0; i < rawList.size(); i++) {
+            Object item = rawList.get(i);
+            String key = "ui.prism_custom_components[" + i + "]";
+            if (!(item instanceof String text)) {
+                throw new ThothBuildException(
+                    "Expected string for '" + key + "', got: " + (item == null ? "null" : item.getClass().getSimpleName()),
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            String rawPath = text.trim();
+            if (rawPath.isEmpty()) {
+                throw new ThothBuildException(
+                    "Configuration '" + key + "' must not be blank",
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            Path resolved = resolveLocalPath(rawPath, configPath);
+            if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) {
+                throw new ThothBuildException(
+                    "Invalid '" + key + "': file not found: " + resolved,
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            if (!resolved.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".js")) {
+                throw new ThothBuildException(
+                    "Invalid '" + key + "': expected a .js file, got: " + resolved.getFileName(),
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            resolvedPaths.add(resolved.toAbsolutePath().normalize().toString());
+        }
+        return List.copyOf(resolvedPaths);
+    }
+
+    private Path resolveLocalPath(String rawPath, Path configPath) {
+        try {
+            URI uri = new URI(rawPath);
+            if ("file".equalsIgnoreCase(uri.getScheme())) {
+                return Path.of(uri).toAbsolutePath().normalize();
+            }
+        } catch (URISyntaxException | IllegalArgumentException ignored) {
+            // Fall through and treat as regular path string.
+        }
+
+        Path path = Path.of(rawPath);
+        if (!path.isAbsolute()) {
+            Path configDir = configPath.toAbsolutePath().getParent();
+            if (configDir != null) {
+                path = configDir.resolve(path);
+            }
+        }
+        return path.toAbsolutePath().normalize();
     }
 
     private RenderMode parseRenderMode(Map<String, Object> sourceMap, String label) {

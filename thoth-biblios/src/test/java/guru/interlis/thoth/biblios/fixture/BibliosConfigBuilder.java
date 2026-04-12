@@ -6,6 +6,8 @@ import guru.interlis.thoth.biblios.config.BibliosConfigParser;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Helper for creating biblios.yml configuration files for testing.
@@ -26,6 +28,8 @@ public final class BibliosConfigBuilder {
     private String searchLanguageMode = null;
     private Integer sidebarTocDepth = null;
     private String contentToc = null;
+    private String syntaxHighlightingMode = null;
+    private final ArrayList<String> prismCustomComponents = new ArrayList<>();
     private final java.util.ArrayList<SourceEntry> sources = new java.util.ArrayList<>();
 
     public BibliosConfigBuilder withSiteTitle(String title) {
@@ -92,6 +96,19 @@ public final class BibliosConfigBuilder {
 
     public BibliosConfigBuilder withContentToc(String mode) {
         this.contentToc = mode;
+        return this;
+    }
+
+    public BibliosConfigBuilder withSyntaxHighlightingMode(String mode) {
+        this.syntaxHighlightingMode = mode;
+        return this;
+    }
+
+    public BibliosConfigBuilder withPrismCustomComponents(List<String> components) {
+        this.prismCustomComponents.clear();
+        if (components != null) {
+            this.prismCustomComponents.addAll(components);
+        }
         return this;
     }
 
@@ -175,7 +192,8 @@ public final class BibliosConfigBuilder {
 
         StringBuilder uiSection = new StringBuilder();
         if (showEditLink || showSourceLink || versionSwitchMode != null || searchLanguageMode != null
-            || sidebarTocDepth != null || contentToc != null) {
+            || sidebarTocDepth != null || contentToc != null || syntaxHighlightingMode != null
+            || !prismCustomComponents.isEmpty()) {
             uiSection.append("ui:\n");
             uiSection.append("  show_edit_link: %s\n".formatted(showEditLink));
             uiSection.append("  show_source_link: %s\n".formatted(showSourceLink));
@@ -191,11 +209,20 @@ public final class BibliosConfigBuilder {
             if (contentToc != null) {
                 uiSection.append("  content_toc: %s\n".formatted(contentToc));
             }
+            if (syntaxHighlightingMode != null) {
+                uiSection.append("  syntax_highlighting: %s\n".formatted(syntaxHighlightingMode));
+            }
             if (editUrlPattern != null) {
                 uiSection.append("  edit_url_pattern: \"%s\"\n".formatted(editUrlPattern));
             }
             if (sourceUrlPattern != null) {
                 uiSection.append("  source_url_pattern: \"%s\"\n".formatted(sourceUrlPattern));
+            }
+            if (!prismCustomComponents.isEmpty()) {
+                uiSection.append("  prism_custom_components:\n");
+                for (String path : prismCustomComponents) {
+                    uiSection.append("    - \"%s\"\n".formatted(escapeYaml(path)));
+                }
             }
         }
 

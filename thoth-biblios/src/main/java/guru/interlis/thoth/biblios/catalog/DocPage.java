@@ -21,18 +21,28 @@ public final class DocPage {
     private final DocPage next;
     private final String editUrl;
     private final String sourceUrl;
+    private final String imagesDir;
+    private final String sourceBaseDir;
 
     public DocPage(String componentId, String version, String sourcePath, String sourceUri,
                    String pageId, String title, String navTitle, String route, String html,
                    List<Breadcrumb> breadcrumbs, DocPage prev, DocPage next) {
         this(componentId, version, sourcePath, sourceUri, pageId, title, navTitle, route, html,
-             breadcrumbs, prev, next, null, null);
+             breadcrumbs, prev, next, null, null, "", "");
     }
 
     public DocPage(String componentId, String version, String sourcePath, String sourceUri,
                    String pageId, String title, String navTitle, String route, String html,
                    List<Breadcrumb> breadcrumbs, DocPage prev, DocPage next,
                    String editUrl, String sourceUrl) {
+        this(componentId, version, sourcePath, sourceUri, pageId, title, navTitle, route, html,
+            breadcrumbs, prev, next, editUrl, sourceUrl, "", "");
+    }
+
+    public DocPage(String componentId, String version, String sourcePath, String sourceUri,
+                   String pageId, String title, String navTitle, String route, String html,
+                   List<Breadcrumb> breadcrumbs, DocPage prev, DocPage next,
+                   String editUrl, String sourceUrl, String imagesDir, String sourceBaseDir) {
         this.componentId = Objects.requireNonNull(componentId, "componentId is required");
         this.version = Objects.requireNonNull(version, "version is required");
         this.sourcePath = Objects.requireNonNull(sourcePath, "sourcePath is required");
@@ -47,6 +57,8 @@ public final class DocPage {
         this.next = next;
         this.editUrl = editUrl;
         this.sourceUrl = sourceUrl;
+        this.imagesDir = imagesDir != null ? imagesDir.trim() : "";
+        this.sourceBaseDir = sourceBaseDir != null ? sourceBaseDir.trim() : "";
     }
 
     public String componentId() {
@@ -111,6 +123,22 @@ public final class DocPage {
      */
     public String sourceUrl() {
         return sourceUrl;
+    }
+
+    /**
+     * Effective imagesdir used while rendering this page.
+     * Empty when not set.
+     */
+    public String imagesDir() {
+        return imagesDir;
+    }
+
+    /**
+     * Absolute source document directory used as Asciidoctor baseDir.
+     * Empty when unknown.
+     */
+    public String sourceBaseDir() {
+        return sourceBaseDir;
     }
 
     @Override

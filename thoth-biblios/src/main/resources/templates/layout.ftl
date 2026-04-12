@@ -1,4 +1,4 @@
-<#macro layout siteTitle siteLogo="" pageTitle="" basePath="" locale="en" docSwitcher=[] versionSwitcher=[] currentComponentId="" currentVersionStr="" currentVersion={} currentPagePath="" navigation={} breadcrumbs=[] prevPage={} nextPage={} searchQuery="" searchLanguageMode="multilingual_safe" singlePageMode=false chapterBreadcrumbEnabled=false initialChapterId="">
+<#macro layout siteTitle siteLogo="" pageTitle="" basePath="" locale="en" docSwitcher=[] versionSwitcher=[] currentComponentId="" currentVersionStr="" currentVersion={} currentPagePath="" navigation={} breadcrumbs=[] prevPage={} nextPage={} searchQuery="" searchLanguageMode="multilingual_safe" syntaxHighlightingEnabled=true prismCustomComponentUrls=[] singlePageMode=false chapterBreadcrumbEnabled=false initialChapterId="">
 <!DOCTYPE html>
 <html lang="${locale}">
 <head>
@@ -8,8 +8,44 @@
     <link rel="stylesheet" href="${basePath}/site-assets/zurich-light.css">
     <link rel="stylesheet" href="${basePath}/site-assets/frutiger-serif.css">
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">
+    <#if syntaxHighlightingEnabled>
+    <link rel="stylesheet" href="${basePath}/site-assets/prism/prism.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/prism-overrides.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/prism/plugins/line-highlight/prism-line-highlight.min.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/prism/plugins/line-numbers/prism-line-numbers.min.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/prism/plugins/toolbar/prism-toolbar.min.css">
+    </#if>
     <script src="${basePath}/site-assets/lunr.min.js" defer></script>
     <script src="${basePath}/site-assets/search.js" defer></script>
+    <#if syntaxHighlightingEnabled>
+    <script src="${basePath}/site-assets/prism/prism.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-markup.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-clike.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-javascript.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-css.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-ini.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-interlis.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-java.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-typescript.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-json.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-bash.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-sql.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-python.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-yaml.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-kotlin.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-go.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-c.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/components/prism-cpp.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/plugins/line-highlight/prism-line-highlight.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/plugins/line-numbers/prism-line-numbers.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/plugins/toolbar/prism-toolbar.min.js" defer></script>
+    <script src="${basePath}/site-assets/prism/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js" defer></script>
+    <#if prismCustomComponentUrls?has_content>
+        <#list prismCustomComponentUrls as customComponentUrl>
+    <script src="${basePath}${customComponentUrl}" defer></script>
+        </#list>
+    </#if>
+    </#if>
 </head>
 <body data-search-language-mode="${searchLanguageMode}" data-single-page-mode="${singlePageMode?string('true', 'false')}" data-initial-chapter-id="${initialChapterId}">
     <header class="site-header">

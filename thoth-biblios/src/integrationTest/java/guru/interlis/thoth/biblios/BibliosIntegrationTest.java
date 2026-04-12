@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -122,6 +123,11 @@ class BibliosIntegrationTest {
         String indexPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
         assertTrue(indexPage.contains("Welcome"));
 
+        String styles = Files.readString(outputRoot.resolve("site-assets/styles.css"));
+        assertTrue(styles.contains(".content {"));
+        assertTrue(styles.contains(".doc-content .imageblock > .content {\n    padding: 0;"));
+        assertTrue(styles.contains(".doc-content .listingblock > .content {\n    padding: 0;"));
+
         String searchIndex = Files.readString(outputRoot.resolve("search-index.json"));
         assertTrue(searchIndex.contains("mydocs"));
         assertTrue(searchIndex.contains("Welcome"));
@@ -224,6 +230,243 @@ class BibliosIntegrationTest {
             assertEquals("Documentation A", catalog.findById("docs-a").displayName());
             assertEquals("Documentation B", catalog.findById("docs-b").displayName());
         }
+    }
+
+    @Test
+    void includesPrismAssetsByDefault() throws Exception {
+        Path repoDir = tempDir.resolve("prism-default-repo");
+        Path workRoot = tempDir.resolve("work-prism-default");
+        Path outputRoot = tempDir.resolve("output-prism-default");
+        Path configFile = tempDir.resolve("prism-default-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Prism Default Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/prism.js")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/prism-overrides.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/components/prism-interlis.js")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/plugins/toolbar/prism-toolbar.min.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/plugins/toolbar/prism-toolbar.min.js")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/icons/bootstrap-copy.svg")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/icons/bootstrap-check.svg")));
+        String overridesCss = Files.readString(outputRoot.resolve("site-assets/prism-overrides.css"));
+        assertTrue(overridesCss.contains("background: rgb(242, 242, 242)"));
+        assertTrue(overridesCss.contains("font-size: 0.95rem"));
+        assertTrue(overridesCss.contains(".token.operator"));
+        assertTrue(overridesCss.contains("background: transparent"));
+        assertTrue(overridesCss.contains("padding-top: 0.25rem"));
+        assertTrue(overridesCss.contains("padding-right: 0.25rem"));
+        assertTrue(overridesCss.contains("/site-assets/icons/bootstrap-copy.svg"));
+        assertTrue(overridesCss.contains("/site-assets/icons/bootstrap-check.svg"));
+        String indexPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(indexPage.contains("/site-assets/prism/prism.js"));
+        assertTrue(indexPage.contains("/site-assets/prism-overrides.css"));
+        assertTrue(indexPage.contains("/site-assets/prism/components/prism-interlis.js"));
+        assertTrue(indexPage.contains("/site-assets/prism/plugins/toolbar/prism-toolbar.min.css"));
+        assertTrue(indexPage.contains("/site-assets/prism/plugins/toolbar/prism-toolbar.min.js"));
+        assertTrue(indexPage.contains("/site-assets/prism/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"));
+    }
+
+    @Test
+    void disablesPrismAssetsWhenConfiguredOff() throws Exception {
+        Path repoDir = tempDir.resolve("prism-off-repo");
+        Path workRoot = tempDir.resolve("work-prism-off");
+        Path outputRoot = tempDir.resolve("output-prism-off");
+        Path configFile = tempDir.resolve("prism-off-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Prism Off Docs")
+            .withOutputDir(outputRoot)
+            .withSyntaxHighlightingMode("off")
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        assertFalse(Files.exists(outputRoot.resolve("site-assets/prism/prism.js")));
+        assertFalse(Files.exists(outputRoot.resolve("site-assets/prism-overrides.css")));
+        assertFalse(Files.exists(outputRoot.resolve("site-assets/icons/bootstrap-copy.svg")));
+        assertFalse(Files.exists(outputRoot.resolve("site-assets/icons/bootstrap-check.svg")));
+        String indexPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertFalse(indexPage.contains("/site-assets/prism/prism.js"));
+        assertFalse(indexPage.contains("/site-assets/prism-overrides.css"));
+        assertFalse(indexPage.contains("/site-assets/prism/plugins/toolbar/prism-toolbar.min.css"));
+        assertFalse(indexPage.contains("/site-assets/prism/plugins/toolbar/prism-toolbar.min.js"));
+        assertFalse(indexPage.contains("/site-assets/prism/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"));
+    }
+
+    @Test
+    void copiesAndLoadsCustomPrismComponents() throws Exception {
+        Path repoDir = tempDir.resolve("prism-custom-repo");
+        Path workRoot = tempDir.resolve("work-prism-custom");
+        Path outputRoot = tempDir.resolve("output-prism-custom");
+        Path configFile = tempDir.resolve("prism-custom-biblios.yml");
+        Path highlightingDir = tempDir.resolve("highlighting");
+        Path customLanguage = highlightingDir.resolve("prism-customdsl.js");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+        Files.createDirectories(highlightingDir);
+        Files.writeString(customLanguage, "Prism.languages.customdsl={keyword:/foo/};");
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Prism Custom Docs")
+            .withOutputDir(outputRoot)
+            .withPrismCustomComponents(List.of("./highlighting/prism-customdsl.js"))
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/custom/prism-customdsl.js")));
+        String indexPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(indexPage.contains("/site-assets/prism/custom/prism-customdsl.js"));
+    }
+
+    @Test
+    void copiesReferencedRelativeImagesInSplitMode() throws Exception {
+        Path repoDir = tempDir.resolve("split-images-repo");
+        Path workRoot = tempDir.resolve("work-split-images");
+        Path outputRoot = tempDir.resolve("output-split-images");
+        Path configFile = tempDir.resolve("split-images-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withSplitDocsReferencingImages();
+
+        new BibliosConfigBuilder()
+            .withSiteTitle("Split Image Integration")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        BibliosConfigParser parser = new BibliosConfigParser();
+        BibliosConfig config = parser.parse(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        assertTrue(Files.exists(outputRoot.resolve("mydocs/main/images/foo.png")));
+        String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(html.contains("<img src=\"images/foo.png\""));
+    }
+
+    @Test
+    void copiesReferencedRelativeImagesInSinglePageMode() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-images-repo");
+        Path workRoot = tempDir.resolve("work-single-images");
+        Path outputRoot = tempDir.resolve("output-single-images");
+        Path configFile = tempDir.resolve("single-page-images-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withSinglePageDocsWithImages();
+
+        new BibliosConfigBuilder()
+            .withSiteTitle("Single Page Images Integration")
+            .withOutputDir(outputRoot)
+            .withSinglePageSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "main")
+            .writeTo(configFile);
+
+        BibliosConfigParser parser = new BibliosConfigParser();
+        BibliosConfig config = parser.parse(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        assertTrue(Files.exists(outputRoot.resolve("mydocs/main/images/single.png")));
+        String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(html.contains("<img src=\"images/single.png\""));
+    }
+
+    @Test
+    void skipsExternalImagesAndContinuesWhenLocalImageMissing() throws Exception {
+        Path repoDir = tempDir.resolve("split-external-missing-images-repo");
+        Path workRoot = tempDir.resolve("work-external-missing-images");
+        Path outputRoot = tempDir.resolve("output-external-missing-images");
+        Path configFile = tempDir.resolve("external-missing-images-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withSplitDocsExternalAndMissingImages();
+
+        new BibliosConfigBuilder()
+            .withSiteTitle("External Missing Images Integration")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        BibliosConfigParser parser = new BibliosConfigParser();
+        BibliosConfig config = parser.parse(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(html.contains("<img src=\"images/missing.png\""));
+        assertTrue(html.contains("<img src=\"https://example.org/logo.png\""));
+        assertFalse(Files.exists(outputRoot.resolve("mydocs/main/images/missing.png")));
+        assertFalse(Files.exists(outputRoot.resolve("mydocs/main/https:/example.org/logo.png")));
     }
 
     @Test

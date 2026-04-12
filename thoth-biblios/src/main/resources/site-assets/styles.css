@@ -449,6 +449,7 @@ a:hover { text-decoration: underline; }
 
 .doc-content h2 { font-size: 1.5rem; margin: 2rem 0 1rem; }
 .doc-content h3 { font-size: 1.25rem; margin: 1.5rem 0 0.75rem; }
+.doc-content h5 { font-size: 1rem; }
 .doc-content p { margin-bottom: 1rem; }
 .doc-content ul,
 .doc-content ol {
@@ -497,6 +498,14 @@ a:hover { text-decoration: underline; }
     margin-bottom: 1rem;
     font-style: italic;
     font-size: 0.9rem;
+}
+
+.doc-content .imageblock > .content {
+    padding: 0;
+}
+
+.doc-content .listingblock > .content {
+    padding: 0;
 }
 
 .doc-content .sidebarblock {

@@ -69,6 +69,32 @@ class AsciidoctorRendererTest {
         try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
             String html = renderer.renderString(content);
             assertNotNull(html);
+            assertTrue(html.contains("language-java"));
+        }
+    }
+
+    @Test
+    void normalizesCodeBlockLanguagesForPrism() {
+        String content = """
+            = Language Mapping
+
+            [source,xml]
+            ----
+            <a>foo</a>
+            ----
+
+            [source,interlis]
+            ----
+            MODEL Demo;
+            END Demo.
+            ----
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            assertNotNull(html);
+            assertTrue(html.contains("language-markup"));
+            assertTrue(html.contains("language-interlis"));
         }
     }
 
@@ -192,7 +218,7 @@ class AsciidoctorRendererTest {
     }
 
     @Test
-    void localizesNoteCaptionFromLanguageAttribute() {
+    void doesNotForceCustomNoteCaptionFromLanguageAttribute() {
         String content = """
             = Hinweise
 
@@ -207,7 +233,25 @@ class AsciidoctorRendererTest {
             String htmlDe = renderer.renderString(content, "de");
 
             assertEquals("Note", extractNoteCaption(htmlEn));
-            assertEquals("Hinweis", extractNoteCaption(htmlDe));
+            assertEquals("Note", extractNoteCaption(htmlDe));
+        }
+    }
+
+    @Test
+    void keepsDocumentLevelNoteCaptionOverride() {
+        String content = """
+            = Hinweise
+            :note-caption: Merke
+
+            [NOTE]
+            ====
+            Sprachtest.
+            ====
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content, "de");
+            assertEquals("Merke", extractNoteCaption(html));
         }
     }
 

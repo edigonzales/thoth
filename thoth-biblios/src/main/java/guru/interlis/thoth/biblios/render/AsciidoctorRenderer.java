@@ -8,6 +8,8 @@ import org.asciidoctor.SafeMode;
 import org.asciidoctor.ast.Document;
 import org.asciidoctor.ast.Section;
 import org.asciidoctor.ast.StructuralNode;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -46,15 +48,22 @@ public final class AsciidoctorRenderer implements AutoCloseable {
 
             Document document = asciidoctor.loadFile(sourcePath.toFile(), asciidoctorOptions);
             String html = asciidoctor.convertFile(sourcePath.toFile(), asciidoctorOptions, String.class);
+            String normalizedHtml = normalizeCodeBlocksForPrism(html);
             String title = document.getDoctitle();
+            String imagesDir = attributeAsString(document.getAttribute("imagesdir"));
+            String baseDir = sourcePath.getParent() != null
+                ? sourcePath.getParent().toAbsolutePath().normalize().toString()
+                : "";
             List<Heading> headings = resolvedOptions.collectHeadings()
                 ? extractHeadings(document, resolvedOptions.headingDepth())
                 : List.of();
 
             return new RenderedDocument(
-                html != null ? html : "",
+                normalizedHtml,
                 title != null ? title : "",
-                List.copyOf(headings)
+                List.copyOf(headings),
+                imagesDir,
+                baseDir
             );
         } catch (Exception e) {
             throw new IOException("Failed to render AsciiDoc file: " + sourcePath, e);
@@ -81,12 +90,11 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     public String renderString(String content, String language) {
         try {
             AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
-            attributes.attribute("source-highlighter", "prettify");
+            attributes.attribute("source-highlighter", "null");
             attributes.attribute("icons", "font");
             attributes.attribute("sectanchors", "");
             String resolvedLanguage = normalizeLanguage(language);
             attributes.attribute("lang", resolvedLanguage);
-            attributes.attribute("note-caption", localizedNoteCaption(resolvedLanguage));
 
             OptionsBuilder options = org.asciidoctor.Options.builder()
                 .backend("html5")
@@ -95,7 +103,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
                 .toFile(false)
                 .attributes(attributes.build());
 
-            return asciidoctor.convert(content, options.build());
+            return normalizeCodeBlocksForPrism(asciidoctor.convert(content, options.build()));
         } catch (Exception e) {
             String snippet = content != null && content.length() > 80
                 ? content.substring(0, 80) + "..."
@@ -137,12 +145,11 @@ public final class AsciidoctorRenderer implements AutoCloseable {
 
     private Options buildOptions(Path sourcePath, RenderOptions options) {
         AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
-        attributes.attribute("source-highlighter", "prettify");
+        attributes.attribute("source-highlighter", "null");
         attributes.attribute("icons", "font");
         attributes.attribute("sectanchors", "");
         String resolvedLanguage = normalizeLanguage(options.language());
         attributes.attribute("lang", resolvedLanguage);
-        attributes.attribute("note-caption", localizedNoteCaption(resolvedLanguage));
 
         if (options.sectionNumbers()) {
             attributes.attribute("sectnums", "");
@@ -174,12 +181,88 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         return language.trim();
     }
 
-    private static String localizedNoteCaption(String language) {
-        String normalized = normalizeLanguage(language).toLowerCase(Locale.ROOT);
-        if (normalized.startsWith("de")) {
-            return "Hinweis";
+    private static String attributeAsString(Object value) {
+        if (value == null) {
+            return "";
         }
-        return "Note";
+        String text = value.toString();
+        return text != null ? text.trim() : "";
+    }
+
+    private String normalizeCodeBlocksForPrism(String html) {
+        if (html == null || html.isBlank()) {
+            return html != null ? html : "";
+        }
+        org.jsoup.nodes.Document document = Jsoup.parseBodyFragment(html);
+        for (Element code : document.select("pre > code")) {
+            Element pre = code.parent();
+            String language = detectLanguage(code, pre);
+            if (language == null) {
+                continue;
+            }
+            String normalizedLanguage = normalizeLanguageAlias(language);
+            code.addClass("language-" + normalizedLanguage);
+            code.removeAttr("data-lang");
+            if (pre != null && "pre".equals(pre.tagName())) {
+                pre.addClass("language-" + normalizedLanguage);
+                pre.removeAttr("data-lang");
+            }
+        }
+        return document.body().html();
+    }
+
+    private String detectLanguage(Element code, Element pre) {
+        String fromCode = detectLanguageFromElement(code);
+        if (fromCode != null) {
+            return fromCode;
+        }
+        return detectLanguageFromElement(pre);
+    }
+
+    private String detectLanguageFromElement(Element element) {
+        if (element == null) {
+            return null;
+        }
+
+        String dataLang = element.attr("data-lang").trim();
+        if (!dataLang.isEmpty()) {
+            return dataLang;
+        }
+
+        String language = element.attr("language").trim();
+        if (!language.isEmpty()) {
+            return language;
+        }
+
+        String lang = element.attr("lang").trim();
+        if (!lang.isEmpty()) {
+            return lang;
+        }
+
+        for (String className : element.classNames()) {
+            if (className.startsWith("language-")) {
+                return className.substring("language-".length());
+            }
+            if (className.startsWith("lang-")) {
+                return className.substring("lang-".length());
+            }
+            if (className.startsWith("highlight-source-")) {
+                return className.substring("highlight-source-".length());
+            }
+        }
+        return null;
+    }
+
+    private String normalizeLanguageAlias(String language) {
+        String normalized = language.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "js" -> "javascript";
+            case "ts" -> "typescript";
+            case "yml" -> "yaml";
+            case "sh", "shell", "shell-session", "zsh", "bash" -> "bash";
+            case "html", "xml", "svg", "mathml" -> "markup";
+            default -> normalized;
+        };
     }
 
     private List<Heading> extractHeadings(Document document, int maxDepth) {
@@ -319,6 +402,6 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     public record Heading(String id, String title, int level, String sectionNumber, boolean unnumbered, boolean appendix, List<Heading> children) {
     }
 
-    public record RenderedDocument(String html, String title, List<Heading> headings) {
+    public record RenderedDocument(String html, String title, List<Heading> headings, String imagesDir, String baseDir) {
     }
 }

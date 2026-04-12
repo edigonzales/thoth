@@ -41,6 +41,8 @@ class BibliosConfigParserTest {
         assertEquals(SearchLanguageMode.ENGLISH_DEFAULT, config.ui().searchLanguageMode());
         assertEquals(3, config.ui().sidebarTocDepth());
         assertEquals(ContentTocMode.ON, config.ui().contentToc());
+        assertEquals(SyntaxHighlightingMode.PRISM, config.ui().syntaxHighlightingMode());
+        assertTrue(config.ui().prismCustomComponents().isEmpty());
 
         // Content sources
         assertEquals(2, config.content().sources().size());
@@ -359,6 +361,8 @@ class BibliosConfigParserTest {
         assertEquals(SearchLanguageMode.MULTILINGUAL_SAFE, config.ui().searchLanguageMode());
         assertEquals(2, config.ui().sidebarTocDepth());
         assertEquals(ContentTocMode.OFF, config.ui().contentToc());
+        assertEquals(SyntaxHighlightingMode.PRISM, config.ui().syntaxHighlightingMode());
+        assertTrue(config.ui().prismCustomComponents().isEmpty());
     }
 
     @Test
@@ -587,6 +591,144 @@ class BibliosConfigParserTest {
         assertTrue(ex.getMessage().contains("ui.content_toc"));
         assertTrue(ex.getMessage().contains("off"));
         assertTrue(ex.getMessage().contains("on"));
+    }
+
+    @Test
+    void parsesSyntaxHighlightingOff(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              syntax_highlighting: off
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("syntax-highlighting-off.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(SyntaxHighlightingMode.OFF, config.ui().syntaxHighlightingMode());
+    }
+
+    @Test
+    void rejectsInvalidSyntaxHighlightingMode(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              syntax_highlighting: rouge
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("invalid-syntax-highlighting.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("ui.syntax_highlighting"));
+        assertTrue(ex.getMessage().contains("prism"));
+        assertTrue(ex.getMessage().contains("off"));
+    }
+
+    @Test
+    void parsesPrismCustomComponents(@TempDir Path tempDir) throws IOException {
+        Path highlightingDir = tempDir.resolve("highlighting");
+        Files.createDirectories(highlightingDir);
+        Path customLang = highlightingDir.resolve("prism-custom.js");
+        Files.writeString(customLang, "Prism.languages.custom = {};");
+
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              prism_custom_components:
+                - ./highlighting/prism-custom.js
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("custom-components.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(1, config.ui().prismCustomComponents().size());
+        assertEquals(customLang.toAbsolutePath().normalize().toString(), config.ui().prismCustomComponents().get(0));
+    }
+
+    @Test
+    void rejectsMissingPrismCustomComponentFile(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              prism_custom_components:
+                - ./highlighting/missing.js
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("missing-custom-component.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("ui.prism_custom_components[0]"));
+        assertTrue(ex.getMessage().contains("file not found"));
+    }
+
+    @Test
+    void rejectsNonJavascriptPrismCustomComponentFile(@TempDir Path tempDir) throws IOException {
+        Path highlightingDir = tempDir.resolve("highlighting");
+        Files.createDirectories(highlightingDir);
+        Path customLang = highlightingDir.resolve("prism-custom.txt");
+        Files.writeString(customLang, "not-js");
+
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              prism_custom_components:
+                - ./highlighting/prism-custom.txt
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("invalid-custom-component-extension.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains(".js"));
+        assertTrue(ex.getMessage().contains("ui.prism_custom_components[0]"));
     }
 
     @Test

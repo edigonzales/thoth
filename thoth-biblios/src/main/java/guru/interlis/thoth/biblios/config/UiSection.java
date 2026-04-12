@@ -1,5 +1,7 @@
 package guru.interlis.thoth.biblios.config;
 
+import java.util.List;
+
 /**
  * UI configuration options.
  */
@@ -14,18 +16,31 @@ public final class UiSection {
     private final SearchLanguageMode searchLanguageMode;
     private final int sidebarTocDepth;
     private final ContentTocMode contentToc;
+    private final SyntaxHighlightingMode syntaxHighlightingMode;
+    private final List<String> prismCustomComponents;
 
     public UiSection(String theme, boolean showVersionBadge, boolean showEditLink,
                      boolean showSourceLink, String editUrlPattern, String sourceUrlPattern,
                      VersionSwitchMode versionSwitchMode, SearchLanguageMode searchLanguageMode) {
         this(theme, showVersionBadge, showEditLink, showSourceLink, editUrlPattern, sourceUrlPattern,
-            versionSwitchMode, searchLanguageMode, 2, ContentTocMode.OFF);
+            versionSwitchMode, searchLanguageMode, 2, ContentTocMode.OFF,
+            SyntaxHighlightingMode.PRISM, List.of());
     }
 
     public UiSection(String theme, boolean showVersionBadge, boolean showEditLink,
                      boolean showSourceLink, String editUrlPattern, String sourceUrlPattern,
                      VersionSwitchMode versionSwitchMode, SearchLanguageMode searchLanguageMode,
                      int sidebarTocDepth, ContentTocMode contentToc) {
+        this(theme, showVersionBadge, showEditLink, showSourceLink, editUrlPattern, sourceUrlPattern,
+            versionSwitchMode, searchLanguageMode, sidebarTocDepth, contentToc,
+            SyntaxHighlightingMode.PRISM, List.of());
+    }
+
+    public UiSection(String theme, boolean showVersionBadge, boolean showEditLink,
+                     boolean showSourceLink, String editUrlPattern, String sourceUrlPattern,
+                     VersionSwitchMode versionSwitchMode, SearchLanguageMode searchLanguageMode,
+                     int sidebarTocDepth, ContentTocMode contentToc,
+                     SyntaxHighlightingMode syntaxHighlightingMode, List<String> prismCustomComponents) {
         this.theme = theme != null ? theme : "default";
         this.showVersionBadge = showVersionBadge;
         this.showEditLink = showEditLink;
@@ -36,6 +51,8 @@ public final class UiSection {
         this.searchLanguageMode = searchLanguageMode != null ? searchLanguageMode : SearchLanguageMode.MULTILINGUAL_SAFE;
         this.sidebarTocDepth = Math.max(1, Math.min(6, sidebarTocDepth));
         this.contentToc = contentToc != null ? contentToc : ContentTocMode.OFF;
+        this.syntaxHighlightingMode = syntaxHighlightingMode != null ? syntaxHighlightingMode : SyntaxHighlightingMode.PRISM;
+        this.prismCustomComponents = prismCustomComponents != null ? List.copyOf(prismCustomComponents) : List.of();
     }
 
     public String theme() {
@@ -90,11 +107,21 @@ public final class UiSection {
         return contentToc;
     }
 
+    public SyntaxHighlightingMode syntaxHighlightingMode() {
+        return syntaxHighlightingMode;
+    }
+
+    public List<String> prismCustomComponents() {
+        return prismCustomComponents;
+    }
+
     @Override
     public String toString() {
         return "UiSection{theme='" + theme + "', versionSwitchMode=" + versionSwitchMode +
             ", searchLanguageMode=" + searchLanguageMode +
             ", sidebarTocDepth=" + sidebarTocDepth +
-            ", contentToc=" + contentToc + "}";
+            ", contentToc=" + contentToc +
+            ", syntaxHighlightingMode=" + syntaxHighlightingMode +
+            ", prismCustomComponents=" + prismCustomComponents.size() + "}";
     }
 }

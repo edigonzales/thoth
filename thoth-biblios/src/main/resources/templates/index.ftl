@@ -2,7 +2,9 @@
 <#import "layout.ftl" as layout>
 <@layout.layout siteTitle=siteTitle siteLogo=(siteLogo)!"" basePath=(basePath)!"" locale=(locale)!"en"
     docSwitcher=(catalog.components)![] currentComponentId=""
-    searchLanguageMode=(searchLanguageMode)!"multilingual_safe">
+    searchLanguageMode=(searchLanguageMode)!"multilingual_safe"
+    syntaxHighlightingEnabled=(syntaxHighlightingEnabled)!true
+    prismCustomComponentUrls=(prismCustomComponentUrls)![]>
     <div class="home">
         <h1>${siteTitle}</h1>
         <#if siteDescription??>

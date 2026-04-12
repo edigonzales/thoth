@@ -6,6 +6,8 @@
     navigation=(navigation)!{} breadcrumbs=(breadcrumbs)![]
     prevPage=(prevPage)!{} nextPage=(nextPage)!{}
     searchLanguageMode=(searchLanguageMode)!"multilingual_safe"
+    syntaxHighlightingEnabled=(syntaxHighlightingEnabled)!true
+    prismCustomComponentUrls=(prismCustomComponentUrls)![]
     singlePageMode=(singlePageMode)!false
     chapterBreadcrumbEnabled=(chapterBreadcrumbEnabled)!false
     initialChapterId=(initialChapterId)!"">

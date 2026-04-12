@@ -3,7 +3,9 @@
 <@layout.layout siteTitle=siteTitle siteLogo=(siteLogo)!"" basePath=(basePath)!"" locale=(locale)!"en"
     docSwitcher=(docSwitcher)![] versionSwitcher=(versionSwitcher)![]
     currentComponentId=currentComponentId currentVersionStr=(currentVersion.version)!"" currentVersion=(currentVersion)!{} navigation=(navigation)!{}
-    searchLanguageMode=(searchLanguageMode)!"multilingual_safe">
+    searchLanguageMode=(searchLanguageMode)!"multilingual_safe"
+    syntaxHighlightingEnabled=(syntaxHighlightingEnabled)!true
+    prismCustomComponentUrls=(prismCustomComponentUrls)![]>
     <div class="component-home">
         <h1>${component.displayName}</h1>
         <p class="version-info">

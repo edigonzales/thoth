@@ -103,6 +103,9 @@ ui:
   show_version_badge: false
   show_edit_link: false
   show_source_link: false
+  syntax_highlighting: prism
+  prism_custom_components:
+    - ./highlighting/prism-customdsl.js
   version_switch_mode: start_page
   search_language_mode: multilingual_safe
   sidebar_toc_depth: 2
@@ -171,6 +174,8 @@ If `site.logo` points to a local file that does not exist, the build fails with 
 | `show_version_badge` | No | Show version badges on pages. Default: `false` |
 | `show_edit_link` | No | Show edit links on pages. Default: `false` |
 | `show_source_link` | No | Show source links on pages. Default: `false` |
+| `syntax_highlighting` | No | Syntax highlighting mode for code blocks. Allowed: `prism`, `off`. Default: `prism` |
+| `prism_custom_components` | No | List of local `.js` files with custom Prism languages. Relative paths resolve from `biblios.yml`. |
 | `edit_url_pattern` | No | URL pattern for edit links. Supports `{repo_url}`, `{branch}`, `{path}` placeholders. |
 | `source_url_pattern` | No | URL pattern for source links. Supports `{repo_url}`, `{branch}`, `{path}` placeholders. |
 | `version_switch_mode` | No | Version switch behavior. `start_page` (default) always jumps to version root. `equivalent_page` tries same source page in target version, otherwise version root. |
@@ -213,6 +218,33 @@ Each branch entry maps a Git branch to a published documentation version.
 |-----|----------|-------------|
 | `name` | Yes | Git branch name (exact name only in MVP). Examples: `main`, `v1.x`, `v2.0` |
 | `display_version` | No | Human-readable label shown in the version switcher. Defaults to the branch name |
+
+## Syntax Highlighting
+
+Biblios uses Prism by default (`ui.syntax_highlighting: prism`) and supports the bundled languages:
+
+- `interlis`, `xml`/`html`/`svg` (via Prism `markup`), `java`, `javascript`, `typescript`, `css`, `ini`, `json`, `bash`, `sql`, `python`, `yaml`, `kotlin`, `go`, `c`, `cpp`
+
+Example in AsciiDoc:
+
+```adoc
+[source,interlis]
+----
+MODEL Demo;
+END Demo.
+----
+```
+
+Add your own Prism language component:
+
+```yaml
+ui:
+  syntax_highlighting: prism
+  prism_custom_components:
+    - ./highlighting/prism-customdsl.js
+```
+
+Custom component files must exist and end with `.js`.
 
 ## Navigation: `nav.yml`
 

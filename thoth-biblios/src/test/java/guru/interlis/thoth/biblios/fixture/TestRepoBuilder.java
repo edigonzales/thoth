@@ -316,6 +316,95 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Extend the basic docs fixture with local image references in split mode.
+     */
+    public TestRepoBuilder withSplitDocsReferencingImages() throws Exception {
+        withBasicDocs();
+
+        Path docsDir = repoDir.resolve("docs");
+        Path imagesDir = docsDir.resolve("images");
+        Files.createDirectories(imagesDir);
+        Files.writeString(imagesDir.resolve("foo.png"), "fake-png-foo");
+
+        Files.writeString(docsDir.resolve("index.adoc"), """
+            = Welcome
+            :doctype: book
+            :imagesdir: images
+
+            This page references a local image.
+
+            image::foo.png[]
+            """);
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Add split docs image fixture").call();
+        }
+
+        return this;
+    }
+
+    /**
+     * Extend the basic docs fixture with external and missing image references.
+     */
+    public TestRepoBuilder withSplitDocsExternalAndMissingImages() throws Exception {
+        withBasicDocs();
+
+        Path docsDir = repoDir.resolve("docs");
+        Files.writeString(docsDir.resolve("index.adoc"), """
+            = Welcome
+            :doctype: book
+            :imagesdir: images
+
+            image::missing.png[]
+            ++++
+            <img src="https://example.org/logo.png" alt="external logo">
+            ++++
+            """);
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Add external/missing image fixture").call();
+        }
+
+        return this;
+    }
+
+    /**
+     * Create a single-page fixture that references an image from an included chapter.
+     */
+    public TestRepoBuilder withSinglePageDocsWithImages() throws Exception {
+        Files.createDirectories(repoDir);
+
+        try (Git git = Git.init().setDirectory(repoDir.toFile()).setInitialBranch(initialBranch).call()) {
+            configureUser(git);
+
+            Path docsDir = repoDir.resolve("docs");
+            Path imagesDir = docsDir.resolve("images");
+            Files.createDirectories(imagesDir);
+            Files.writeString(imagesDir.resolve("single.png"), "fake-png-single");
+
+            Files.writeString(docsDir.resolve("master.adoc"), """
+                = Reference Manual
+                :imagesdir: images
+
+                include::chapter.adoc[]
+                """);
+
+            Files.writeString(docsDir.resolve("chapter.adoc"), """
+                == Kapitel
+
+                image::single.png[]
+                """);
+
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Add single-page image fixture").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Create a repo with a single master file where section numbers are available from Asciidoctor AST.
      */
     public TestRepoBuilder withSinglePageNumberedDocs() throws Exception {

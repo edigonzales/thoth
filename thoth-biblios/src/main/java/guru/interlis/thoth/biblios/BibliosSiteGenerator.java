@@ -20,11 +20,44 @@ import java.nio.file.StandardCopyOption;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.regex.Matcher;
 
 /**
  * Generates the HTML site from a SiteCatalog.
  */
 public final class BibliosSiteGenerator implements AutoCloseable {
+    private static final java.util.regex.Pattern IMG_SRC_PATTERN =
+        java.util.regex.Pattern.compile("<img\\b[^>]*\\bsrc\\s*=\\s*(['\"])(.*?)\\1", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final List<String> PRISM_BUNDLED_ASSETS = List.of(
+        "prism/prism.css",
+        "prism/prism.js",
+        "prism/components/prism-markup.min.js",
+        "prism/components/prism-clike.min.js",
+        "prism/components/prism-javascript.min.js",
+        "prism/components/prism-css.min.js",
+        "prism/components/prism-ini.min.js",
+        "prism/components/prism-interlis.js",
+        "prism/components/prism-java.min.js",
+        "prism/components/prism-typescript.min.js",
+        "prism/components/prism-json.min.js",
+        "prism/components/prism-bash.min.js",
+        "prism/components/prism-sql.min.js",
+        "prism/components/prism-python.min.js",
+        "prism/components/prism-yaml.min.js",
+        "prism/components/prism-kotlin.min.js",
+        "prism/components/prism-go.min.js",
+        "prism/components/prism-c.min.js",
+        "prism/components/prism-cpp.min.js",
+        "prism/plugins/line-highlight/prism-line-highlight.min.css",
+        "prism/plugins/line-highlight/prism-line-highlight.min.js",
+        "prism/plugins/line-numbers/prism-line-numbers.min.css",
+        "prism/plugins/line-numbers/prism-line-numbers.min.js",
+        "prism/plugins/toolbar/prism-toolbar.min.css",
+        "prism/plugins/toolbar/prism-toolbar.min.js",
+        "prism/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js",
+        "icons/bootstrap-copy.svg",
+        "icons/bootstrap-check.svg"
+    );
 
     private final BibliosConfig config;
     private final SiteCatalog catalog;
@@ -87,6 +120,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("catalog", catalogToModel());
         model.put("locale", config.site().defaultLanguage());
         model.put("searchLanguageMode", uiSearchLanguageMode());
+        model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
+        model.put("prismCustomComponentUrls", uiPrismCustomComponentUrls());
 
         String html = renderTemplate("index.ftl", model);
         writeOutput(Path.of("index.html"), html);
@@ -100,6 +135,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("locale", config.site().defaultLanguage());
         model.put("docSwitcher", buildDocSwitcher());
         model.put("searchLanguageMode", uiSearchLanguageMode());
+        model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
+        model.put("prismCustomComponentUrls", uiPrismCustomComponentUrls());
 
         String html = renderTemplate("search.ftl", model);
         writeOutput(Path.of("search/index.html"), html);
@@ -136,6 +173,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("docSwitcher", buildDocSwitcher());
         model.put("versionSwitcher", buildVersionSwitcher(component));
         model.put("searchLanguageMode", uiSearchLanguageMode());
+        model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
+        model.put("prismCustomComponentUrls", uiPrismCustomComponentUrls());
 
         String html = renderTemplate("component.ftl", model);
         writeOutput(componentRoot.resolve("index.html"), html);
@@ -150,23 +189,13 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         for (DocPage page : version.pages()) {
             generateContentPage(component, version, page, versionRoot);
         }
+
+        // Copy local image assets referenced by generated page HTML.
+        copyReferencedContentAssets(component, version, versionRoot);
     }
 
     private void generateContentPage(DocComponent component, ComponentVersion version, DocPage page, Path versionRoot) throws IOException {
-        // Build route path: /<component>/<version>/<page>/
-        String prefix = "/" + component.id() + "/" + version.version();
-        String routePath = page.route();
-        if (routePath.startsWith(prefix)) {
-            routePath = routePath.substring(prefix.length());
-        }
-        if (routePath.startsWith("/")) {
-            routePath = routePath.substring(1);
-        }
-        if (routePath.endsWith("/")) {
-            routePath = routePath.substring(0, routePath.length() - 1);
-        }
-
-        Path pageDir = versionRoot.resolve(routePath);
+        Path pageDir = resolvePageOutputDir(component, version, page, versionRoot);
         Files.createDirectories(pageDir);
 
         boolean singlePageMode = version.renderMode() == RenderMode.SINGLE_PAGE;
@@ -198,6 +227,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("showEditLink", config.ui() != null && config.ui().showEditLink());
         model.put("showSourceLink", config.ui() != null && config.ui().showSourceLink());
         model.put("searchLanguageMode", uiSearchLanguageMode());
+        model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
+        model.put("prismCustomComponentUrls", uiPrismCustomComponentUrls());
 
         if (page.prev() != null) {
             model.put("prevPage", pageToModel(page.prev()));
@@ -208,6 +239,160 @@ public final class BibliosSiteGenerator implements AutoCloseable {
 
         String html = renderTemplate("page.ftl", model);
         writeOutput(pageDir.resolve("index.html"), html);
+    }
+
+    private void copyReferencedContentAssets(DocComponent component, ComponentVersion version, Path versionRoot) throws IOException {
+        Set<String> copiedTargets = new HashSet<>();
+
+        for (DocPage page : version.pages()) {
+            Path pageDir = resolvePageOutputDir(component, version, page, versionRoot);
+            for (String src : extractImgSources(page.html())) {
+                if (!isLocalRelativeAssetReference(src)) {
+                    continue;
+                }
+
+                if (isSuspiciousDuplicateImagesPath(src)) {
+                    System.err.println("[warn] Suspicious duplicate image path '" + src + "' in " + page.sourcePath());
+                }
+
+                Path sourceAsset = resolveSourceAssetPath(page, src);
+                if (sourceAsset == null || !Files.exists(sourceAsset) || !Files.isRegularFile(sourceAsset)) {
+                    System.err.println("[warn] Referenced image not found: " + src + " (source page: " + page.sourcePath() + ")");
+                    continue;
+                }
+
+                Path targetAsset = pageDir.resolve(src).normalize();
+                if (!targetAsset.startsWith(versionRoot)) {
+                    System.err.println("[warn] Skipping unsafe image target path: " + src + " (source page: " + page.sourcePath() + ")");
+                    continue;
+                }
+
+                String dedupeKey = sourceAsset.toAbsolutePath().normalize() + "->" + targetAsset.toAbsolutePath().normalize();
+                if (!copiedTargets.add(dedupeKey)) {
+                    continue;
+                }
+
+                Files.createDirectories(targetAsset.getParent());
+                Files.copy(sourceAsset, targetAsset, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+    }
+
+    private Path resolvePageOutputDir(DocComponent component, ComponentVersion version, DocPage page, Path versionRoot) {
+        // Build route path: /<component>/<version>/<page>/
+        String prefix = "/" + component.id() + "/" + version.version();
+        String routePath = page.route();
+        if (routePath.startsWith(prefix)) {
+            routePath = routePath.substring(prefix.length());
+        }
+        if (routePath.startsWith("/")) {
+            routePath = routePath.substring(1);
+        }
+        if (routePath.endsWith("/")) {
+            routePath = routePath.substring(0, routePath.length() - 1);
+        }
+        return versionRoot.resolve(routePath);
+    }
+
+    private static List<String> extractImgSources(String html) {
+        if (html == null || html.isBlank()) {
+            return List.of();
+        }
+        List<String> sources = new ArrayList<>();
+        Matcher matcher = IMG_SRC_PATTERN.matcher(html);
+        while (matcher.find()) {
+            String src = matcher.group(2);
+            if (src != null) {
+                String normalized = src.trim();
+                if (!normalized.isEmpty()) {
+                    sources.add(normalized);
+                }
+            }
+        }
+        return sources;
+    }
+
+    private static boolean isLocalRelativeAssetReference(String src) {
+        String normalized = src.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        if (normalized.startsWith("http://")
+            || normalized.startsWith("https://")
+            || normalized.startsWith("data:")
+            || normalized.startsWith("mailto:")
+            || normalized.startsWith("#")
+            || normalized.startsWith("/")) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean isSuspiciousDuplicateImagesPath(String src) {
+        String normalized = src.replace('\\', '/').toLowerCase(Locale.ROOT);
+        return normalized.startsWith("images/images/") || normalized.contains("/images/images/");
+    }
+
+    private static Path resolveSourceAssetPath(DocPage page, String src) {
+        Path baseDir = resolvePageBaseDir(page);
+        if (baseDir == null) {
+            return null;
+        }
+
+        Path srcPath = Path.of(src).normalize();
+        if (srcPath.isAbsolute()) {
+            return null;
+        }
+
+        // Primary strategy: preserve rendered src as-is relative to Asciidoctor baseDir.
+        Path direct = baseDir.resolve(srcPath).normalize();
+        if (Files.exists(direct) && Files.isRegularFile(direct)) {
+            return direct;
+        }
+
+        // Fallback: combine imagesdir + src when src wasn't already prefixed by imagesdir.
+        String imagesDir = page.imagesDir();
+        if (imagesDir != null && !imagesDir.isBlank()) {
+            Path imagesPath = Path.of(imagesDir).normalize();
+            if (!imagesPath.isAbsolute() && !startsWithPathPrefix(srcPath, imagesPath)) {
+                Path viaImagesDir = baseDir.resolve(imagesPath).resolve(srcPath).normalize();
+                if (Files.exists(viaImagesDir) && Files.isRegularFile(viaImagesDir)) {
+                    return viaImagesDir;
+                }
+            }
+        }
+        return direct;
+    }
+
+    private static Path resolvePageBaseDir(DocPage page) {
+        if (page.sourceBaseDir() != null && !page.sourceBaseDir().isBlank()) {
+            return Path.of(page.sourceBaseDir()).toAbsolutePath().normalize();
+        }
+        if (page.sourceUri() == null || page.sourceUri().isBlank()) {
+            return null;
+        }
+        try {
+            URI sourceUri = new URI(page.sourceUri());
+            if (!"file".equalsIgnoreCase(sourceUri.getScheme())) {
+                return null;
+            }
+            Path sourceFile = Path.of(sourceUri);
+            return sourceFile.getParent() != null ? sourceFile.getParent().toAbsolutePath().normalize() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static boolean startsWithPathPrefix(Path candidate, Path prefix) {
+        if (candidate == null || prefix == null || prefix.getNameCount() == 0 || candidate.getNameCount() < prefix.getNameCount()) {
+            return false;
+        }
+        for (int i = 0; i < prefix.getNameCount(); i++) {
+            if (!candidate.getName(i).toString().equals(prefix.getName(i).toString())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void generateSearchIndex() throws IOException {
@@ -250,15 +435,41 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "styles.css");
         copyAsset(assetsDest, "lunr.min.js");
         copyAsset(assetsDest, "search.js");
+        if (uiSyntaxHighlightingEnabled()) {
+            copyAsset(assetsDest, "prism-overrides.css");
+            copyPrismAssets(assetsDest);
+            copyPrismCustomComponents(assetsDest);
+        }
         siteLogo = copyConfiguredLogoAsset(assetsDest);
     }
 
-    private void copyAsset(Path assetsDest, String fileName) throws IOException {
-        try (InputStream stream = getClass().getResourceAsStream("/site-assets/" + fileName)) {
+    private void copyAsset(Path assetsDest, String relativePath) throws IOException {
+        try (InputStream stream = getClass().getResourceAsStream("/site-assets/" + relativePath)) {
             if (stream == null) {
-                throw new IOException("Missing bundled site asset: " + fileName);
+                throw new IOException("Missing bundled site asset: " + relativePath);
             }
-            Files.writeString(assetsDest.resolve(fileName), new String(stream.readAllBytes(), StandardCharsets.UTF_8));
+            Path target = assetsDest.resolve(relativePath);
+            Files.createDirectories(target.getParent());
+            Files.copy(stream, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private void copyPrismAssets(Path assetsDest) throws IOException {
+        for (String relativePath : PRISM_BUNDLED_ASSETS) {
+            copyAsset(assetsDest, relativePath);
+        }
+    }
+
+    private void copyPrismCustomComponents(Path assetsDest) throws IOException {
+        if (config.ui() == null || config.ui().prismCustomComponents().isEmpty()) {
+            return;
+        }
+        Path customDest = assetsDest.resolve("prism").resolve("custom");
+        Files.createDirectories(customDest);
+        for (String rawPath : config.ui().prismCustomComponents()) {
+            Path source = Path.of(rawPath).toAbsolutePath().normalize();
+            String fileName = source.getFileName().toString();
+            Files.copy(source, customDest.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -318,6 +529,26 @@ public final class BibliosSiteGenerator implements AutoCloseable {
             return "multilingual_safe";
         }
         return config.ui().searchLanguageMode().configValue();
+    }
+
+    private boolean uiSyntaxHighlightingEnabled() {
+        if (config.ui() == null || config.ui().syntaxHighlightingMode() == null) {
+            return true;
+        }
+        return config.ui().syntaxHighlightingMode().isEnabled();
+    }
+
+    private List<String> uiPrismCustomComponentUrls() {
+        if (!uiSyntaxHighlightingEnabled() || config.ui() == null || config.ui().prismCustomComponents().isEmpty()) {
+            return List.of();
+        }
+        List<String> urls = new ArrayList<>();
+        for (String rawPath : config.ui().prismCustomComponents()) {
+            Path source = Path.of(rawPath);
+            String fileName = source.getFileName().toString();
+            urls.add("/site-assets/prism/custom/" + fileName);
+        }
+        return List.copyOf(urls);
     }
 
     // Template rendering
