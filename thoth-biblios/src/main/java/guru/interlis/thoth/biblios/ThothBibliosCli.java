@@ -9,11 +9,15 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Command(
     name = "thoth-biblios",
@@ -46,6 +50,24 @@ public final class ThothBibliosCli implements Callable<Integer> {
         return 0;
     }
 
+    static Path resolveOutputDir(Path configPath, BibliosConfig bibliosConfig, Path outputOverride) {
+        if (outputOverride != null) {
+            return outputOverride.toAbsolutePath().normalize();
+        }
+
+        Path configuredOutput = Path.of(bibliosConfig.output().dir());
+        if (configuredOutput.isAbsolute()) {
+            return configuredOutput.normalize();
+        }
+
+        Path configFile = configPath.toAbsolutePath().normalize();
+        Path configDirectory = configFile.getParent();
+        if (configDirectory == null) {
+            configDirectory = Path.of(".").toAbsolutePath().normalize();
+        }
+        return configDirectory.resolve(configuredOutput).normalize();
+    }
+
     @Command(name = "build", description = "Builds the documentation site")
     static final class BuildCommand implements Callable<Integer> {
         @Option(names = "--config", required = true, description = "Path to bibliios.yml configuration file")
@@ -68,14 +90,15 @@ public final class ThothBibliosCli implements Callable<Integer> {
             System.out.println("[info] Loaded config: " + bibliosConfig.site().title());
 
             // Resolve output path
-            Path outputDir = output != null ? output : Path.of(bibliosConfig.output().dir());
+            Path outputDir = resolveOutputDir(config, bibliosConfig, output);
+            System.out.println("[info] output: " + outputDir);
             if (clean) {
                 bibliosConfig = overrideClean(bibliosConfig);
             }
 
             // Build catalog
             Path workRoot = Path.of(".thoth/cache");
-            try (CatalogBuilder catalogBuilder = new CatalogBuilder(bibliosConfig, workRoot)) {
+            try (CatalogBuilder catalogBuilder = new CatalogBuilder(bibliosConfig, workRoot, true)) {
                 SiteCatalog catalog = catalogBuilder.build();
                 System.out.println("[info] Catalog built: " + catalog.components().size() + " components");
 
@@ -117,13 +140,15 @@ public final class ThothBibliosCli implements Callable<Integer> {
             Path workRoot = Path.of(".thoth/cache");
 
             // Initial build
-            doBuild(config, output, workRoot);
+            doBuild(config, output, workRoot, true);
 
             // Start dev server and watchers
-            Path outputDir = output != null ? output : resolveOutputDir(config);
-            try (InputWatcher configWatcher = watchConfig(config, workRoot, output)) {
-                InputWatcher repoWatcher = watchRepoCache(workRoot, config, output);
+            Path outputDir = resolveOutputDir(config, output);
+            AtomicBoolean rebuilding = new AtomicBoolean(false);
+            AtomicReference<List<InputWatcher>> sourceWatchers = new AtomicReference<>(List.of());
 
+            try (InputWatcher configWatcher = watchConfig(config, workRoot, output, rebuilding, sourceWatchers)) {
+                refreshLocalSourceWatchers(config, rebuilding, sourceWatchers, workRoot, output);
                 // Server lifecycle managed via shutdown hook
                 final var server = new guru.interlis.thoth.core.DevServer(outputDir, resolvedPort);
                 server.start();
@@ -131,25 +156,33 @@ public final class ThothBibliosCli implements Callable<Integer> {
                 Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                     server.stop();
                     try { configWatcher.close(); } catch (Exception ignored) {}
-                    if (repoWatcher != null) { try { repoWatcher.close(); } catch (Exception ignored) {} }
+                    closeWatchers(sourceWatchers.getAndSet(List.of()));
                 }));
 
                 System.out.println("[info] Watching for changes. Press Ctrl+C to stop.");
 
                 // Block until interrupted
                 Thread.currentThread().join();
+            } finally {
+                closeWatchers(sourceWatchers.getAndSet(List.of()));
             }
             return 0;
         }
 
-        private InputWatcher watchConfig(Path configPath, Path workRoot, Path outputOverride) throws Exception {
-            AtomicBoolean rebuilding = new AtomicBoolean(false);
-            InputWatcher watcher = new InputWatcher(configPath.getParent(), (changedPath, eventType) -> {
-                if (changedPath.getFileName().toString().equals(configPath.getFileName().toString()) &&
+        private InputWatcher watchConfig(Path configPath, Path workRoot, Path outputOverride,
+                                         AtomicBoolean rebuilding, AtomicReference<List<InputWatcher>> sourceWatchers) throws Exception {
+            Path configFile = configPath.toAbsolutePath().normalize();
+            Path configDirectory = configFile.getParent();
+            if (configDirectory == null) {
+                configDirectory = Path.of(".").toAbsolutePath();
+            }
+            InputWatcher watcher = new InputWatcher(configDirectory, (changedPath, eventType) -> {
+                if (changedPath.toAbsolutePath().normalize().equals(configFile) &&
                     !rebuilding.getAndSet(true)) {
                     System.out.println("[info] Config changed (" + eventType + "), rebuilding...");
                     try {
-                        doBuild(configPath, outputOverride, workRoot);
+                        doBuild(configPath, outputOverride, workRoot, false);
+                        refreshLocalSourceWatchers(configPath, rebuilding, sourceWatchers, workRoot, outputOverride);
                     } catch (Exception e) {
                         System.err.println("[error] Rebuild failed: " + e.getMessage());
                     } finally {
@@ -161,34 +194,69 @@ public final class ThothBibliosCli implements Callable<Integer> {
             return watcher;
         }
 
-        private InputWatcher watchRepoCache(Path workRoot, Path configPath, Path outputOverride) throws Exception {
-            if (!java.nio.file.Files.exists(workRoot)) {
-                return null;
-            }
-            AtomicBoolean rebuilding = new AtomicBoolean(false);
-            InputWatcher watcher = new InputWatcher(workRoot, (changedPath, eventType) -> {
-                if (!rebuilding.getAndSet(true)) {
-                    System.out.println("[info] Repo cache changed (" + eventType + "), rebuilding...");
-                    try {
-                        doBuild(configPath, outputOverride, workRoot);
-                    } catch (Exception e) {
-                        System.err.println("[error] Rebuild failed: " + e.getMessage());
-                    } finally {
-                        rebuilding.set(false);
-                    }
-                }
-            });
-            watcher.start();
-            return watcher;
-        }
-
-        private void doBuild(Path configPath, Path outputOverride, Path workRoot) throws Exception {
+        private void refreshLocalSourceWatchers(Path configPath,
+                                                AtomicBoolean rebuilding,
+                                                AtomicReference<List<InputWatcher>> sourceWatchers,
+                                                Path workRoot,
+                                                Path outputOverride) throws Exception {
             BibliosConfigParser parser = new BibliosConfigParser();
             BibliosConfig bibliosConfig = parser.parse(configPath);
-            Path outputDir = outputOverride != null ? outputOverride : Path.of(bibliosConfig.output().dir());
+            List<Path> roots = ServeWatchSupport.localSourceRoots(bibliosConfig, configPath);
+            Set<Path> uniqueRoots = new LinkedHashSet<>(roots);
+
+            List<InputWatcher> newWatchers = new ArrayList<>();
+            for (Path root : uniqueRoots) {
+                if (!Files.exists(root)) {
+                    System.err.println("[warn] Local source path does not exist, skipping watcher: " + root);
+                    continue;
+                }
+                InputWatcher watcher = new InputWatcher(root, (changedPath, eventType) -> {
+                    if (ServeWatchSupport.shouldIgnoreRepoMetadataChange(changedPath)) {
+                        return;
+                    }
+                    if (!rebuilding.getAndSet(true)) {
+                        System.out.println("[info] Local source changed (" + eventType + "): " + changedPath);
+                        System.out.println("[info] Rebuilding...");
+                        try {
+                            doBuild(configPath, outputOverride, workRoot, false);
+                        } catch (Exception e) {
+                            System.err.println("[error] Rebuild failed: " + e.getMessage());
+                        } finally {
+                            rebuilding.set(false);
+                        }
+                    }
+                });
+                watcher.start();
+                newWatchers.add(watcher);
+            }
+
+            List<InputWatcher> oldWatchers = sourceWatchers.getAndSet(List.copyOf(newWatchers));
+            closeWatchers(oldWatchers);
+
+            if (newWatchers.isEmpty()) {
+                System.out.println("[info] No local content sources configured for live watch.");
+            } else {
+                System.out.println("[info] Watching local content sources: " + newWatchers.size() + " root(s).");
+            }
+        }
+
+        private void closeWatchers(List<InputWatcher> watchers) {
+            for (InputWatcher watcher : watchers) {
+                try {
+                    watcher.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        private void doBuild(Path configPath, Path outputOverride, Path workRoot, boolean fetchEnabled) throws Exception {
+            BibliosConfigParser parser = new BibliosConfigParser();
+            BibliosConfig bibliosConfig = parser.parse(configPath);
+            Path outputDir = ThothBibliosCli.resolveOutputDir(configPath, bibliosConfig, outputOverride);
 
             System.out.println("[info] Building site...");
-            try (CatalogBuilder catalogBuilder = new CatalogBuilder(bibliosConfig, workRoot)) {
+            System.out.println("[info] Output directory: " + outputDir);
+            try (CatalogBuilder catalogBuilder = new CatalogBuilder(bibliosConfig, workRoot, fetchEnabled)) {
                 SiteCatalog catalog = catalogBuilder.build();
                 System.out.println("[info] Catalog: " + catalog.components().size() + " components");
 
@@ -199,10 +267,10 @@ public final class ThothBibliosCli implements Callable<Integer> {
             System.out.println("[info] Build complete.");
         }
 
-        private Path resolveOutputDir(Path configPath) throws Exception {
+        private Path resolveOutputDir(Path configPath, Path outputOverride) throws Exception {
             BibliosConfigParser parser = new BibliosConfigParser();
-            BibliosConfig config = parser.parse(configPath);
-            return Path.of(config.output().dir());
+            BibliosConfig bibliosConfig = parser.parse(configPath);
+            return ThothBibliosCli.resolveOutputDir(configPath, bibliosConfig, outputOverride);
         }
     }
 }

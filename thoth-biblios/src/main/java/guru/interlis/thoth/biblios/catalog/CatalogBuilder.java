@@ -26,12 +26,18 @@ public final class CatalogBuilder implements AutoCloseable {
 
     private final BibliosConfig config;
     private final Path workRoot;
+    private final boolean fetchEnabled;
     private final NavParser navParser = new NavParser();
     private final List<GitSourceResolver> resolvers = new ArrayList<>();
 
     public CatalogBuilder(BibliosConfig config, Path workRoot) {
+        this(config, workRoot, true);
+    }
+
+    public CatalogBuilder(BibliosConfig config, Path workRoot, boolean fetchEnabled) {
         this.config = config;
         this.workRoot = workRoot;
+        this.fetchEnabled = fetchEnabled;
     }
 
     /**
@@ -53,7 +59,7 @@ public final class CatalogBuilder implements AutoCloseable {
         GitSourceResolver resolver = new GitSourceResolver(workRoot);
         resolvers.add(resolver);
 
-        resolver.resolve(source.url(), source.id());
+        resolver.resolve(source.url(), source.id(), fetchEnabled);
 
         List<ComponentVersion> versions = new ArrayList<>();
 
@@ -333,7 +339,11 @@ public final class CatalogBuilder implements AutoCloseable {
             String rawTitle = heading.title().trim();
             String displayTitle = rawTitle;
             if (showNumbers && heading.sectionNumber() != null && !heading.sectionNumber().isBlank()) {
-                displayTitle = heading.sectionNumber().trim() + " " + rawTitle;
+                String sectionNumber = heading.sectionNumber().trim();
+                if (!sectionNumber.endsWith(".")) {
+                    sectionNumber = sectionNumber + ".";
+                }
+                displayTitle = sectionNumber + " " + rawTitle;
             }
             items.add(new NavItem(
                 displayTitle,

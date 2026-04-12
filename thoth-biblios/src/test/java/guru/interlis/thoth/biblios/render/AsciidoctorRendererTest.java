@@ -184,6 +184,25 @@ class AsciidoctorRendererTest {
         }
     }
 
+    @Test
+    void rendersSidebarBlockMarkup() {
+        String content = """
+            = Sidebar
+
+            ****
+            This is a sidebar block.
+            ****
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            String normalized = html.toLowerCase(Locale.ROOT);
+
+            assertTrue(normalized.contains("class=\"sidebarblock\""));
+            assertTrue(normalized.contains("this is a sidebar block"));
+        }
+    }
+
     private String extractNoteCaption(String html) {
         Pattern iconTitleAttribute = Pattern.compile(
             "(?is)<td\\s+class=\"icon\"[^>]*>.*?<i[^>]*\\btitle=\"([^\"]+?)\"[^>]*>"

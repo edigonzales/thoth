@@ -34,6 +34,7 @@ thoth-biblios/build/libs/thoth-biblios-<version>-all.jar
 site:
   title: My Docs Portal
   url: https://docs.example.org
+  logo: ./assets/logo.svg
   default_language: en
 
 output:
@@ -90,6 +91,7 @@ The `biblios.yml` file is the central configuration for Biblios. It defines your
 site:
   title: Interlis Docs
   url: https://docs.example.org
+  logo: https://example.org/assets/interlis-logo.svg
   default_language: de
 
 output:
@@ -149,7 +151,10 @@ content:
 |-----|----------|-------------|
 | `title` | Yes | Title of the documentation portal (shown on start page and in headers) |
 | `url` | No | Base URL of the published site (for reference, not yet used in routing) |
+| `logo` | No | Logo shown before the site title in the header (`36x36`). Supports URL or local file path. Relative local paths are resolved relative to `biblios.yml`. |
 | `default_language` | No | Language code (e.g., `en`, `de`). Default: `en` |
+
+If `site.logo` points to a local file that does not exist, the build fails with a configuration error.
 
 #### `output` – Output Settings
 
@@ -292,7 +297,7 @@ The cache is stored at:
 Benefits of caching:
 - Subsequent builds are faster (fetch instead of clone)
 - Multiple builds can share the same cached repository
-- The `serve` command watches the cache for changes
+- The `serve` command uses the cache as its source-of-truth working copy
 
 To clear the cache:
 ```bash
@@ -412,8 +417,13 @@ java -jar thoth-biblios-<version>-all.jar serve \
 1. Performs an initial build
 2. Starts an HTTP server serving the output directory
 3. Watches `biblios.yml` for config changes → triggers rebuild
-4. Watches the cached Git repos for content changes → triggers rebuild
-5. Press `Ctrl+C` to stop
+4. Watches local content source paths (`file://...` and local filesystem paths) for changes → triggers rebuild
+5. Ignores `.git` metadata changes in watched local sources (prevents rebuild loops caused by internal Git updates)
+6. Does not watch `.thoth/cache` directly
+7. Runs `git fetch` only during the initial `serve` build; watch-triggered rebuilds use the cached repository without fetching
+8. Remote updates are picked up after restarting `serve`
+9. Why: avoids self-triggered rebuild loops where the build process modifies the same path that is being watched
+10. Press `Ctrl+C` to stop
 
 ## Multi-Source Example
 

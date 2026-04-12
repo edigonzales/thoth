@@ -30,10 +30,14 @@ class BibliosIntegrationTest {
         Path workRoot = tempDir.resolve("work");
         Path outputRoot = tempDir.resolve("output");
         Path configFile = tempDir.resolve("biblios.yml");
+        Path logoDir = tempDir.resolve("branding");
+        Path logoFile = logoDir.resolve("logo.svg");
 
         Files.createDirectories(repoDir);
         Files.createDirectories(workRoot);
         Files.createDirectories(outputRoot);
+        Files.createDirectories(logoDir);
+        Files.writeString(logoFile, "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>");
 
         // Create a local Git repository with AsciiDoc content
         new TestRepoBuilder(repoDir).withBasicDocs();
@@ -41,6 +45,7 @@ class BibliosIntegrationTest {
         // Create config
         new BibliosConfigBuilder()
             .withSiteTitle("Integration Test Docs")
+            .withSiteLogo("branding/logo.svg")
             .withOutputDir(outputRoot)
             .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
                 "docs", "main", "main")
@@ -50,6 +55,7 @@ class BibliosIntegrationTest {
         BibliosConfigParser parser = new BibliosConfigParser();
         BibliosConfig config = parser.parse(configFile);
         assertEquals("Integration Test Docs", config.site().title());
+        assertEquals(logoFile.toAbsolutePath().normalize().toString(), config.site().logo());
         assertEquals(1, config.content().sources().size());
 
         // 2. Build catalog
@@ -95,6 +101,7 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("search/index.html")));
         assertTrue(Files.exists(outputRoot.resolve("search-index.json")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/styles.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/site-logo.svg")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/lunr.min.js")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/search.js")));
 
@@ -102,6 +109,8 @@ class BibliosIntegrationTest {
         String homePage = Files.readString(outputRoot.resolve("index.html"));
         assertTrue(homePage.contains("Integration Test Docs"));
         assertTrue(homePage.contains("My Documentation"));
+        assertTrue(homePage.contains("class=\"brand-logo\""));
+        assertTrue(homePage.contains("src=\"/site-assets/site-logo.svg\""));
         assertTrue(homePage.contains("action=\"/search/\""));
         String homeHead = extractHead(homePage);
         assertFalse(homeHead.contains("<div class=\"home\">"));
@@ -344,8 +353,8 @@ class BibliosIntegrationTest {
         }
 
         String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
-        assertTrue(html.matches("(?s).*\\b1\\.?\\s+Einleitung\\b.*"));
-        assertTrue(html.matches("(?s).*\\b1\\.1\\.?\\s+Status\\b.*"));
+        assertTrue(html.matches("(?s).*\\b1\\.\\s+Einleitung\\b.*"));
+        assertTrue(html.matches("(?s).*\\b1\\.1\\.\\s+Status\\b.*"));
         assertTrue(html.contains("data-chapter-title=\"Einleitung\""));
     }
 

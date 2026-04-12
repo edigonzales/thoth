@@ -57,9 +57,14 @@ class BibliosE2ETest {
     void fullBuildSingleSource() throws Exception {
         Path repoDir = setupTestRepo("single-repo");
         setupOutputDirs();
+        Path logoDir = tempDir.resolve("branding");
+        Path logoFile = logoDir.resolve("logo.svg");
+        Files.createDirectories(logoDir);
+        Files.writeString(logoFile, "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>");
 
         new BibliosConfigBuilder()
             .withSiteTitle("Single Source Docs")
+            .withSiteLogo("branding/logo.svg")
             .withOutputDir(outputRoot)
             .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
                 "docs", "main", "main")
@@ -73,6 +78,13 @@ class BibliosE2ETest {
         SiteAssertions assertions = new SiteAssertions(outputRoot);
         assertions.assertGlobalStartPage("Single Source Docs", "My Documentation");
         assertions.assertSiteAssets();
+        assertions.assertFileExists("site-assets/site-logo.svg");
+        assertions.assertFileContains("index.html", "class=\"brand-logo\"");
+        assertions.assertFileContains("index.html", "src=\"/site-assets/site-logo.svg\"");
+        assertions.assertFileContains("site-assets/styles.css", ".brand-logo {");
+        assertions.assertFileContains("site-assets/styles.css", "width: 36px;");
+        assertions.assertFileContains("site-assets/styles.css", "height: 36px;");
+        assertEquals(logoFile.toAbsolutePath().normalize().toString(), config.site().logo());
         assertions.assertFileContains("site-assets/styles.css",
             ".doc-content ul li + li,\n" +
                 ".doc-content ol li + li {\n" +
@@ -375,6 +387,33 @@ class BibliosE2ETest {
         assertions.assertFileContains("site-assets/styles.css", "m8.93 6.588-2.29.287-.082.38");
         assertions.assertFileContains("site-assets/styles.css", "1.178-.252 1.465-.598");
         assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.note td.icon .title::before");
+    }
+
+    /**
+     * E2E-8: Sidebar blocks (****) are rendered and styled.
+     */
+    @Test
+    void sidebarBlockIsStyled() throws Exception {
+        Path repoDir = tempDir.resolve("sidebar-block-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withSidebarBlockInGuide();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Sidebar Block Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"sidebarblock\"");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .sidebarblock {");
+        assertions.assertFileContains("site-assets/styles.css", "rgb(242,242,242)");
+        assertions.assertFileContains("site-assets/styles.css", "rgb(230,230,230)");
     }
 
     /**

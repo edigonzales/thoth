@@ -1,6 +1,6 @@
 <#-- component.ftl - Component landing page -->
 <#import "layout.ftl" as layout>
-<@layout.layout siteTitle=siteTitle basePath=(basePath)!"" locale=(locale)!"en"
+<@layout.layout siteTitle=siteTitle siteLogo=(siteLogo)!"" basePath=(basePath)!"" locale=(locale)!"en"
     docSwitcher=(docSwitcher)![] versionSwitcher=(versionSwitcher)![]
     currentComponentId=currentComponentId currentVersionStr=(currentVersion.version)!"" currentVersion=(currentVersion)!{} navigation=(navigation)!{}
     searchLanguageMode=(searchLanguageMode)!"multilingual_safe">

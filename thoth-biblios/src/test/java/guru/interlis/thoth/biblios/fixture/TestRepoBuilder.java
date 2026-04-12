@@ -147,6 +147,40 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Extend the basic docs fixture with a sidebar block (****) in guide.adoc.
+     */
+    public TestRepoBuilder withSidebarBlockInGuide() throws Exception {
+        withBasicDocs();
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Path guide = repoDir.resolve("docs/guide.adoc");
+            Files.writeString(guide, """
+                = User Guide
+                :doctype: book
+
+                This is the user guide.
+
+                == Installation
+
+                Follow these steps to install the software.
+
+                ****
+                This guide includes a sidebar block for UI styling tests.
+                ****
+
+                == Configuration
+
+                Configure the software to your needs.
+                """);
+
+            git.add().addFilepattern("docs/guide.adoc").call();
+            git.commit().setMessage("Add sidebar block to guide").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Create a repo configured for single-page rendering via master.adoc includes.
      */
     public TestRepoBuilder withSinglePageDocs() throws Exception {

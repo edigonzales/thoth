@@ -24,6 +24,7 @@ class BibliosConfigParserTest {
         // Site section
         assertEquals("Test Documentation Portal", config.site().title());
         assertEquals("https://docs.example.org", config.site().url());
+        assertNull(config.site().logo());
         assertEquals("en", config.site().defaultLanguage());
         assertEquals("alpha", config.site().defaultComponent());
         assertEquals("main", config.site().defaultVersion());
@@ -140,6 +141,129 @@ class BibliosConfigParserTest {
 
         BibliosConfig config = parser.parse(file);
         assertEquals("main", config.content().sources().get(0).branches().get(0).displayVersion());
+    }
+
+    @Test
+    void parsesSiteLogoAsRemoteUrl(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+              logo: https://example.org/logo.svg
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("logo-url.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals("https://example.org/logo.svg", config.site().logo());
+    }
+
+    @Test
+    void resolvesSiteLogoRelativeToConfigDirectory(@TempDir Path tempDir) throws IOException {
+        Path assetsDir = tempDir.resolve("assets");
+        Files.createDirectories(assetsDir);
+        Path logoFile = assetsDir.resolve("logo.svg");
+        Files.writeString(logoFile, "<svg/>");
+
+        String yaml = """
+            site:
+              title: Test
+              logo: assets/logo.svg
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("logo-relative.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(logoFile.toAbsolutePath().normalize().toString(), config.site().logo());
+    }
+
+    @Test
+    void rejectsMissingLocalSiteLogo(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+              logo: assets/missing-logo.svg
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("logo-missing.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("site.logo"));
+        assertTrue(ex.getMessage().contains("not found"));
+    }
+
+    @Test
+    void rejectsBlankSiteLogo(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+              logo: "   "
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("logo-blank.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("site.logo"));
+        assertTrue(ex.getMessage().contains("must not be blank"));
+    }
+
+    @Test
+    void rejectsNonStringSiteLogo(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+              logo: 123
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("logo-number.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("site.logo"));
+        assertTrue(ex.getMessage().contains("Expected string"));
     }
 
     @Test

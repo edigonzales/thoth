@@ -8,13 +8,15 @@ import java.util.Objects;
 public final class SiteSection {
     private final String title;
     private final String url;
+    private final String logo;
     private final String defaultLanguage;
     private final String defaultComponent;
     private final String defaultVersion;
 
-    public SiteSection(String title, String url, String defaultLanguage, String defaultComponent, String defaultVersion) {
+    public SiteSection(String title, String url, String logo, String defaultLanguage, String defaultComponent, String defaultVersion) {
         this.title = Objects.requireNonNull(title, "site.title is required");
         this.url = url;
+        this.logo = logo;
         this.defaultLanguage = defaultLanguage != null ? defaultLanguage : "en";
         this.defaultComponent = defaultComponent;
         this.defaultVersion = defaultVersion;
@@ -26,6 +28,10 @@ public final class SiteSection {
 
     public String url() {
         return url;
+    }
+
+    public String logo() {
+        return logo;
     }
 
     public String defaultLanguage() {
@@ -42,6 +48,6 @@ public final class SiteSection {
 
     @Override
     public String toString() {
-        return "SiteSection{title='" + title + "', url='" + url + "'}";
+        return "SiteSection{title='" + title + "', url='" + url + "', logo='" + logo + "'}";
     }
 }

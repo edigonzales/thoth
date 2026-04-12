@@ -5,12 +5,14 @@
     --color-text: #1a1a1a;
     --color-link: #0366d6;
     --color-border: #e1e4e8;
-    --color-header-bg: #24292e;
-    --color-header-text: #ffffff;
-    --color-sidebar-bg: #f6f8fa;
+    --color-header-bg: rgb(250,250,250);
+    --color-header-text: var(--color-text);
+    --color-sidebar-bg: rgb(250,250,250);
+    --color-sidebarblock-bg: rgb(242,242,242);
+    --color-sidebarblock-border: rgb(230,230,230);
     --color-active: #0366d6;
     --color-breadcrumb: #586069;
-    --max-width: 1200px;
+    --max-width: 1400px;
     --sidebar-width: 280px;
     --site-header-height: 60px;
     --breadcrumb-height: 0px;
@@ -26,7 +28,7 @@ html {
 }
 
 body {
-    font-family: "Frutiger Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: "Zurich Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     color: var(--color-text);
     background: var(--color-bg);
     line-height: 1.6;
@@ -40,6 +42,7 @@ a:hover { text-decoration: underline; }
     background: var(--color-header-bg);
     color: var(--color-header-text);
     padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--color-border);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -48,7 +51,6 @@ a:hover { text-decoration: underline; }
 
 .header-content {
     max-width: var(--max-width);
-    margin: 0 auto;
     display: flex;
     align-items: center;
     gap: 1.5rem;
@@ -56,14 +58,30 @@ a:hover { text-decoration: underline; }
 }
 
 .site-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
     color: var(--color-header-text);
     font-size: 1.25rem;
     font-weight: 600;
     text-decoration: none;
 }
 
-.site-title:hover {
-    text-decoration: underline;
+.site-title-text {
+    line-height: 1.2;
+}
+
+.brand-logo {
+    width: 36px;
+    height: 36px;
+    display: block;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.site-title:hover,
+.site-title:focus-visible {
+    text-decoration: none;
 }
 
 .doc-switcher,
@@ -74,36 +92,41 @@ a:hover { text-decoration: underline; }
     gap: 0.5rem;
 }
 
+.search-form {
+    margin-left: auto;
+}
+
 .doc-switcher label,
 .version-switcher label,
 .search-form label {
     font-size: 0.85rem;
-    opacity: 0.8;
+    color: var(--color-header-text);
+    opacity: 1;
 }
 
 .doc-switcher select,
 .version-switcher select {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
     color: var(--color-header-text);
     padding: 0.4rem 1.5rem 0.4rem 0.75rem;
     border-radius: 4px;
     font-size: 0.9rem;
     cursor: pointer;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231a1a1a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.5rem center;
 }
 
 .doc-switcher select:hover,
 .version-switcher select:hover {
-    background-color: rgba(255, 255, 255, 0.25);
+    background-color: rgb(245, 245, 245);
 }
 
 .doc-switcher select:focus,
 .version-switcher select:focus {
-    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline: 2px solid rgba(3, 102, 214, 0.35);
     outline-offset: 2px;
 }
 
@@ -114,8 +137,8 @@ a:hover { text-decoration: underline; }
 }
 
 .search-form input {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
     color: var(--color-header-text);
     padding: 0.4rem 0.75rem;
     border-radius: 4px;
@@ -124,11 +147,11 @@ a:hover { text-decoration: underline; }
 }
 
 .search-form input::placeholder {
-    color: rgba(255, 255, 255, 0.8);
+    color: #586069;
 }
 
 .search-form input:focus {
-    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline: 2px solid rgba(3, 102, 214, 0.35);
     outline-offset: 2px;
 }
 
@@ -136,7 +159,7 @@ a:hover { text-decoration: underline; }
 .layout {
     display: flex;
     max-width: var(--max-width);
-    margin: 0 auto;
+    margin: 0;
     min-height: calc(100vh - 120px);
 }
 
@@ -168,7 +191,7 @@ a:hover { text-decoration: underline; }
 
 .nav-link {
     display: block;
-    padding: 0.35rem 0.75rem;
+    padding: 0.2rem 0.5rem;
     border-radius: 4px;
     color: var(--color-text);
     font-size: 0.95rem;
@@ -441,6 +464,27 @@ a:hover { text-decoration: underline; }
     margin-top: 0.5625rem;
 }
 
+.doc-content .imageblock > .title {
+    margin-bottom: 1rem;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.doc-content .sidebarblock {
+    margin: 1.25rem 0;
+    background: var(--color-sidebarblock-bg);
+    border: 1px solid var(--color-sidebarblock-border);
+    border-radius: 0.875rem;
+}
+
+.doc-content .sidebarblock > .content {
+    padding: 1rem 1.25rem;
+}
+
+.doc-content .sidebarblock > .content > .title {
+    margin-bottom: 0.4rem;
+}
+
 .doc-content .admonitionblock.note {
     margin: 1.25rem 0;
     background: #f1fafe;
@@ -601,6 +645,7 @@ a:hover { text-decoration: underline; }
     }
     .search-form {
         width: 100%;
+        margin-left: 0;
     }
     .search-form input {
         width: 100%;

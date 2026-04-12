@@ -16,6 +16,9 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 
 /**
@@ -27,6 +30,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private final SiteCatalog catalog;
     private final Path outputRoot;
     private final Configuration freemarker;
+    private String siteLogo;
 
     public BibliosSiteGenerator(BibliosConfig config, SiteCatalog catalog, Path outputRoot) {
         this.config = config;
@@ -77,6 +81,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private void generateHomePage() throws IOException {
         Map<String, Object> model = new HashMap<>();
         model.put("siteTitle", config.site().title());
+        model.put("siteLogo", siteLogo);
         model.put("siteDescription", config.site().url());
         model.put("basePath", "");
         model.put("catalog", catalogToModel());
@@ -90,6 +95,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private void generateSearchPage() throws IOException {
         Map<String, Object> model = new HashMap<>();
         model.put("siteTitle", config.site().title());
+        model.put("siteLogo", siteLogo);
         model.put("basePath", "");
         model.put("locale", config.site().defaultLanguage());
         model.put("docSwitcher", buildDocSwitcher());
@@ -119,6 +125,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
 
         Map<String, Object> model = new HashMap<>();
         model.put("siteTitle", config.site().title());
+        model.put("siteLogo", siteLogo);
         model.put("basePath", "");
         model.put("locale", config.site().defaultLanguage());
         model.put("component", componentToModel(component));
@@ -166,6 +173,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
 
         Map<String, Object> model = new HashMap<>();
         model.put("siteTitle", config.site().title());
+        model.put("siteLogo", siteLogo);
         model.put("basePath", "");
         model.put("locale", config.site().defaultLanguage());
         model.put("page", pageToModel(page));
@@ -236,10 +244,13 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         Files.createDirectories(assetsDest);
 
         copyAsset(assetsDest, "frutiger-light.css");
+        copyAsset(assetsDest, "frutiger-serif.css");
+        copyAsset(assetsDest, "zurich-light.css");
         copyAsset(assetsDest, "jetbrainsmono.css");
         copyAsset(assetsDest, "styles.css");
         copyAsset(assetsDest, "lunr.min.js");
         copyAsset(assetsDest, "search.js");
+        siteLogo = copyConfiguredLogoAsset(assetsDest);
     }
 
     private void copyAsset(Path assetsDest, String fileName) throws IOException {
@@ -249,6 +260,57 @@ public final class BibliosSiteGenerator implements AutoCloseable {
             }
             Files.writeString(assetsDest.resolve(fileName), new String(stream.readAllBytes(), StandardCharsets.UTF_8));
         }
+    }
+
+    private String copyConfiguredLogoAsset(Path assetsDest) throws IOException {
+        String logo = config.site().logo();
+        if (logo == null || logo.isBlank()) {
+            return null;
+        }
+        if (isExternalLogoReference(logo)) {
+            return logo;
+        }
+
+        Path sourceLogoPath = resolveLocalLogoPath(logo);
+        String extension = fileExtension(sourceLogoPath.getFileName().toString());
+        String fileName = "site-logo" + extension;
+        Path targetLogoPath = assetsDest.resolve(fileName);
+        Files.copy(sourceLogoPath, targetLogoPath, StandardCopyOption.REPLACE_EXISTING);
+        return "/site-assets/" + fileName;
+    }
+
+    private boolean isExternalLogoReference(String logo) {
+        try {
+            URI uri = new URI(logo);
+            String scheme = uri.getScheme();
+            if (scheme == null) {
+                return false;
+            }
+            String normalized = scheme.toLowerCase();
+            return normalized.equals("http") || normalized.equals("https") || normalized.equals("data");
+        } catch (URISyntaxException e) {
+            return false;
+        }
+    }
+
+    private Path resolveLocalLogoPath(String logo) {
+        try {
+            URI uri = new URI(logo);
+            if ("file".equalsIgnoreCase(uri.getScheme())) {
+                return Path.of(uri).toAbsolutePath().normalize();
+            }
+        } catch (URISyntaxException | IllegalArgumentException ignored) {
+            // Fall through and treat as regular path string.
+        }
+        return Path.of(logo).toAbsolutePath().normalize();
+    }
+
+    private String fileExtension(String fileName) {
+        int lastDot = fileName.lastIndexOf('.');
+        if (lastDot < 0 || lastDot == fileName.length() - 1) {
+            return "";
+        }
+        return fileName.substring(lastDot);
     }
 
     private String uiSearchLanguageMode() {

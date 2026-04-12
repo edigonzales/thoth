@@ -15,6 +15,7 @@ public final class BibliosConfigBuilder {
     private String siteTitle = "Test Docs";
     private String siteUrl = "https://test.example.org";
     private String siteLanguage = "en";
+    private String siteLogo = null;
     private Path outputDir;
     private boolean clean = true;
     private boolean showEditLink = false;
@@ -39,6 +40,11 @@ public final class BibliosConfigBuilder {
 
     public BibliosConfigBuilder withSiteLanguage(String language) {
         this.siteLanguage = language;
+        return this;
+    }
+
+    public BibliosConfigBuilder withSiteLogo(String logo) {
+        this.siteLogo = logo;
         return this;
     }
 
@@ -198,12 +204,13 @@ public final class BibliosConfigBuilder {
               title: %s
               url: %s
               default_language: %s
+            %s
             output:
               dir: %s
               clean: %s
             %scontent:
               sources:
-            %s""".formatted(siteTitle, siteUrl, siteLanguage, outputDir.toString(), clean,
+            %s""".formatted(siteTitle, siteUrl, siteLanguage, siteLogoYaml(), outputDir.toString(), clean,
                 uiSection.toString(), sourcesYaml.toString().stripTrailing());
 
         Files.writeString(configFile, yaml);
@@ -218,5 +225,16 @@ public final class BibliosConfigBuilder {
     }
 
     public record SourceEntry(String yaml) {
+    }
+
+    private String siteLogoYaml() {
+        if (siteLogo == null || siteLogo.isBlank()) {
+            return "";
+        }
+        return "  logo: \"%s\"\n".formatted(escapeYaml(siteLogo));
+    }
+
+    private String escapeYaml(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

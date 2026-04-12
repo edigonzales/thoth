@@ -40,6 +40,19 @@ public final class GitSourceResolver implements AutoCloseable {
      * @throws IOException if repository operations fail
      */
     public GitSourceResolver resolve(String remoteUrl, String sourceId) throws IOException {
+        return resolve(remoteUrl, sourceId, true);
+    }
+
+    /**
+     * Clone a repository if it doesn't exist, or open/fetch an existing one.
+     *
+     * @param remoteUrl the Git remote URL
+     * @param sourceId  the source identifier (used for cache directory naming)
+     * @param fetchEnabled true to fetch from origin for existing repos
+     * @return this resolver for chaining
+     * @throws IOException if repository operations fail
+     */
+    public GitSourceResolver resolve(String remoteUrl, String sourceId, boolean fetchEnabled) throws IOException {
         Objects.requireNonNull(remoteUrl, "remoteUrl is required");
         Objects.requireNonNull(sourceId, "sourceId is required");
 
@@ -55,9 +68,14 @@ public final class GitSourceResolver implements AutoCloseable {
 
         Path gitDir = repoPath.resolve(".git");
         if (Files.exists(gitDir)) {
-            // Repository exists, fetch updates
-            System.out.println("[info] Fetching existing repository for: " + sourceId);
-            openAndFetch();
+            if (fetchEnabled) {
+                // Repository exists, fetch updates
+                System.out.println("[info] Fetching existing repository for: " + sourceId);
+                openAndFetch();
+            } else {
+                System.out.println("[info] Using cached repository (fetch disabled) for: " + sourceId);
+                openExisting();
+            }
         } else {
             // Clone fresh
             System.out.println("[info] Cloning repository: " + remoteUrl);
@@ -184,13 +202,7 @@ public final class GitSourceResolver implements AutoCloseable {
 
     private void openAndFetch() throws IOException {
         try {
-            FileRepositoryBuilder builder = new FileRepositoryBuilder();
-            builder.setGitDir(repoPath.resolve(".git").toFile());
-            builder.readEnvironment();
-            builder.findGitDir();
-
-            Repository repository = builder.build();
-            git = new Git(repository);
+            openExisting();
 
             FetchCommand fetch = git.fetch();
             fetch.setRemote("origin");
@@ -207,6 +219,20 @@ public final class GitSourceResolver implements AutoCloseable {
             } catch (Exception ex) {
                 throw new IOException("Failed to open cached repository: " + ex.getMessage(), ex);
             }
+        }
+    }
+
+    private void openExisting() throws IOException {
+        try {
+            FileRepositoryBuilder builder = new FileRepositoryBuilder();
+            builder.setGitDir(repoPath.resolve(".git").toFile());
+            builder.readEnvironment();
+            builder.findGitDir();
+
+            Repository repository = builder.build();
+            git = new Git(repository);
+        } catch (Exception e) {
+            throw new IOException("Failed to open cached repository: " + e.getMessage(), e);
         }
     }
 

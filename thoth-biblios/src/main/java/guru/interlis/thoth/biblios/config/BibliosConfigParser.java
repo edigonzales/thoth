@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -70,12 +72,12 @@ public final class BibliosConfigParser {
                     "config"
                 );
             }
-            return parseMap(map);
+            return parseMap(map, configPath);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private BibliosConfig parseMap(Map<?, ?> map) {
+    private BibliosConfig parseMap(Map<?, ?> map, Path configPath) {
         Map<String, Object> root = castMap(map, "root configuration");
 
         // Validate required top-level sections
@@ -95,6 +97,7 @@ public final class BibliosConfigParser {
         SiteSection site = new SiteSection(
             getString(siteMap, "title"),
             (String) siteMap.get("url"),
+            parseSiteLogo(siteMap, configPath),
             (String) siteMap.get("default_language"),
             (String) siteMap.get("default_component"),
             (String) siteMap.get("default_version")
@@ -152,6 +155,77 @@ public final class BibliosConfigParser {
         ContentSection content = new ContentSection(sources);
 
         return new BibliosConfig(site, output, ui, content);
+    }
+
+    private String parseSiteLogo(Map<String, Object> siteMap, Path configPath) {
+        Object logoValue = siteMap.get("logo");
+        if (logoValue == null) {
+            return null;
+        }
+        if (!(logoValue instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for 'site.logo', got: " + logoValue.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+
+        String logo = text.trim();
+        if (logo.isEmpty()) {
+            throw new ThothBuildException(
+                "Configuration 'site.logo' must not be blank",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+
+        if (isRemoteLogoReference(logo)) {
+            return logo;
+        }
+
+        Path logoPath = resolveLocalLogoPath(logo, configPath);
+        if (!Files.exists(logoPath) || !Files.isRegularFile(logoPath)) {
+            throw new ThothBuildException(
+                "Invalid 'site.logo': local file not found: " + logoPath,
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return logoPath.toAbsolutePath().normalize().toString();
+    }
+
+    private boolean isRemoteLogoReference(String logo) {
+        try {
+            URI uri = new URI(logo);
+            String scheme = uri.getScheme();
+            if (scheme == null) {
+                return false;
+            }
+            String normalized = scheme.toLowerCase();
+            return normalized.equals("http") || normalized.equals("https") || normalized.equals("data");
+        } catch (URISyntaxException e) {
+            return false;
+        }
+    }
+
+    private Path resolveLocalLogoPath(String logo, Path configPath) {
+        try {
+            URI uri = new URI(logo);
+            if ("file".equalsIgnoreCase(uri.getScheme())) {
+                return Path.of(uri).toAbsolutePath().normalize();
+            }
+        } catch (URISyntaxException | IllegalArgumentException ignored) {
+            // Fall through and treat as regular path string.
+        }
+
+        Path logoPath = Path.of(logo);
+        if (!logoPath.isAbsolute()) {
+            Path configDir = configPath.toAbsolutePath().getParent();
+            if (configDir != null) {
+                logoPath = configDir.resolve(logoPath);
+            }
+        }
+        return logoPath.toAbsolutePath().normalize();
     }
 
     @SuppressWarnings("unchecked")

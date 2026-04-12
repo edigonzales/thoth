@@ -1,11 +1,12 @@
-<#macro layout siteTitle pageTitle="" basePath="" locale="en" docSwitcher=[] versionSwitcher=[] currentComponentId="" currentVersionStr="" currentVersion={} currentPagePath="" navigation={} breadcrumbs=[] prevPage={} nextPage={} searchQuery="" searchLanguageMode="multilingual_safe" singlePageMode=false chapterBreadcrumbEnabled=false initialChapterId="">
+<#macro layout siteTitle siteLogo="" pageTitle="" basePath="" locale="en" docSwitcher=[] versionSwitcher=[] currentComponentId="" currentVersionStr="" currentVersion={} currentPagePath="" navigation={} breadcrumbs=[] prevPage={} nextPage={} searchQuery="" searchLanguageMode="multilingual_safe" singlePageMode=false chapterBreadcrumbEnabled=false initialChapterId="">
 <!DOCTYPE html>
 <html lang="${locale}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><#if pageTitle?has_content>${pageTitle} - </#if>${siteTitle}</title>
-    <link rel="stylesheet" href="${basePath}/site-assets/frutiger-light.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/zurich-light.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/frutiger-serif.css">
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">
     <script src="${basePath}/site-assets/lunr.min.js" defer></script>
     <script src="${basePath}/site-assets/search.js" defer></script>
@@ -13,7 +14,12 @@
 <body data-search-language-mode="${searchLanguageMode}" data-single-page-mode="${singlePageMode?string('true', 'false')}" data-initial-chapter-id="${initialChapterId}">
     <header class="site-header">
         <div class="header-content">
-            <a href="${basePath}/" class="site-title">${siteTitle}</a>
+            <a href="${basePath}/" class="site-title">
+                <#if siteLogo?has_content>
+                    <img src="${siteLogo}" alt="${siteTitle} logo" class="brand-logo">
+                </#if>
+                <span class="site-title-text">${siteTitle}</span>
+            </a>
             <#if docSwitcher?has_content>
                 <nav class="doc-switcher">
                     <label for="doc-switch">Documentation:</label>
