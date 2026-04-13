@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><#if pageTitle?has_content>${pageTitle} - </#if>${siteTitle}</title>
+    <link rel="stylesheet" href="${basePath}/site-assets/jetbrainsmono.css">
     <link rel="stylesheet" href="${basePath}/site-assets/zurich-light.css">
     <link rel="stylesheet" href="${basePath}/site-assets/frutiger-serif.css">
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">
