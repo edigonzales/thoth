@@ -267,15 +267,41 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/icons/bootstrap-copy.svg")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/icons/bootstrap-check.svg")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/JetBrainsMono/JetBrainsMono-Bold.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/JetBrainsMono/JetBrainsMono-Italic.woff2")));
+
+        String jetbrainsMonoCss = Files.readString(outputRoot.resolve("site-assets/jetbrainsmono.css"));
+        assertTrue(jetbrainsMonoCss.contains("font-family: \"JetBrains Mono\";"));
+        assertTrue(jetbrainsMonoCss.contains("font-weight: 400;"));
+        assertTrue(jetbrainsMonoCss.contains("font-style: normal;"));
+        assertTrue(jetbrainsMonoCss.contains("font-weight: 700;"));
+        assertTrue(jetbrainsMonoCss.contains("font-style: italic;"));
+        assertTrue(jetbrainsMonoCss.contains("./fonts/JetBrainsMono/JetBrainsMono-Regular.woff2"));
+        assertTrue(jetbrainsMonoCss.contains("./fonts/JetBrainsMono/JetBrainsMono-Bold.woff2"));
+        assertTrue(jetbrainsMonoCss.contains("./fonts/JetBrainsMono/JetBrainsMono-Italic.woff2"));
+
         String overridesCss = Files.readString(outputRoot.resolve("site-assets/prism-overrides.css"));
         assertTrue(overridesCss.contains("background: rgb(242, 242, 242)"));
-        assertTrue(overridesCss.contains("font-size: 0.95rem"));
+        assertTrue(overridesCss.contains("font-size: 0.9rem"));
+        assertTrue(overridesCss.contains("code[class*=\"language-\"]"));
+        assertTrue(overridesCss.contains(".doc-content pre > code"));
+        assertTrue(overridesCss.contains(".doc-content :not(pre) > code"));
+        assertTrue(overridesCss.contains("font-family: \"JetBrains Mono\", \"SFMono-Regular\", Menlo, Consolas, \"Liberation Mono\", monospace !important;"));
         assertTrue(overridesCss.contains(".token.operator"));
         assertTrue(overridesCss.contains("background: transparent"));
         assertTrue(overridesCss.contains("padding-top: 0.25rem"));
         assertTrue(overridesCss.contains("padding-right: 0.25rem"));
         assertTrue(overridesCss.contains("/site-assets/icons/bootstrap-copy.svg"));
         assertTrue(overridesCss.contains("/site-assets/icons/bootstrap-check.svg"));
+
+        String stylesCss = Files.readString(outputRoot.resolve("site-assets/styles.css"));
+        assertTrue(stylesCss.contains(".doc-content pre {\n    background: rgb(242, 242, 242);"));
+        assertTrue(stylesCss.contains("padding: 1em;"));
+        assertTrue(stylesCss.contains("margin: .5em 0;"));
+        assertTrue(stylesCss.contains("font-size: 0.9rem;"));
+        assertTrue(stylesCss.contains("font-family: \"JetBrains Mono\", \"SFMono-Regular\", Menlo, Consolas, \"Liberation Mono\", monospace;"));
+
         String indexPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
         assertTrue(indexPage.contains("/site-assets/prism/prism.js"));
         assertTrue(indexPage.contains("/site-assets/prism-overrides.css"));

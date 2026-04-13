@@ -432,6 +432,9 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "frutiger-serif.css");
         copyAsset(assetsDest, "zurich-light.css");
         copyAsset(assetsDest, "jetbrainsmono.css");
+        copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Regular.woff2");
+        copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Bold.woff2");
+        copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Italic.woff2");
         copyAsset(assetsDest, "styles.css");
         copyAsset(assetsDest, "lunr.min.js");
         copyAsset(assetsDest, "search.js");

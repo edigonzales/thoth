@@ -13,7 +13,7 @@
     --color-active: #0366d6;
     --color-breadcrumb: #586069;
     --max-width: 1400px;
-    --sidebar-width: 280px;
+    --sidebar-width: 320px;
     --site-header-height: 60px;
     --breadcrumb-height: 0px;
     --anchor-offset: 60px;
@@ -592,14 +592,16 @@ a:hover { text-decoration: underline; }
 }
 
 .doc-content pre {
-    background: #f6f8fa;
-    padding: 1rem;
+    background: rgb(242, 242, 242);
+    padding: 1em;
     border-radius: 4px;
     overflow-x: auto;
-    margin: 1rem 0;
+    margin: .5em 0;
+    font-size: 0.9rem;
+    font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
 }
 .doc-content code {
-    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
     font-size: 0.9em;
 }
 

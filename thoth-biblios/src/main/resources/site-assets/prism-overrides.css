@@ -2,18 +2,23 @@
 
 /* Block code */
 pre[class*="language-"],
-.doc-content pre[class*="language-"] {
+code[class*="language-"],
+pre[class*="language-"] > code,
+.doc-content pre[class*="language-"],
+.doc-content pre[class*="language-"] > code,
+.doc-content pre > code {
     background: rgb(242, 242, 242);
-    font-size: 0.95rem;
-    font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.9rem;
+    font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace !important;
 }
 
 /* Inline code */
 :not(pre) > code[class*="language-"],
-.doc-content :not(pre) > code[class*="language-"] {
+.doc-content :not(pre) > code[class*="language-"],
+.doc-content :not(pre) > code {
     background: rgb(242, 242, 242);
-    font-size: 0.95rem;
-    font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.9rem;
+    font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace !important;
 }
 
 /* Remove Prism default token background for operators only */
