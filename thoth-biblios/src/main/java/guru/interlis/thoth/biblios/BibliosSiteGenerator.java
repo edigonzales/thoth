@@ -435,6 +435,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "zurich-condensed.css");
         copyAsset(assetsDest, "notosans.css");
         copyAsset(assetsDest, "notoserif.css");
+        copyAsset(assetsDest, "texgyreheroes.css");
         copyAsset(assetsDest, "jetbrainsmono.css");
         copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Regular.woff2");
         copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Bold.woff2");
@@ -449,6 +450,10 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "fonts/NotoSans/NotoSans-Italic-Variable.woff2");
         copyAsset(assetsDest, "fonts/NotoSerif/NotoSerif-Variable.woff2");
         copyAsset(assetsDest, "fonts/NotoSerif/NotoSerif-Italic-Variable.woff2");
+        copyAsset(assetsDest, "fonts/texgyreheroes/texgyreheros.gyreheros-regular.woff2");
+        copyAsset(assetsDest, "fonts/texgyreheroes/texgyreheros.gyreheros-italic.woff2");
+        copyAsset(assetsDest, "fonts/texgyreheroes/texgyreheros.gyreheros-bold.woff2");
+        copyAsset(assetsDest, "fonts/texgyreheroes/texgyreheros.gyreheros-bolditalic.woff2");
         copyAsset(assetsDest, "fonts/FrutigerSerif/FrutigerSerifLTPro-Regular.woff2");
         copyAsset(assetsDest, "fonts/FrutigerSerif/FrutigerSerifLTPro-Italic.woff2");
         copyAsset(assetsDest, "fonts/FrutigerSerif/FrutigerSerifLTPro-Bold.woff2");

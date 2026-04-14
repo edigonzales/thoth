@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="${basePath}/site-assets/zurich-condensed.css">
     <link rel="stylesheet" href="${basePath}/site-assets/notosans.css">
     <link rel="stylesheet" href="${basePath}/site-assets/notoserif.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/texgyreheroes.css">
     <link rel="stylesheet" href="${basePath}/site-assets/frutiger-serif.css">
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">
     <#if syntaxHighlightingEnabled>

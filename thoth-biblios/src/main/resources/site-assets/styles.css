@@ -27,12 +27,18 @@
     --site-header-height: 60px;
     --breadcrumb-height: 0px;
     --anchor-offset: 60px;
-    --font-body: "Noto Serif", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-sidebar-toc: "Zurich Condensed", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-chapter-headings: "Zurich Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-navbar: "Zurich", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-index-page: var(--font-chapter-headings);
-    --font-breadcrumb: var(--font-navbar);
+    --font-body: "Frutiger Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-sidebar-toc: "Frutiger Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-chapter-headings: "Frutiger Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-navbar: "Frutiger Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-index-page: "Frutiger Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-breadcrumb: "Frutiger Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-weight-body: 400;
+    --font-weight-sidebar-toc: 400;
+    --font-weight-chapter-headings: 700;
+    --font-weight-navbar: 400;
+    --font-weight-index-page: 400;
+    --font-weight-breadcrumb: 400;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale; /* mac Firefox */    
 }
@@ -40,11 +46,12 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-    font-size: 18px;
+    font-size: 16px;
 }
 
 body {
     font-family: var(--font-body);
+    font-weight: var(--font-weight-body);
     color: var(--color-text);
     background: var(--color-bg);
     line-height: 1.6;
@@ -56,6 +63,7 @@ a:hover { text-decoration: underline; }
 /* Header */
 .site-header {
     font-family: var(--font-navbar);
+    font-weight: var(--font-weight-navbar);
     background: var(--color-header-bg);
     color: var(--color-header-text);
     padding: 0.75rem 1.5rem;
@@ -74,6 +82,7 @@ a:hover { text-decoration: underline; }
 .site-header .version-switcher select,
 .site-header .search-form input {
     font-family: var(--font-navbar);
+    font-weight: var(--font-weight-navbar);
 }
 
 .header-content {
@@ -193,6 +202,7 @@ a:hover { text-decoration: underline; }
 /* Sidebar */
 .sidebar {
     font-family: var(--font-sidebar-toc);
+    font-weight: var(--font-weight-sidebar-toc);
     width: var(--sidebar-width);
     background: var(--color-sidebar-bg);
     border-right: 1px solid var(--color-border);
@@ -206,6 +216,7 @@ a:hover { text-decoration: underline; }
 
 .sidebar-nav {
     font-family: var(--font-sidebar-toc);
+    font-weight: var(--font-weight-sidebar-toc);
     line-height: 1.2;
 }
 
@@ -220,6 +231,7 @@ a:hover { text-decoration: underline; }
 
 .nav-link {
     font-family: var(--font-sidebar-toc);
+    font-weight: var(--font-weight-sidebar-toc);
     display: block;
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
@@ -240,9 +252,9 @@ a:hover { text-decoration: underline; }
 
 .nav-group {
     font-family: var(--font-sidebar-toc);
+    font-weight: var(--font-weight-sidebar-toc);
     display: block;
     padding: 0.35rem 0.75rem;
-    font-weight: 600;
     font-size: 0.9rem;
     color: var(--ng-400);
 }
@@ -261,6 +273,7 @@ a:hover { text-decoration: underline; }
 /* Breadcrumbs */
 .breadcrumbs {
     font-family: var(--font-breadcrumb);
+    font-weight: var(--font-weight-breadcrumb);
     font-size: 0.9rem;
     color: var(--color-breadcrumb);
     margin-bottom: 1.5rem;
@@ -279,6 +292,7 @@ a:hover { text-decoration: underline; }
 
 #chapter-breadcrumb-trail {
     font-family: var(--font-breadcrumb);
+    font-weight: var(--font-weight-breadcrumb);
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
@@ -347,6 +361,7 @@ a:hover { text-decoration: underline; }
 /* Home Page */
 .home {
     font-family: var(--font-index-page);
+    font-weight: var(--font-weight-index-page);
     max-width: 900px;
     margin: 2rem auto;
     text-align: center;
@@ -400,6 +415,7 @@ a:hover { text-decoration: underline; }
 /* Component Home */
 .component-home {
     font-family: var(--font-index-page);
+    font-weight: var(--font-weight-index-page);
     max-width: 800px;
 }
 
@@ -420,6 +436,7 @@ a:hover { text-decoration: underline; }
 /* Doc Page */
 .doc-page h1 {
     font-family: var(--font-chapter-headings);
+    font-weight: var(--font-weight-chapter-headings);
     font-size: 2rem;
     margin-bottom: 1.5rem;
 }
@@ -435,6 +452,7 @@ a:hover { text-decoration: underline; }
 .doc-content h5,
 .doc-content h6 {
     font-family: var(--font-chapter-headings);
+    font-weight: var(--font-weight-chapter-headings);
 }
 
 .doc-content h1[id],
@@ -699,6 +717,7 @@ a:hover { text-decoration: underline; }
 /* Footer */
 .site-footer {
     font-family: var(--font-navbar);
+    font-weight: var(--font-weight-navbar);
     text-align: center;
     padding: 1.5rem;
     font-size: 0.85rem;
