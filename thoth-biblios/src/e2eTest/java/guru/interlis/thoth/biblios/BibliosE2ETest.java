@@ -295,7 +295,11 @@ class BibliosE2ETest {
         assertions.assertFileContains("site-assets/styles.css", "h2:hover > a.anchor");
         assertions.assertFileContains("site-assets/styles.css", ".breadcrumbs {");
         assertions.assertFileContains("site-assets/styles.css", "top: var(--site-header-height);");
+        assertions.assertFileContains("site-assets/styles.css", ".nav-toggle");
+        assertions.assertFileContains("site-assets/styles.css", ".nav-item.is-collapsible.is-collapsed > .nav-subtree");
         assertions.assertFileContains("site-assets/search.js", "IntersectionObserver");
+        assertions.assertFileContains("site-assets/search.js", "setBranchExpanded");
+        assertions.assertFileContains("site-assets/search.js", "bindCollapsibleToggles");
         assertions.assertFileNotContains("site-assets/search.js", "history.replaceState");
     }
 
@@ -323,6 +327,7 @@ class BibliosE2ETest {
         assertions.assertFileContains("mydocs/main/index.html", "data-chapter-title=\"Grundprinzipien\"");
         assertions.assertFileNotContains("mydocs/main/index.html", "data-chapter-title=\"Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3\"");
         assertions.assertFileContains("mydocs/main/index.html", "data-chapter-title=\"Anhang A - foo bar\"");
+        assertions.assertFileNotContains("mydocs/main/index.html", "aria-label=\"Toggle subsections for Anhang A - foo bar\"");
         assertions.assertFileContains("mydocs/main/index.html", "href=\"/mydocs/main/#_anhang_a_foo_bar\"");
         assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-current\">Einleitung<");
         assertions.assertFileContains("mydocs/main/index.html", "Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3");

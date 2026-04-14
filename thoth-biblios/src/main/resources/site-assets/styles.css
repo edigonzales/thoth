@@ -229,6 +229,12 @@ a:hover { text-decoration: underline; }
     margin: 0.25rem 0;
 }
 
+.nav-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+}
+
 .nav-link {
     font-family: var(--font-sidebar-toc);
     font-weight: var(--font-weight-sidebar-toc);
@@ -261,6 +267,53 @@ a:hover { text-decoration: underline; }
 
 .has-children > .nav-list {
     padding-left: 1rem;
+}
+
+body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible > .nav-entry > .nav-link,
+body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible > .nav-entry > .nav-group {
+    flex: 1;
+    min-width: 0;
+}
+
+body[data-single-page-mode="true"] .sidebar-nav .nav-toggle {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 4px;
+    padding: 0;
+    background: transparent;
+    color: var(--ng-500);
+    cursor: pointer;
+}
+
+body[data-single-page-mode="true"] .sidebar-nav .nav-toggle:hover {
+    background: var(--ng-100);
+}
+
+body[data-single-page-mode="true"] .sidebar-nav .nav-toggle:focus-visible {
+    outline: 2px solid rgba(3, 102, 214, 0.35);
+    outline-offset: 2px;
+}
+
+body[data-single-page-mode="true"] .sidebar-nav .nav-toggle-chevron {
+    width: 0.46rem;
+    height: 0.46rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transform-origin: center;
+    transition: transform 0.15s ease-in-out;
+}
+
+body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-collapsed > .nav-entry .nav-toggle-chevron {
+    transform: rotate(-45deg);
+}
+
+body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-collapsed > .nav-subtree {
+    display: none;
 }
 
 /* Content */

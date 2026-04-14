@@ -122,6 +122,7 @@ class BibliosIntegrationTest {
 
         String indexPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
         assertTrue(indexPage.contains("Welcome"));
+        assertFalse(indexPage.contains("class=\"nav-toggle\""));
 
         String styles = Files.readString(outputRoot.resolve("site-assets/styles.css"));
         assertTrue(styles.contains(".content {"));
@@ -668,6 +669,14 @@ class BibliosIntegrationTest {
         assertTrue(html.matches("(?s).*class=\"anchor\"\\s+href=\"#.+?\".*"));
         assertFalse(html.matches("(?s).*\\b1\\.?\\s+Einleitung\\b.*"));
         assertFalse(html.contains("id=\"toc\""));
+
+        String stylesCss = Files.readString(outputRoot.resolve("site-assets/styles.css"));
+        assertTrue(stylesCss.contains(".nav-toggle"));
+        assertTrue(stylesCss.contains(".nav-item.is-collapsible.is-collapsed > .nav-subtree"));
+
+        String searchJs = Files.readString(outputRoot.resolve("site-assets/search.js"));
+        assertTrue(searchJs.contains("setBranchExpanded"));
+        assertTrue(searchJs.contains("bindCollapsibleToggles"));
     }
 
     @Test
@@ -704,6 +713,7 @@ class BibliosIntegrationTest {
         assertTrue(html.contains("data-chapter-title=\"Grundprinzipien\""));
         assertFalse(html.contains("data-chapter-title=\"Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3\""));
         assertTrue(html.contains("data-chapter-title=\"Anhang A - foo bar\""));
+        assertFalse(html.contains("aria-label=\"Toggle subsections for Anhang A - foo bar\""));
         assertTrue(html.contains("id=\"chapter-breadcrumb-current\">Einleitung<"));
         assertTrue(html.contains("href=\"/mydocs/main/#_anhang_a_foo_bar\""));
         assertTrue(html.contains("Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3"));

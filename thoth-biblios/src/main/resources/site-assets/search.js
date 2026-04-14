@@ -295,6 +295,7 @@
     const chapterCurrent = document.getElementById("chapter-breadcrumb-current");
     const chapterTrail = document.getElementById("chapter-breadcrumb-trail");
     const navLinks = Array.from(document.querySelectorAll(".sidebar-nav .nav-link[data-chapter-id]"));
+    const collapsibleItems = Array.from(document.querySelectorAll(".sidebar-nav .nav-item.is-collapsible"));
     const sidebarRoot = document.querySelector(".sidebar-nav > .nav-list");
     if (!chapterCurrent || !chapterTrail || !sidebarRoot || navLinks.length === 0) {
       return;
@@ -369,6 +370,80 @@
     let viewportObserver = null;
     let fallbackScrollHandler = null;
 
+    function findToggle(item) {
+      const entry = Array.from(item.children).find((child) => child.matches(".nav-entry"));
+      if (!entry) {
+        return null;
+      }
+      return entry.querySelector(".nav-toggle");
+    }
+
+    function findPanel(item) {
+      return Array.from(item.children)
+        .find((child) => child.matches(".nav-list[data-collapsible-panel='true']")) || null;
+    }
+
+    function setBranchExpanded(item, expanded) {
+      if (!item) {
+        return;
+      }
+      item.classList.toggle("is-expanded", expanded);
+      item.classList.toggle("is-collapsed", !expanded);
+
+      const toggle = findToggle(item);
+      if (toggle) {
+        toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+      }
+
+      const panel = findPanel(item);
+      if (panel) {
+        panel.hidden = !expanded;
+      }
+    }
+
+    function bindCollapsibleToggles() {
+      for (const item of collapsibleItems) {
+        const toggle = findToggle(item);
+        if (!toggle) {
+          continue;
+        }
+        toggle.addEventListener("click", (event) => {
+          event.preventDefault();
+          const expanded = toggle.getAttribute("aria-expanded") === "true";
+          setBranchExpanded(item, !expanded);
+        });
+      }
+    }
+
+    const collapsibleByChapterId = new Map();
+    for (const link of navLinks) {
+      const chapterId = (link.dataset.chapterId || "").trim();
+      if (!chapterId || collapsibleByChapterId.has(chapterId)) {
+        continue;
+      }
+      const branch = link.closest("li.nav-item.is-collapsible");
+      if (branch) {
+        collapsibleByChapterId.set(chapterId, branch);
+      }
+    }
+
+    function ensureBranchForChapterVisible(chapterId) {
+      if (!chapterId) {
+        return;
+      }
+      const branch = collapsibleByChapterId.get(chapterId);
+      if (branch) {
+        setBranchExpanded(branch, true);
+      }
+    }
+
+    function initCollapsibleState() {
+      for (const item of collapsibleItems) {
+        setBranchExpanded(item, false);
+      }
+      bindCollapsibleToggles();
+    }
+
     function setActiveChapter(chapterId) {
       for (const link of navLinks) {
         if ((link.dataset.chapterId || "").trim() === chapterId) {
@@ -380,7 +455,11 @@
     }
 
     function setChapterUi(chapterId) {
-      if (!chapterId || !chapterPathById.has(chapterId) || chapterId === activeChapterId) {
+      if (!chapterId || !chapterPathById.has(chapterId)) {
+        return;
+      }
+      ensureBranchForChapterVisible(chapterId);
+      if (chapterId === activeChapterId) {
         return;
       }
       activeChapterId = chapterId;
@@ -525,6 +604,7 @@
       }
     }
 
+    initCollapsibleState();
     ensureViewportTracking();
     window.addEventListener("hashchange", applyChapterFromLocation);
     window.addEventListener("resize", () => {
