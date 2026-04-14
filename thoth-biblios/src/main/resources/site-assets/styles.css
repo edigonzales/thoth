@@ -1,22 +1,38 @@
 /* Thoth Biblios - Base Styles */
 
 :root {
-    --color-bg: #ffffff;
-    --color-text: #1a1a1a;
+    --ng-white: #ffffff;
+    --ng-0: #fafafa;
+    --ng-50: #f5f5f5;
+    --ng-100: #e5e5e5;
+    --ng-200: #d4d4d4;
+    --ng-300: #a3a3a3;
+    --ng-400: #737373;
+    --ng-500: #525252;
+    --ng-700: #262626;
+
+    --color-bg: var(--ng-white);
+    --color-text: var(--ng-700);
     --color-link: #0366d6;
-    --color-border: #e1e4e8;
-    --color-header-bg: rgb(250,250,250);
+    --color-border: var(--ng-200);
+    --color-header-bg: var(--ng-white);
     --color-header-text: var(--color-text);
-    --color-sidebar-bg: rgb(250,250,250);
-    --color-sidebarblock-bg: rgb(242,242,242);
-    --color-sidebarblock-border: rgb(230,230,230);
+    --color-sidebar-bg: var(--ng-50);
+    --color-sidebarblock-bg: var(--ng-50);
+    --color-sidebarblock-border: var(--ng-100);
     --color-active: #0366d6;
-    --color-breadcrumb: #586069;
+    --color-breadcrumb: var(--ng-400);
     --max-width: 1400px;
     --sidebar-width: 320px;
     --site-header-height: 60px;
     --breadcrumb-height: 0px;
     --anchor-offset: 60px;
+    --font-body: "Noto Serif", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-sidebar-toc: "Zurich Condensed", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-chapter-headings: "Zurich Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-navbar: "Zurich", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-index-page: var(--font-chapter-headings);
+    --font-breadcrumb: var(--font-navbar);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale; /* mac Firefox */    
 }
@@ -28,7 +44,7 @@ html {
 }
 
 body {
-    font-family: "Zurich Light", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: var(--font-body);
     color: var(--color-text);
     background: var(--color-bg);
     line-height: 1.6;
@@ -39,6 +55,7 @@ a:hover { text-decoration: underline; }
 
 /* Header */
 .site-header {
+    font-family: var(--font-navbar);
     background: var(--color-header-bg);
     color: var(--color-header-text);
     padding: 0.75rem 1.5rem;
@@ -47,6 +64,16 @@ a:hover { text-decoration: underline; }
     top: 0;
     z-index: 100;
     box-shadow: none;
+}
+
+.site-header .site-title,
+.site-header .doc-switcher label,
+.site-header .version-switcher label,
+.site-header .search-form label,
+.site-header .doc-switcher select,
+.site-header .version-switcher select,
+.site-header .search-form input {
+    font-family: var(--font-navbar);
 }
 
 .header-content {
@@ -121,7 +148,7 @@ a:hover { text-decoration: underline; }
 
 .doc-switcher select:hover,
 .version-switcher select:hover {
-    background-color: rgb(245, 245, 245);
+    background-color: var(--ng-50);
 }
 
 .doc-switcher select:focus,
@@ -147,7 +174,7 @@ a:hover { text-decoration: underline; }
 }
 
 .search-form input::placeholder {
-    color: #586069;
+    color: var(--ng-400);
 }
 
 .search-form input:focus {
@@ -165,6 +192,7 @@ a:hover { text-decoration: underline; }
 
 /* Sidebar */
 .sidebar {
+    font-family: var(--font-sidebar-toc);
     width: var(--sidebar-width);
     background: var(--color-sidebar-bg);
     border-right: 1px solid var(--color-border);
@@ -177,6 +205,7 @@ a:hover { text-decoration: underline; }
 }
 
 .sidebar-nav {
+    font-family: var(--font-sidebar-toc);
     line-height: 1.2;
 }
 
@@ -190,6 +219,7 @@ a:hover { text-decoration: underline; }
 }
 
 .nav-link {
+    font-family: var(--font-sidebar-toc);
     display: block;
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
@@ -198,7 +228,7 @@ a:hover { text-decoration: underline; }
 }
 
 .nav-link:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--ng-100);
     text-decoration: none;
 }
 
@@ -209,11 +239,12 @@ a:hover { text-decoration: underline; }
 }
 
 .nav-group {
+    font-family: var(--font-sidebar-toc);
     display: block;
     padding: 0.35rem 0.75rem;
     font-weight: 600;
     font-size: 0.9rem;
-    color: #586069;
+    color: var(--ng-400);
 }
 
 .has-children > .nav-list {
@@ -229,6 +260,7 @@ a:hover { text-decoration: underline; }
 
 /* Breadcrumbs */
 .breadcrumbs {
+    font-family: var(--font-breadcrumb);
     font-size: 0.9rem;
     color: var(--color-breadcrumb);
     margin-bottom: 1.5rem;
@@ -241,11 +273,12 @@ a:hover { text-decoration: underline; }
     position: sticky;
     top: var(--site-header-height);
     z-index: 70;
-    background: var(--color-bg);
+    background: var(--ng-white);
     padding-top: 0.75rem;
 }
 
 #chapter-breadcrumb-trail {
+    font-family: var(--font-breadcrumb);
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
@@ -290,7 +323,7 @@ a:hover { text-decoration: underline; }
 }
 
 .prev-next a:hover {
-    background: #f6f8fa;
+    background: var(--ng-50);
     text-decoration: none;
     border-color: var(--color-link);
 }
@@ -313,6 +346,7 @@ a:hover { text-decoration: underline; }
 
 /* Home Page */
 .home {
+    font-family: var(--font-index-page);
     max-width: 900px;
     margin: 2rem auto;
     text-align: center;
@@ -325,7 +359,7 @@ a:hover { text-decoration: underline; }
 
 .description {
     font-size: 1.2rem;
-    color: #586069;
+    color: var(--ng-400);
     margin-bottom: 2rem;
 }
 
@@ -356,7 +390,7 @@ a:hover { text-decoration: underline; }
 
 .version-tag {
     display: inline-block;
-    background: #e1e4e8;
+    background: var(--ng-100);
     padding: 0.15rem 0.5rem;
     border-radius: 3px;
     font-size: 0.8rem;
@@ -365,6 +399,7 @@ a:hover { text-decoration: underline; }
 
 /* Component Home */
 .component-home {
+    font-family: var(--font-index-page);
     max-width: 800px;
 }
 
@@ -374,7 +409,7 @@ a:hover { text-decoration: underline; }
 }
 
 .version-info {
-    color: #586069;
+    color: var(--ng-400);
     margin-bottom: 2rem;
 }
 
@@ -384,12 +419,22 @@ a:hover { text-decoration: underline; }
 
 /* Doc Page */
 .doc-page h1 {
+    font-family: var(--font-chapter-headings);
     font-size: 2rem;
     margin-bottom: 1.5rem;
 }
 
 .doc-content {
     line-height: 1.6;
+}
+
+.doc-content h1,
+.doc-content h2,
+.doc-content h3,
+.doc-content h4,
+.doc-content h5,
+.doc-content h6 {
+    font-family: var(--font-chapter-headings);
 }
 
 .doc-content h1[id],
@@ -592,7 +637,7 @@ a:hover { text-decoration: underline; }
 }
 
 .doc-content pre {
-    background: rgb(242, 242, 242);
+    background: var(--color-sidebarblock-bg);
     padding: 1em;
     border-radius: 4px;
     overflow-x: auto;
@@ -616,12 +661,12 @@ a:hover { text-decoration: underline; }
 }
 
 .search-status {
-    color: #586069;
+    color: var(--ng-400);
     margin-bottom: 1.25rem;
 }
 
 .search-empty {
-    color: #586069;
+    color: var(--ng-400);
     padding: 0.75rem 0;
 }
 
@@ -642,7 +687,7 @@ a:hover { text-decoration: underline; }
 }
 
 .search-result-meta {
-    color: #586069;
+    color: var(--ng-400);
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
 }
@@ -653,10 +698,11 @@ a:hover { text-decoration: underline; }
 
 /* Footer */
 .site-footer {
+    font-family: var(--font-navbar);
     text-align: center;
     padding: 1.5rem;
     font-size: 0.85rem;
-    color: #586069;
+    color: var(--ng-400);
     border-top: 1px solid var(--color-border);
 }
 

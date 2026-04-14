@@ -270,6 +270,24 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/JetBrainsMono/JetBrainsMono-Bold.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/JetBrainsMono/JetBrainsMono-Italic.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/zurich.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Zurich/Zurich.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Zurich/Zurich_Italic.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Zurich/Zurich_Black.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Zurich/Zurich_Black_Italic.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/zurich-condensed.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Zurich_Condensed/Zurich_Condensed.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Zurich_Condensed/Zurich_Condensed_Italic.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/notosans.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/notoserif.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSans/NotoSans-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSans/NotoSans-Italic-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSerif/NotoSerif-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSerif/NotoSerif-Italic-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/FrutigerSerif/FrutigerSerifLTPro-Regular.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/FrutigerSerif/FrutigerSerifLTPro-Italic.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/FrutigerSerif/FrutigerSerifLTPro-Bold.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/FrutigerSerif/FrutigerSerifLTPro-BoldItalic.woff2")));
 
         String jetbrainsMonoCss = Files.readString(outputRoot.resolve("site-assets/jetbrainsmono.css"));
         assertTrue(jetbrainsMonoCss.contains("font-family: \"JetBrains Mono\";"));
@@ -281,8 +299,56 @@ class BibliosIntegrationTest {
         assertTrue(jetbrainsMonoCss.contains("./fonts/JetBrainsMono/JetBrainsMono-Bold.woff2"));
         assertTrue(jetbrainsMonoCss.contains("./fonts/JetBrainsMono/JetBrainsMono-Italic.woff2"));
 
+        String zurichCss = Files.readString(outputRoot.resolve("site-assets/zurich.css"));
+        assertTrue(zurichCss.contains("font-family: \"Zurich\";"));
+        assertTrue(zurichCss.contains("font-weight: 400;"));
+        assertTrue(zurichCss.contains("font-style: normal;"));
+        assertTrue(zurichCss.contains("font-weight: 900;"));
+        assertTrue(zurichCss.contains("font-style: italic;"));
+        assertTrue(zurichCss.contains("./fonts/Zurich/Zurich.woff2"));
+        assertTrue(zurichCss.contains("./fonts/Zurich/Zurich_Italic.woff2"));
+        assertTrue(zurichCss.contains("./fonts/Zurich/Zurich_Black.woff2"));
+        assertTrue(zurichCss.contains("./fonts/Zurich/Zurich_Black_Italic.woff2"));
+
+        String zurichCondensedCss = Files.readString(outputRoot.resolve("site-assets/zurich-condensed.css"));
+        assertTrue(zurichCondensedCss.contains("font-family: \"Zurich Condensed\";"));
+        assertTrue(zurichCondensedCss.contains("font-weight: 400;"));
+        assertTrue(zurichCondensedCss.contains("font-style: normal;"));
+        assertTrue(zurichCondensedCss.contains("font-style: italic;"));
+        assertTrue(zurichCondensedCss.contains("./fonts/Zurich_Condensed/Zurich_Condensed.woff2"));
+        assertTrue(zurichCondensedCss.contains("./fonts/Zurich_Condensed/Zurich_Condensed_Italic.woff2"));
+
+        String notoSansCss = Files.readString(outputRoot.resolve("site-assets/notosans.css"));
+        assertTrue(notoSansCss.contains("font-family: \"Noto Sans\";"));
+        assertTrue(notoSansCss.contains("font-weight: 400;"));
+        assertTrue(notoSansCss.contains("font-weight: 700;"));
+        assertTrue(notoSansCss.contains("font-style: normal;"));
+        assertTrue(notoSansCss.contains("font-style: italic;"));
+        assertTrue(notoSansCss.contains("./fonts/NotoSans/NotoSans-Variable.woff2"));
+        assertTrue(notoSansCss.contains("./fonts/NotoSans/NotoSans-Italic-Variable.woff2"));
+
+        String notoSerifCss = Files.readString(outputRoot.resolve("site-assets/notoserif.css"));
+        assertTrue(notoSerifCss.contains("font-family: \"Noto Serif\";"));
+        assertTrue(notoSerifCss.contains("font-weight: 400;"));
+        assertTrue(notoSerifCss.contains("font-weight: 700;"));
+        assertTrue(notoSerifCss.contains("font-style: normal;"));
+        assertTrue(notoSerifCss.contains("font-style: italic;"));
+        assertTrue(notoSerifCss.contains("./fonts/NotoSerif/NotoSerif-Variable.woff2"));
+        assertTrue(notoSerifCss.contains("./fonts/NotoSerif/NotoSerif-Italic-Variable.woff2"));
+
+        String frutigerSerifCss = Files.readString(outputRoot.resolve("site-assets/frutiger-serif.css"));
+        assertTrue(frutigerSerifCss.contains("font-family: \"Frutiger Serif\";"));
+        assertTrue(frutigerSerifCss.contains("font-weight: 400;"));
+        assertTrue(frutigerSerifCss.contains("font-style: normal;"));
+        assertTrue(frutigerSerifCss.contains("font-weight: 700;"));
+        assertTrue(frutigerSerifCss.contains("font-style: italic;"));
+        assertTrue(frutigerSerifCss.contains("./fonts/FrutigerSerif/FrutigerSerifLTPro-Regular.woff2"));
+        assertTrue(frutigerSerifCss.contains("./fonts/FrutigerSerif/FrutigerSerifLTPro-Italic.woff2"));
+        assertTrue(frutigerSerifCss.contains("./fonts/FrutigerSerif/FrutigerSerifLTPro-Bold.woff2"));
+        assertTrue(frutigerSerifCss.contains("./fonts/FrutigerSerif/FrutigerSerifLTPro-BoldItalic.woff2"));
+
         String overridesCss = Files.readString(outputRoot.resolve("site-assets/prism-overrides.css"));
-        assertTrue(overridesCss.contains("background: rgb(242, 242, 242)"));
+        assertTrue(overridesCss.contains("background: var(--color-sidebarblock-bg)"));
         assertTrue(overridesCss.contains("font-size: 0.9rem"));
         assertTrue(overridesCss.contains("code[class*=\"language-\"]"));
         assertTrue(overridesCss.contains(".doc-content pre > code"));
@@ -296,13 +362,24 @@ class BibliosIntegrationTest {
         assertTrue(overridesCss.contains("/site-assets/icons/bootstrap-check.svg"));
 
         String stylesCss = Files.readString(outputRoot.resolve("site-assets/styles.css"));
-        assertTrue(stylesCss.contains(".doc-content pre {\n    background: rgb(242, 242, 242);"));
+        assertTrue(stylesCss.contains("--font-index-page"));
+        assertTrue(stylesCss.contains("--font-breadcrumb"));
+        assertTrue(stylesCss.contains(".home {\n    font-family: var(--font-index-page);"));
+        assertTrue(stylesCss.contains(".component-home {\n    font-family: var(--font-index-page);"));
+        assertTrue(stylesCss.contains(".breadcrumbs {\n    font-family: var(--font-breadcrumb);"));
+        assertTrue(stylesCss.contains(".doc-page h1 {\n    font-family: var(--font-chapter-headings);"));
+        assertTrue(stylesCss.contains(".site-footer {\n    font-family: var(--font-navbar);"));
+        assertTrue(stylesCss.contains(".doc-content pre {\n    background: var(--color-sidebarblock-bg);"));
         assertTrue(stylesCss.contains("padding: 1em;"));
         assertTrue(stylesCss.contains("margin: .5em 0;"));
         assertTrue(stylesCss.contains("font-size: 0.9rem;"));
         assertTrue(stylesCss.contains("font-family: \"JetBrains Mono\", \"SFMono-Regular\", Menlo, Consolas, \"Liberation Mono\", monospace;"));
 
         String indexPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(indexPage.contains("/site-assets/zurich.css"));
+        assertTrue(indexPage.contains("/site-assets/zurich-condensed.css"));
+        assertTrue(indexPage.contains("/site-assets/notosans.css"));
+        assertTrue(indexPage.contains("/site-assets/notoserif.css"));
         assertTrue(indexPage.contains("/site-assets/prism/prism.js"));
         assertTrue(indexPage.contains("/site-assets/prism-overrides.css"));
         assertTrue(indexPage.contains("/site-assets/prism/components/prism-interlis.js"));

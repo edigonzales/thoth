@@ -7,6 +7,10 @@
     <title><#if pageTitle?has_content>${pageTitle} - </#if>${siteTitle}</title>
     <link rel="stylesheet" href="${basePath}/site-assets/jetbrainsmono.css">
     <link rel="stylesheet" href="${basePath}/site-assets/zurich-light.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/zurich.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/zurich-condensed.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/notosans.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/notoserif.css">
     <link rel="stylesheet" href="${basePath}/site-assets/frutiger-serif.css">
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">
     <#if syntaxHighlightingEnabled>

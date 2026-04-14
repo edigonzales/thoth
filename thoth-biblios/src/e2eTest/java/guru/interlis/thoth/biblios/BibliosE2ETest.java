@@ -376,7 +376,7 @@ class BibliosE2ETest {
 
         SiteAssertions assertions = new SiteAssertions(outputRoot);
         assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"admonitionblock note\"");
-        assertions.assertFileContains("mydocs/main/guide/index.html", "title=\"Hinweis\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "title=\"Note\"");
         assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.note {");
         assertions.assertFileContains("site-assets/styles.css", "#f1fafe");
         assertions.assertFileContains("site-assets/styles.css", "#d4e7f4");
@@ -452,8 +452,8 @@ class BibliosE2ETest {
         SiteAssertions assertions = new SiteAssertions(outputRoot);
         assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"sidebarblock\"");
         assertions.assertFileContains("site-assets/styles.css", ".doc-content .sidebarblock {");
-        assertions.assertFileContains("site-assets/styles.css", "rgb(242,242,242)");
-        assertions.assertFileContains("site-assets/styles.css", "rgb(230,230,230)");
+        assertions.assertFileContains("site-assets/styles.css", "--color-sidebarblock-bg: var(--ng-50);");
+        assertions.assertFileContains("site-assets/styles.css", "--color-sidebarblock-border: var(--ng-100);");
     }
 
     /**
