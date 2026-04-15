@@ -46,7 +46,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-    font-size: 16px;
+    font-size: 18px;
 }
 
 body {
@@ -242,7 +242,7 @@ a:hover { text-decoration: underline; }
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
     color: var(--color-text);
-    font-size: 0.95rem;
+    font-size: 0.85rem;
 }
 
 .nav-link:hover {
