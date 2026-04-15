@@ -39,6 +39,16 @@
     --font-weight-navbar: 400;
     --font-weight-index-page: 400;
     --font-weight-breadcrumb: 400;
+    --fs-body: 1rem;
+    --fs-small: 0.875rem;
+    --fs-h2: 1.5rem;
+    --fs-h3: 1.25rem;
+    --lh-body: 1.55;
+    --lh-tight: 1.25;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2rem;
+    --content-width: 72ch;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale; /* mac Firefox */    
 }
@@ -46,15 +56,16 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-    font-size: 18px;
+    font-size: 100%;
 }
 
 body {
     font-family: var(--font-body);
+    font-size: var(--fs-body);
     font-weight: var(--font-weight-body);
     color: var(--color-text);
     background: var(--color-bg);
-    line-height: 1.6;
+    line-height: var(--lh-body);
 }
 
 a { color: var(--color-link); text-decoration: none; }
@@ -249,7 +260,7 @@ a:hover { text-decoration: underline; }
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
     color: var(--color-text);
-    font-size: 0.9rem;
+    font-size: 1rem;
 }
 
 .nav-link:hover {
@@ -501,8 +512,12 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     margin-bottom: 1.5rem;
 }
 
+.doc-page {
+    max-width: var(--content-width);
+}
+
 .doc-content {
-    line-height: 1.6;
+    line-height: var(--lh-body);
 }
 
 .doc-content h1,
@@ -513,6 +528,7 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 .doc-content h6 {
     font-family: var(--font-chapter-headings);
     font-weight: var(--font-weight-chapter-headings);
+    line-height: var(--lh-tight);
 }
 
 .doc-content h1[id],
@@ -570,14 +586,25 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     visibility: visible;
 }
 
-.doc-content h2 { font-size: 1.5rem; margin: 2rem 0 1rem; }
-.doc-content h3 { font-size: 1.25rem; margin: 1.5rem 0 0.75rem; }
-.doc-content h5 { font-size: 1rem; }
-.doc-content p { margin-bottom: 1rem; }
+.doc-content h2 { font-size: var(--fs-h2); margin: 2rem 0 0.75rem; }
+.doc-content h3 { font-size: var(--fs-h3); margin: 1.5rem 0 0.625rem; }
+.doc-content h4 { font-size: 1.125rem; margin: 1.25rem 0 0.5rem; }
+.doc-content h5 { font-size: 1rem; margin: 1rem 0 0.5rem; }
+.doc-content h6 { font-size: 0.9375rem; margin: 1rem 0 0.5rem; }
+.doc-content .sectnum {
+    color: #666;
+    font-weight: 600;
+    margin-right: 0.5em;
+}
+.doc-content p,
 .doc-content ul,
 .doc-content ol {
-    margin: 0 0 1rem;
-    padding-left: 2.25rem;
+    margin-top: 0;
+    margin-bottom: var(--space-4);
+}
+.doc-content ul,
+.doc-content ol {
+    padding-left: 1.5rem;
 }
 .doc-content ul li > p,
 .doc-content ol li > p {
@@ -585,12 +612,12 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 }
 .doc-content ul li + li,
 .doc-content ol li + li {
-    margin-top: 0.5625rem;
+    margin-top: 0.4em;
 }
 
 .doc-content table.tableblock {
     width: 100%;
-    margin: 1rem 0;
+    margin: var(--space-5) 0;
     border-collapse: collapse;
     border: 1px solid var(--color-border);
 }
@@ -599,7 +626,7 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 .doc-content table.tableblock td {
     border: 1px solid var(--color-border);
     padding: 0.5rem 0.75rem;
-    line-height: 1.15;
+    line-height: 1.35;
     text-align: left;
     vertical-align: top;
 }
@@ -612,15 +639,22 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 .doc-content table.tableblock > caption.title {
     margin-bottom: 0.5rem;
     font-style: italic;
-    font-size: 0.9rem;
+    font-size: var(--fs-small);
+    color: #555;
     text-align: left;
     caption-side: top;
 }
 
+.doc-content .imageblock,
+.doc-content .listingblock {
+    margin: var(--space-5) 0;
+}
+
 .doc-content .imageblock > .title {
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
     font-style: italic;
-    font-size: 0.9rem;
+    font-size: var(--fs-small);
+    color: #555;
 }
 
 .doc-content .imageblock > .content {
@@ -804,6 +838,9 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     }
     .content {
         padding: 1.5rem;
+    }
+    .doc-page {
+        max-width: 100%;
     }
     .breadcrumbs {
         position: static;
