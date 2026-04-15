@@ -288,6 +288,8 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("site-assets/familjen-grotesk.css")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/source-serif-4.css")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/spectral.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/merriweather.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/source-sans-3.css")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/texgyreheroes.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/publicsans.css")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSans/NotoSans-Variable.woff2")));
@@ -319,6 +321,10 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Spectral/Spectral-700-Italic.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Spectral/Spectral-800.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Spectral/Spectral-800-Italic.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Merriweather/Merriweather-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Merriweather/Merriweather-Italic-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/SourceSans3/SourceSans3-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/SourceSans3/SourceSans3-Italic-Variable.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/texgyreheroes/texgyreheros.gyreheros-regular.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/texgyreheroes/texgyreheros.gyreheros-italic.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/texgyreheroes/texgyreheros.gyreheros-bold.woff2")));
@@ -439,6 +445,22 @@ class BibliosIntegrationTest {
         assertTrue(spectralCss.contains("./fonts/Spectral/Spectral-800.woff2"));
         assertTrue(spectralCss.contains("./fonts/Spectral/Spectral-800-Italic.woff2"));
 
+        String merriweatherCss = Files.readString(outputRoot.resolve("site-assets/merriweather.css"));
+        assertTrue(merriweatherCss.contains("font-family: \"Merriweather\";"));
+        assertTrue(merriweatherCss.contains("font-weight: 300 900;"));
+        assertTrue(merriweatherCss.contains("font-style: normal;"));
+        assertTrue(merriweatherCss.contains("font-style: italic;"));
+        assertTrue(merriweatherCss.contains("./fonts/Merriweather/Merriweather-Variable.woff2"));
+        assertTrue(merriweatherCss.contains("./fonts/Merriweather/Merriweather-Italic-Variable.woff2"));
+
+        String sourceSans3Css = Files.readString(outputRoot.resolve("site-assets/source-sans-3.css"));
+        assertTrue(sourceSans3Css.contains("font-family: \"Source Sans 3\";"));
+        assertTrue(sourceSans3Css.contains("font-weight: 200 900;"));
+        assertTrue(sourceSans3Css.contains("font-style: normal;"));
+        assertTrue(sourceSans3Css.contains("font-style: italic;"));
+        assertTrue(sourceSans3Css.contains("./fonts/SourceSans3/SourceSans3-Variable.woff2"));
+        assertTrue(sourceSans3Css.contains("./fonts/SourceSans3/SourceSans3-Italic-Variable.woff2"));
+
         String texGyreHerosCss = Files.readString(outputRoot.resolve("site-assets/texgyreheroes.css"));
         assertTrue(texGyreHerosCss.contains("font-family: \"TeX Gyre Heros\";"));
         assertTrue(texGyreHerosCss.contains("font-weight: 400;"));
@@ -518,6 +540,8 @@ class BibliosIntegrationTest {
         assertTrue(indexPage.contains("/site-assets/familjen-grotesk.css"));
         assertTrue(indexPage.contains("/site-assets/source-serif-4.css"));
         assertTrue(indexPage.contains("/site-assets/spectral.css"));
+        assertTrue(indexPage.contains("/site-assets/merriweather.css"));
+        assertTrue(indexPage.contains("/site-assets/source-sans-3.css"));
         assertTrue(indexPage.contains("/site-assets/texgyreheroes.css"));
         assertFalse(indexPage.contains("/site-assets/publicsans.css"));
         assertTrue(indexPage.contains("/site-assets/prism/prism.js"));

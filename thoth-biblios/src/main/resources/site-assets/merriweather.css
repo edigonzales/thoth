@@ -1,0 +1,17 @@
+/* Merriweather variable font faces */
+
+@font-face {
+  font-family: "Merriweather";
+  src: url("./fonts/Merriweather/Merriweather-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Merriweather";
+  src: url("./fonts/Merriweather/Merriweather-Italic-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: italic;
+  font-display: swap;
+}

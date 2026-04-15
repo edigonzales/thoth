@@ -442,6 +442,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "familjen-grotesk.css");
         copyAsset(assetsDest, "source-serif-4.css");
         copyAsset(assetsDest, "spectral.css");
+        copyAsset(assetsDest, "merriweather.css");
+        copyAsset(assetsDest, "source-sans-3.css");
         copyAsset(assetsDest, "texgyreheroes.css");
         copyAsset(assetsDest, "jetbrainsmono.css");
         copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Regular.woff2");
@@ -482,6 +484,10 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "fonts/Spectral/Spectral-700-Italic.woff2");
         copyAsset(assetsDest, "fonts/Spectral/Spectral-800.woff2");
         copyAsset(assetsDest, "fonts/Spectral/Spectral-800-Italic.woff2");
+        copyAsset(assetsDest, "fonts/Merriweather/Merriweather-Variable.woff2");
+        copyAsset(assetsDest, "fonts/Merriweather/Merriweather-Italic-Variable.woff2");
+        copyAsset(assetsDest, "fonts/SourceSans3/SourceSans3-Variable.woff2");
+        copyAsset(assetsDest, "fonts/SourceSans3/SourceSans3-Italic-Variable.woff2");
         copyAsset(assetsDest, "fonts/texgyreheroes/texgyreheros.gyreheros-regular.woff2");
         copyAsset(assetsDest, "fonts/texgyreheroes/texgyreheros.gyreheros-italic.woff2");
         copyAsset(assetsDest, "fonts/texgyreheroes/texgyreheros.gyreheros-bold.woff2");

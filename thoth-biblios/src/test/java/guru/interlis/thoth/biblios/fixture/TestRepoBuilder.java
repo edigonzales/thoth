@@ -147,6 +147,61 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Extend the basic docs fixture with all standard AsciiDoc admonitions in guide.adoc.
+     */
+    public TestRepoBuilder withAllStandardAdmonitionsInGuide() throws Exception {
+        withBasicDocs();
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Path guide = repoDir.resolve("docs/guide.adoc");
+            Files.writeString(guide, """
+                = User Guide
+                :doctype: book
+
+                This is the user guide.
+
+                == Installation
+
+                Follow these steps to install the software.
+
+                [NOTE]
+                ====
+                Note block for icon-title rendering.
+                ====
+
+                [TIP]
+                ====
+                Tip block for icon-title rendering.
+                ====
+
+                [IMPORTANT]
+                ====
+                Important block for icon-title rendering.
+                ====
+
+                [WARNING]
+                ====
+                Warning block for icon-title rendering.
+                ====
+
+                [CAUTION]
+                ====
+                Caution block for icon-title rendering.
+                ====
+
+                == Configuration
+
+                Configure the software to your needs.
+                """);
+
+            git.add().addFilepattern("docs/guide.adoc").call();
+            git.commit().setMessage("Add standard admonitions to guide").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Extend the basic docs fixture with a sidebar block (****) in guide.adoc.
      */
     public TestRepoBuilder withSidebarBlockInGuide() throws Exception {

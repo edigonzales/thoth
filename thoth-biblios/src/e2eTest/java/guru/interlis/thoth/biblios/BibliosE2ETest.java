@@ -397,6 +397,43 @@ class BibliosE2ETest {
     }
 
     /**
+     * E2E-7b: All standard admonition icon titles are rendered using chapter heading font.
+     */
+    @Test
+    void standardAdmonitionIconTitlesUseChapterHeadingFont() throws Exception {
+        Path repoDir = tempDir.resolve("all-admonitions-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withAllStandardAdmonitionsInGuide();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("All Admonitions Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"admonitionblock note\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"admonitionblock tip\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"admonitionblock important\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"admonitionblock warning\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"admonitionblock caution\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "title=\"Note\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "title=\"Tip\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "title=\"Important\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "title=\"Warning\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "title=\"Caution\"");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock td.icon i[class*=\"icon-\"]::after {");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock td.icon .title {");
+        assertions.assertFileContains("site-assets/styles.css", "content: attr(title);");
+        assertions.assertFileContains("site-assets/styles.css", "font-family: var(--font-chapter-headings);");
+    }
+
+    /**
      * E2E-8: Tables render with caption and dedicated table styles.
      */
     @Test

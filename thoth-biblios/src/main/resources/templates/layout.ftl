@@ -18,6 +18,8 @@
     <link rel="stylesheet" href="${basePath}/site-assets/familjen-grotesk.css">
     <link rel="stylesheet" href="${basePath}/site-assets/source-serif-4.css">
     <link rel="stylesheet" href="${basePath}/site-assets/spectral.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/merriweather.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/source-sans-3.css">
     <link rel="stylesheet" href="${basePath}/site-assets/texgyreheroes.css">
     <link rel="stylesheet" href="${basePath}/site-assets/frutiger-serif.css">
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">

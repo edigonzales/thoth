@@ -27,12 +27,12 @@
     --site-header-height: 60px;
     --breadcrumb-height: 0px;
     --anchor-offset: 60px;
-    --font-body: "Spectral", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-sidebar-toc: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-chapter-headings: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-navbar: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-index-page: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-breadcrumb: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-body: "Merriweather", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-sidebar-toc: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-chapter-headings: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-navbar: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-index-page: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-breadcrumb: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     --font-weight-body: 400;
     --font-weight-sidebar-toc: 400;
     --font-weight-chapter-headings: 700;
@@ -104,6 +104,7 @@ a:hover { text-decoration: underline; }
 }
 
 .site-title-text {
+    font-weight: 700;
     line-height: 1.2;
 }
 
@@ -248,7 +249,7 @@ a:hover { text-decoration: underline; }
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
     color: var(--color-text);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
 }
 
 .nav-link:hover {
@@ -645,6 +646,15 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     margin-bottom: 0.4rem;
 }
 
+.doc-content .admonitionblock td.icon i[class*="icon-"]::after {
+    content: attr(title);
+    font-family: var(--font-chapter-headings);
+}
+
+.doc-content .admonitionblock td.icon .title {
+    font-family: var(--font-chapter-headings);
+}
+
 .doc-content .admonitionblock.note {
     margin: 1.25rem 0;
     background: #f1fafe;
@@ -681,10 +691,6 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     line-height: 1;
     text-transform: uppercase;
     font-style: normal;
-}
-
-.doc-content .admonitionblock.note td.icon i.icon-note::after {
-    content: attr(title);
 }
 
 .doc-content .admonitionblock.note td.icon i.icon-note::before,
