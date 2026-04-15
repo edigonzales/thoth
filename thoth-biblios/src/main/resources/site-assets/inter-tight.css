@@ -1,0 +1,17 @@
+/* Inter Tight variable font faces */
+
+@font-face {
+  font-family: "Inter Tight";
+  src: url("./fonts/InterTight/InterTight-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter Tight";
+  src: url("./fonts/InterTight/InterTight-Italic-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
