@@ -274,6 +274,156 @@ class AsciidoctorRendererTest {
         }
     }
 
+    @Test
+    void marksStandaloneMarkerParagraphBeforeListingBlock() {
+        String content = """
+            = Marker
+
+            ※
+
+            .Syntaxregeln:
+            ----
+            Name = Letter { Letter | Digit | '_' }.
+            ----
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            assertTrue(html.contains("class=\"paragraph marker-paragraph\""));
+            assertTrue(html.contains("<p>※</p>"));
+            assertTrue(html.contains("listingblock"));
+            assertTrue(html.matches("(?s).*class=\"[^\"]*listingblock[^\"]*marker-following-marker[^\"]*\".*"));
+        }
+    }
+
+    @Test
+    void marksSingleLinkMarkerParagraphBeforeListingBlock() {
+        String content = """
+            = Marker
+
+            [[syntax-anchor]]
+            == Ziel
+
+            <<syntax-anchor,※>>
+
+            .Syntaxregeln:
+            ----
+            Name = Letter { Letter | Digit | '_' }.
+            ----
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            assertTrue(html.contains("class=\"paragraph marker-paragraph\""));
+            assertTrue(html.contains(">※</a>"));
+            assertTrue(html.matches("(?s).*class=\"[^\"]*listingblock[^\"]*marker-following-marker[^\"]*\".*"));
+        }
+    }
+
+    @Test
+    void marksStandaloneMarkerParagraphBeforeSyntaxParagraphAndListingBlock() {
+        String content = """
+            = Marker
+
+            ※
+
+            Syntaxregeln:
+
+            ----
+            Name = Letter { Letter | Digit | '_' }.
+            ----
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            assertTrue(html.contains("class=\"paragraph marker-paragraph\""));
+            assertTrue(html.contains("<p>Syntaxregeln:</p>"));
+            assertTrue(html.contains("listingblock"));
+            assertTrue(html.matches("(?s).*class=\"[^\"]*listingblock[^\"]*marker-following-marker[^\"]*\".*"));
+        }
+    }
+
+    @Test
+    void marksStandaloneAnchorMarkerLinkedToRawHtmlListingBlock() {
+        String content = """
+            = Marker
+
+            ++++
+            <div class="sect2">
+              <a href="#3_3_C1">※</a>
+              <div id="2_3_C1"></div>
+              <div id="3_3_C1" class="listingblock">
+                <div class="title">Syntaxregel:</div>
+                <div class="content">
+                  <pre>INTERLIS2Def = 'INTERLIS' Version-Dec ';'</pre>
+                </div>
+              </div>
+            </div>
+            ++++
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            assertTrue(html.matches("(?s).*<a[^>]*class=\"[^\"]*marker-anchor[^\"]*\"[^>]*href=\"#3_3_C1\"[^>]*>※</a>.*")
+                || html.matches("(?s).*<a[^>]*href=\"#3_3_C1\"[^>]*class=\"[^\"]*marker-anchor[^\"]*\"[^>]*>※</a>.*"));
+            assertTrue(html.matches("(?s).*<div[^>]*id=\"3_3_C1\"[^>]*class=\"[^\"]*listingblock[^\"]*marker-following-marker[^\"]*\"[^>]*>.*")
+                || html.matches("(?s).*<div[^>]*class=\"[^\"]*listingblock[^\"]*marker-following-marker[^\"]*\"[^>]*id=\"3_3_C1\"[^>]*>.*"));
+        }
+    }
+
+    @Test
+    void doesNotMarkNormalParagraphBeforeListingBlock() {
+        String content = """
+            = Marker
+
+            Hinweis.
+
+            .Syntaxregeln:
+            ----
+            Name = Letter { Letter | Digit | '_' }.
+            ----
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            assertFalse(html.contains("class=\"paragraph marker-paragraph\""));
+        }
+    }
+
+    @Test
+    void doesNotMarkMarkerParagraphWithoutFollowingListingBlock() {
+        String content = """
+            = Marker
+
+            ※
+
+            Nachfolgender Fliesstext.
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            assertFalse(html.contains("class=\"paragraph marker-paragraph\""));
+        }
+    }
+
+    @Test
+    void doesNotMarkStandaloneAnchorMarkerWithoutRelatedListingBlock() {
+        String content = """
+            = Marker
+
+            ++++
+            <a href="#missing">※</a>
+            <div id="missing"></div>
+            ++++
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            assertFalse(html.contains("marker-anchor"));
+            assertFalse(html.contains("marker-following-marker"));
+        }
+    }
+
     private String extractNoteCaption(String html) {
         Pattern iconTitleAttribute = Pattern.compile(
             "(?is)<td\\s+class=\"icon\"[^>]*>.*?<i[^>]*\\btitle=\"([^\"]+?)\"[^>]*>"

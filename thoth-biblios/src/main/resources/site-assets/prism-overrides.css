@@ -8,7 +8,7 @@ pre[class*="language-"] > code,
 .doc-content pre[class*="language-"] > code,
 .doc-content pre > code {
     background: var(--color-sidebarblock-bg);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace !important;
 }
 
@@ -17,7 +17,7 @@ pre[class*="language-"] > code,
 .doc-content :not(pre) > code[class*="language-"],
 .doc-content :not(pre) > code {
     background: var(--color-sidebarblock-bg);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace !important;
 }
 

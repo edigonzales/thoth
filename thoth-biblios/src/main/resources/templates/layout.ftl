@@ -6,22 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><#if pageTitle?has_content>${pageTitle} - </#if>${siteTitle}</title>
     <link rel="stylesheet" href="${basePath}/site-assets/jetbrainsmono.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/zurich-light.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/zurich.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/zurich-condensed.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/notosans.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/notoserif.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/inter.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/literata.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/inter-tight.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/geist.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/familjen-grotesk.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/source-serif-4.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/spectral.css">
     <link rel="stylesheet" href="${basePath}/site-assets/merriweather.css">
     <link rel="stylesheet" href="${basePath}/site-assets/source-sans-3.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/texgyreheroes.css">
-    <link rel="stylesheet" href="${basePath}/site-assets/frutiger-serif.css">
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">
     <#if syntaxHighlightingEnabled>
     <link rel="stylesheet" href="${basePath}/site-assets/prism/prism.css">

@@ -35,7 +35,7 @@
     --font-breadcrumb: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     --font-weight-body: 400;
     --font-weight-sidebar-toc: 400;
-    --font-weight-chapter-headings: 700;
+    --font-weight-chapter-headings: 900;
     --font-weight-navbar: 400;
     --font-weight-index-page: 400;
     --font-weight-breadcrumb: 400;
@@ -440,6 +440,7 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 
 .home h1 {
     font-size: 2.5rem;
+    line-height: 1.15;
     margin-bottom: 0.5rem;
 }
 
@@ -471,6 +472,7 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 
 .component-card h2 {
     font-size: 1.25rem;
+    line-height: 1.2;
     margin-bottom: 0.75rem;
 }
 
@@ -528,7 +530,21 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 .doc-content h6 {
     font-family: var(--font-chapter-headings);
     font-weight: var(--font-weight-chapter-headings);
-    line-height: var(--lh-tight);
+}
+
+.doc-content h1 {
+    line-height: 1.15;
+}
+
+.doc-content h2 {
+    line-height: 1.2;
+}
+
+.doc-content h3,
+.doc-content h4,
+.doc-content h5,
+.doc-content h6 {
+    line-height: 1.25;
 }
 
 .doc-content h1[id],
@@ -665,6 +681,37 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     padding: 0;
 }
 
+.doc-content .paragraph.marker-paragraph > p {
+    margin-bottom: 0;
+    line-height: 1;
+}
+
+.doc-content .listingblock.marker-following-marker {
+    margin-top: 0.125rem;
+}
+
+.doc-content a.marker-anchor {
+    display: inline-block;
+    line-height: 1;
+    margin-bottom: 0.125rem;
+}
+
+.doc-content .paragraph.marker-paragraph + .listingblock {
+    margin-top: 0.125rem;
+}
+
+.doc-content .paragraph.marker-paragraph + .listingblock > .title {
+    margin-top: 0;
+}
+
+.doc-content .paragraph.marker-paragraph + .paragraph > p {
+    margin-bottom: 0.125rem;
+}
+
+.doc-content .paragraph.marker-paragraph + .paragraph + .listingblock {
+    margin-top: 0.125rem;
+}
+
 .doc-content .sidebarblock {
     margin: 1.25rem 0;
     background: var(--color-sidebarblock-bg);
@@ -759,12 +806,12 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     border-radius: 4px;
     overflow-x: auto;
     margin: .5em 0;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
 }
 .doc-content code {
     font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
-    font-size: 0.9em;
+    font-size: 0.95em;
 }
 
 /* Search Page */

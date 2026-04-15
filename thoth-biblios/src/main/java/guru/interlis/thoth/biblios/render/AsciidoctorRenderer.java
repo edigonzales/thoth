@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Renders AsciiDoc content to HTML using AsciidoctorJ.
@@ -24,6 +25,7 @@ import java.util.Locale;
 public final class AsciidoctorRenderer implements AutoCloseable {
 
     private static final String DEFAULT_LANGUAGE = "en";
+    private static final Set<String> STANDALONE_MARKERS = Set.of("*", "§", "※", "✱", "✶", "✳");
     private final Asciidoctor asciidoctor;
 
     public AsciidoctorRenderer() {
@@ -194,6 +196,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             return html != null ? html : "";
         }
         org.jsoup.nodes.Document document = Jsoup.parseBodyFragment(html);
+        markStandaloneMarkersBeforeListings(document);
         for (Element code : document.select("pre > code")) {
             Element pre = code.parent();
             String language = detectLanguage(code, pre);
@@ -209,6 +212,134 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             }
         }
         return document.body().html();
+    }
+
+    private void markStandaloneMarkersBeforeListings(org.jsoup.nodes.Document document) {
+        markStandaloneMarkerParagraphsBeforeListings(document);
+        markStandaloneMarkerAnchorsBeforeListings(document);
+    }
+
+    private void markStandaloneMarkerParagraphsBeforeListings(org.jsoup.nodes.Document document) {
+        for (Element paragraph : document.select("div.paragraph")) {
+            Element textParagraph = paragraph.selectFirst("> p");
+            if (textParagraph == null || !isStandaloneMarkerParagraph(textParagraph)) {
+                continue;
+            }
+            Element listing = findListingNearMarkerParagraph(paragraph);
+            if (listing != null) {
+                paragraph.addClass("marker-paragraph");
+                listing.addClass("marker-following-marker");
+            }
+        }
+    }
+
+    private void markStandaloneMarkerAnchorsBeforeListings(org.jsoup.nodes.Document document) {
+        for (Element anchor : document.select("a[href]")) {
+            if (!isStandaloneMarkerAnchor(anchor)) {
+                continue;
+            }
+            Element listing = findListingNearMarkerAnchor(anchor);
+            if (listing != null) {
+                anchor.addClass("marker-anchor");
+                listing.addClass("marker-following-marker");
+            }
+        }
+    }
+
+    private Element findListingNearMarkerParagraph(Element paragraph) {
+        Element nextSibling = nextRelevantSibling(paragraph);
+        if (isListingBlock(nextSibling)) {
+            return nextSibling;
+        }
+        if (isParagraph(nextSibling)) {
+            Element nextAfterParagraph = nextRelevantSibling(nextSibling);
+            if (isListingBlock(nextAfterParagraph)) {
+                return nextAfterParagraph;
+            }
+        }
+        return null;
+    }
+
+    private Element findListingNearMarkerAnchor(Element anchor) {
+        Element listingByReference = resolveListingFromHref(anchor);
+        if (listingByReference != null) {
+            return listingByReference;
+        }
+
+        Element nextSibling = nextRelevantSibling(anchor);
+        if (isListingBlock(nextSibling)) {
+            return nextSibling;
+        }
+        if (isParagraph(nextSibling)) {
+            Element nextAfterParagraph = nextRelevantSibling(nextSibling);
+            if (isListingBlock(nextAfterParagraph)) {
+                return nextAfterParagraph;
+            }
+        }
+        return null;
+    }
+
+    private Element resolveListingFromHref(Element anchor) {
+        String href = anchor.attr("href").trim();
+        if (!href.startsWith("#") || href.length() <= 1) {
+            return null;
+        }
+        String targetId = href.substring(1);
+        Element target = anchor.ownerDocument() != null ? anchor.ownerDocument().getElementById(targetId) : null;
+        return isListingBlock(target) ? target : null;
+    }
+
+    private Element nextRelevantSibling(Element element) {
+        Element next = element != null ? element.nextElementSibling() : null;
+        while (isAnchorTargetDiv(next)) {
+            next = next.nextElementSibling();
+        }
+        return next;
+    }
+
+    private boolean isAnchorTargetDiv(Element element) {
+        if (element == null || !"div".equals(element.tagName()) || !element.hasAttr("id")) {
+            return false;
+        }
+        if (!element.classNames().isEmpty()) {
+            return false;
+        }
+        return element.children().isEmpty() && element.text().isBlank();
+    }
+
+    private boolean isParagraph(Element element) {
+        return element != null && "div".equals(element.tagName()) && element.hasClass("paragraph");
+    }
+
+    private boolean isListingBlock(Element element) {
+        return element != null && "div".equals(element.tagName()) && element.hasClass("listingblock");
+    }
+
+    private boolean isStandaloneMarkerAnchor(Element anchor) {
+        String visibleText = anchor.text().trim();
+        if (!STANDALONE_MARKERS.contains(visibleText)) {
+            return false;
+        }
+        String ownText = anchor.ownText();
+        return ownText != null && STANDALONE_MARKERS.contains(ownText.trim());
+    }
+
+    private boolean isStandaloneMarkerParagraph(Element paragraph) {
+        String visibleText = paragraph.text().trim();
+        if (!STANDALONE_MARKERS.contains(visibleText)) {
+            return false;
+        }
+
+        if (paragraph.childrenSize() == 0) {
+            return true;
+        }
+        if (paragraph.childrenSize() != 1 || !"a".equals(paragraph.child(0).tagName())) {
+            return false;
+        }
+
+        String ownText = paragraph.ownText();
+        String linkedText = paragraph.child(0).text().trim();
+        return (ownText == null || ownText.isBlank()) && STANDALONE_MARKERS.contains(linkedText);
     }
 
     private String detectLanguage(Element code, Element pre) {

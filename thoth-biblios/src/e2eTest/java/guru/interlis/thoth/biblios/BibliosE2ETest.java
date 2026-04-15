@@ -88,7 +88,7 @@ class BibliosE2ETest {
         assertions.assertFileContains("site-assets/styles.css",
             ".doc-content ul li + li,\n" +
                 ".doc-content ol li + li {\n" +
-                "    margin-top: 0.5625rem;\n" +
+                "    margin-top: 0.4em;\n" +
                 "}");
         assertions.assertFileContains("site-assets/styles.css",
             ".doc-content ul li > p,\n" +
