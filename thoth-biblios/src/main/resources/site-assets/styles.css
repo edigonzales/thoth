@@ -215,6 +215,7 @@ a:hover { text-decoration: underline; }
 }
 
 .sidebar-nav {
+    --toc-subitem-margin-y: 0rem;
     font-family: var(--font-sidebar-toc);
     font-weight: var(--font-weight-sidebar-toc);
     line-height: 1.2;
@@ -227,6 +228,11 @@ a:hover { text-decoration: underline; }
 
 .nav-item {
     margin: 0.25rem 0;
+}
+
+/* Keep top-level spacing, but tighten nested sidebar TOC items for readability. */
+.sidebar-nav .nav-list .nav-list > .nav-item {
+    margin: var(--toc-subitem-margin-y) 0;
 }
 
 .nav-entry {
