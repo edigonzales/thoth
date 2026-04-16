@@ -236,6 +236,42 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Extend the basic docs fixture with a listing callout and colist legend in guide.adoc.
+     */
+    public TestRepoBuilder withListingCalloutInGuide() throws Exception {
+        withBasicDocs();
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Path guide = repoDir.resolve("docs/guide.adoc");
+            Files.writeString(guide, """
+                = User Guide
+                :doctype: book
+
+                This is the user guide.
+
+                == Installation
+
+                .Syntaxregeln:
+                ----
+                ClassDef = 'CLASS' Class-Name
+                         [ 'EXTENDS' ClassRef ] '=' <1>
+                ----
+
+                <1> Im PDF-Dokument des Referenzhandbuchs (Version 2.1.0) steht an dieser Stelle ClassOrStructureRef.
+
+                == Configuration
+
+                Configure the software to your needs.
+                """);
+
+            git.add().addFilepattern("docs/guide.adoc").call();
+            git.commit().setMessage("Add listing callout to guide").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Extend the basic docs fixture with a table and caption in guide.adoc.
      */
     public TestRepoBuilder withTableInGuide() throws Exception {

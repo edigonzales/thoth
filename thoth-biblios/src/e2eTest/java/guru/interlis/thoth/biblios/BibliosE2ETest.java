@@ -499,6 +499,36 @@ class BibliosE2ETest {
     }
 
     /**
+     * E2E-10: Listing callouts render marker circles and colist legend styling.
+     */
+    @Test
+    void listingCalloutsAreRenderedAndStyled() throws Exception {
+        Path repoDir = tempDir.resolve("listing-callout-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withListingCalloutInGuide();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Listing Callout Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"conum\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "data-value=\"1\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"colist");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content i.conum::before {");
+        assertions.assertFileContains("site-assets/styles.css", "content: attr(data-value);");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content i.conum + b {");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .colist > table td:first-child {");
+    }
+
+    /**
      * E2E-7: Global search index is correctly populated.
      * Verifies: search-index.json contains entries from all components/versions.
      */

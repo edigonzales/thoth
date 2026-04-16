@@ -33,6 +33,7 @@
     --font-navbar: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     --font-index-page: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     --font-breadcrumb: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-conum: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     --font-weight-body: 400;
     --font-weight-sidebar-toc: 400;
     --font-weight-chapter-headings: 900;
@@ -677,6 +678,12 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     padding: 0;
 }
 
+.doc-content .imageblock img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
 .doc-content .listingblock > .content {
     padding: 0;
 }
@@ -798,6 +805,60 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 
 .doc-content .admonitionblock.note td.content > .title {
     margin-bottom: 0.4rem;
+}
+
+.doc-content i.conum {
+    font-family: var(--font-conum);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75em;
+    height: 1.75em;
+    margin-left: 0.35em;
+    border-radius: 50%;
+    background: #222;
+    color: #fff;
+    font-size: 0.72em;
+    font-weight: 700;
+    font-style: normal;
+    line-height: 1;
+    vertical-align: baseline;
+    transform: translateY(-0.06em);
+}
+
+.doc-content i.conum::before {
+    content: attr(data-value);
+}
+
+.doc-content i.conum + b {
+    display: none;
+}
+
+.doc-content .listingblock i.conum {
+    margin-left: 0.45em;
+}
+
+.doc-content .colist > table {
+    margin: var(--space-4) 0;
+    border-collapse: collapse;
+    border: 0;
+}
+
+.doc-content .colist > table td {
+    border: 0;
+    padding: 0.2rem 0;
+    vertical-align: top;
+}
+
+.doc-content .colist > table td:first-child {
+    width: 1.9rem;
+    padding-right: 0.55rem;
+    white-space: nowrap;
+}
+
+.doc-content .colist > table td:first-child i.conum {
+    margin-left: 0;
+    transform: translateY(0.02em);
 }
 
 .doc-content pre {
