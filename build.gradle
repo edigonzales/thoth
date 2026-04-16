@@ -2,15 +2,15 @@ plugins {
     id 'java'
 }
 
-// Root project - no application plugin, just common configuration
+apply from: "$rootDir/gradle/versioning.gradle"
+
 group = 'guru.interlis'
-version = '0.0.1'
 
 subprojects {
     apply plugin: 'java'
 
     group = 'guru.interlis'
-    version = '0.0.1'
+    version = '0.0.1-SNAPSHOT'
 
     java {
         toolchain {
