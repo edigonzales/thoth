@@ -96,6 +96,8 @@ subprojects {
 // Applied to thoth-blog and thoth-biblios
 // ========================================
 def configureCliModule = { Project proj ->
+    proj.apply plugin: 'maven-publish'
+
     // JAR manifest with version from build
     proj.jar {
         manifest {
@@ -139,6 +141,39 @@ def configureCliModule = { Project proj ->
     }
     proj.tasks.named('build') {
         dependsOn proj.tasks.named('fatJar')
+    }
+
+    proj.publishing {
+        publications {
+            fatJar(MavenPublication) {
+                groupId = proj.group
+                artifactId = proj.name
+                version = proj.version.toString()
+                artifact(proj.tasks.named('fatJar'))
+            }
+        }
+        repositories {
+            maven {
+                name = 'remote'
+                url = uri(System.getenv('MAVEN_REPOSITORY_URL') ?: 'https://invalid.example.local/repository')
+                credentials {
+                    username = System.getenv('MAVEN_USERNAME')
+                    password = System.getenv('MAVEN_PASSWORD')
+                }
+            }
+        }
+    }
+
+    proj.tasks.withType(org.gradle.api.publish.maven.tasks.PublishToMavenRepository).configureEach {
+        doFirst {
+            def missingEnv = ['MAVEN_REPOSITORY_URL', 'MAVEN_USERNAME', 'MAVEN_PASSWORD']
+                .findAll { !System.getenv(it) }
+            if (!missingEnv.isEmpty()) {
+                throw new GradleException(
+                    "Missing required environment variables for publishing: ${missingEnv.join(', ')}"
+                )
+            }
+        }
     }
 }
 
