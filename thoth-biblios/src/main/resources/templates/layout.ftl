@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="${basePath}/site-assets/jetbrainsmono.css">
     <link rel="stylesheet" href="${basePath}/site-assets/merriweather.css">
     <link rel="stylesheet" href="${basePath}/site-assets/source-sans-3.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/notoserif.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/open-sans.css">
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">
     <#if syntaxHighlightingEnabled>
     <link rel="stylesheet" href="${basePath}/site-assets/prism/prism.css">

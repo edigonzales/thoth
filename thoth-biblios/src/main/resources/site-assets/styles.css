@@ -27,16 +27,16 @@
     --site-header-height: 60px;
     --breadcrumb-height: 0px;
     --anchor-offset: 60px;
-    --font-body: "Merriweather", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-sidebar-toc: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-chapter-headings: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-navbar: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-index-page: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-breadcrumb: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-conum: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-body: "Noto Serif", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-sidebar-toc: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-chapter-headings: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-navbar: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-index-page: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-breadcrumb: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-conum: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     --font-weight-body: 400;
     --font-weight-sidebar-toc: 400;
-    --font-weight-chapter-headings: 900;
+    --font-weight-chapter-headings: 800;
     --font-weight-navbar: 400;
     --font-weight-index-page: 400;
     --font-weight-breadcrumb: 400;
@@ -57,7 +57,8 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-    font-size: 100%;
+    /*font-size: 100%;*/
+    font-size: 18px;
 }
 
 body {
@@ -261,7 +262,7 @@ a:hover { text-decoration: underline; }
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
     color: var(--color-text);
-    font-size: 1rem;
+    font-size: 0.85rem;
 }
 
 .nav-link:hover {

@@ -273,6 +273,8 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("site-assets/jetbrainsmono.css")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/merriweather.css")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/source-sans-3.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/notoserif.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/open-sans.css")));
 
         assertFalse(Files.exists(outputRoot.resolve("site-assets/frutiger-light.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/frutiger-serif.css")));
@@ -280,7 +282,6 @@ class BibliosIntegrationTest {
         assertFalse(Files.exists(outputRoot.resolve("site-assets/zurich.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/zurich-condensed.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/notosans.css")));
-        assertFalse(Files.exists(outputRoot.resolve("site-assets/notoserif.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/inter.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/literata.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/inter-tight.css")));
@@ -297,11 +298,14 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Merriweather/Merriweather-Italic-Variable.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/SourceSans3/SourceSans3-Variable.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/SourceSans3/SourceSans3-Italic-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSerif/NotoSerif-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSerif/NotoSerif-Italic-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/OpenSans/OpenSans-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/OpenSans/OpenSans-Italic-Variable.woff2")));
 
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/Zurich")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/Zurich_Condensed")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSans")));
-        assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSerif")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/Inter")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/Literata")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/InterTight")));
@@ -325,10 +329,27 @@ class BibliosIntegrationTest {
         assertTrue(sourceSans3Css.contains("font-family: \"Source Sans 3\";"));
         assertTrue(sourceSans3Css.contains("./fonts/SourceSans3/SourceSans3-Variable.woff2"));
 
+        String notoSerifCss = Files.readString(outputRoot.resolve("site-assets/notoserif.css"));
+        assertTrue(notoSerifCss.contains("font-family: \"Noto Serif\";"));
+        assertTrue(notoSerifCss.contains("./fonts/NotoSerif/NotoSerif-Variable.woff2"));
+        assertTrue(notoSerifCss.contains("./fonts/NotoSerif/NotoSerif-Italic-Variable.woff2"));
+
+        String openSansCss = Files.readString(outputRoot.resolve("site-assets/open-sans.css"));
+        assertTrue(openSansCss.contains("font-family: \"Open Sans\";"));
+        assertTrue(openSansCss.contains("font-weight: 300 800;"));
+        assertTrue(openSansCss.contains("font-style: normal;"));
+        assertTrue(openSansCss.contains("font-style: italic;"));
+        assertTrue(openSansCss.contains("./fonts/OpenSans/OpenSans-Variable.woff2"));
+        assertTrue(openSansCss.contains("./fonts/OpenSans/OpenSans-Italic-Variable.woff2"));
+
         String stylesCss = Files.readString(outputRoot.resolve("site-assets/styles.css"));
-        assertTrue(stylesCss.contains("--font-body: \"Merriweather\""));
-        assertTrue(stylesCss.contains("--font-sidebar-toc: \"Source Sans 3\""));
-        assertTrue(stylesCss.contains("--font-chapter-headings: \"Source Sans 3\""));
+        assertTrue(stylesCss.contains("--font-body: \"Noto Serif\""));
+        assertTrue(stylesCss.contains("--font-sidebar-toc: \"Open Sans\""));
+        assertTrue(stylesCss.contains("--font-chapter-headings: \"Open Sans\""));
+        assertTrue(stylesCss.contains("--font-navbar: \"Open Sans\""));
+        assertTrue(stylesCss.contains("--font-index-page: \"Open Sans\""));
+        assertTrue(stylesCss.contains("--font-breadcrumb: \"Open Sans\""));
+        assertTrue(stylesCss.contains("--font-conum: \"Open Sans\""));
         assertTrue(stylesCss.contains("font-family: \"JetBrains Mono\", \"SFMono-Regular\", Menlo, Consolas, \"Liberation Mono\", monospace;"));
         assertFalse(stylesCss.contains("TeX Gyre Heros"));
 
@@ -339,6 +360,8 @@ class BibliosIntegrationTest {
         assertTrue(indexPage.contains("/site-assets/jetbrainsmono.css"));
         assertTrue(indexPage.contains("/site-assets/merriweather.css"));
         assertTrue(indexPage.contains("/site-assets/source-sans-3.css"));
+        assertTrue(indexPage.contains("/site-assets/notoserif.css"));
+        assertTrue(indexPage.contains("/site-assets/open-sans.css"));
         assertFalse(indexPage.contains("/site-assets/zurich.css"));
         assertFalse(indexPage.contains("/site-assets/notosans.css"));
         assertFalse(indexPage.contains("/site-assets/texgyreheroes.css"));

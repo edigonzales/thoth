@@ -427,13 +427,10 @@
       }
     }
 
-    function ensureBranchForChapterVisible(chapterId) {
-      if (!chapterId) {
-        return;
-      }
-      const branch = collapsibleByChapterId.get(chapterId);
-      if (branch) {
-        setBranchExpanded(branch, true);
+    function syncExpandedBranchesForChapter(chapterId) {
+      const activeBranch = chapterId ? (collapsibleByChapterId.get(chapterId) || null) : null;
+      for (const item of collapsibleItems) {
+        setBranchExpanded(item, item === activeBranch);
       }
     }
 
@@ -458,7 +455,7 @@
       if (!chapterId || !chapterPathById.has(chapterId)) {
         return;
       }
-      ensureBranchForChapterVisible(chapterId);
+      syncExpandedBranchesForChapter(chapterId);
       if (chapterId === activeChapterId) {
         return;
       }

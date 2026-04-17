@@ -431,6 +431,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "jetbrainsmono.css");
         copyAsset(assetsDest, "merriweather.css");
         copyAsset(assetsDest, "source-sans-3.css");
+        copyAsset(assetsDest, "notoserif.css");
+        copyAsset(assetsDest, "open-sans.css");
         copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Regular.woff2");
         copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Bold.woff2");
         copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Italic.woff2");
@@ -438,6 +440,10 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "fonts/Merriweather/Merriweather-Italic-Variable.woff2");
         copyAsset(assetsDest, "fonts/SourceSans3/SourceSans3-Variable.woff2");
         copyAsset(assetsDest, "fonts/SourceSans3/SourceSans3-Italic-Variable.woff2");
+        copyAsset(assetsDest, "fonts/NotoSerif/NotoSerif-Variable.woff2");
+        copyAsset(assetsDest, "fonts/NotoSerif/NotoSerif-Italic-Variable.woff2");
+        copyAsset(assetsDest, "fonts/OpenSans/OpenSans-Variable.woff2");
+        copyAsset(assetsDest, "fonts/OpenSans/OpenSans-Italic-Variable.woff2");
         copyAsset(assetsDest, "styles.css");
         copyAsset(assetsDest, "lunr.min.js");
         copyAsset(assetsDest, "search.js");
