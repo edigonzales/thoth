@@ -108,7 +108,22 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         // Generate search index
         generateSearchIndex();
 
+        if (config.pdf() != null && config.pdf().enabled()) {
+            new BibliosPdfGenerator(config, catalog, outputRoot).generate();
+        } else if (hasSourceLevelPdfEnablement()) {
+            new BibliosPdfGenerator(config, catalog, outputRoot).generate();
+        }
+
         System.out.println("[info] Site generation complete.");
+    }
+
+    private boolean hasSourceLevelPdfEnablement() {
+        for (var source : config.content().sources()) {
+            if (source.pdf() != null && Boolean.TRUE.equals(source.pdf().enabled())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void generateHomePage() throws IOException {

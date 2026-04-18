@@ -12,10 +12,13 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -91,12 +94,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
      */
     public String renderString(String content, String language) {
         try {
-            AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
-            attributes.attribute("source-highlighter", "null");
-            attributes.attribute("icons", "font");
-            attributes.attribute("sectanchors", "");
-            String resolvedLanguage = normalizeLanguage(language);
-            attributes.attribute("lang", resolvedLanguage);
+            AttributesBuilder attributes = baseHtmlAttributes(language);
 
             OptionsBuilder options = org.asciidoctor.Options.builder()
                 .backend("html5")
@@ -145,13 +143,18 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         }
     }
 
+    public void writePdf(Path sourcePath, Path targetPath, Map<String, Object> pdfAttributes, String language) throws IOException {
+        try {
+            Files.createDirectories(targetPath.toAbsolutePath().normalize().getParent());
+            Options options = buildPdfOptions(sourcePath, targetPath, pdfAttributes, language);
+            asciidoctor.convertFile(sourcePath.toFile(), options);
+        } catch (Exception e) {
+            throw new IOException("Failed to render PDF from AsciiDoc file: " + sourcePath, e);
+        }
+    }
+
     private Options buildOptions(Path sourcePath, RenderOptions options) {
-        AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
-        attributes.attribute("source-highlighter", "null");
-        attributes.attribute("icons", "font");
-        attributes.attribute("sectanchors", "");
-        String resolvedLanguage = normalizeLanguage(options.language());
-        attributes.attribute("lang", resolvedLanguage);
+        AttributesBuilder attributes = baseHtmlAttributes(options.language());
 
         if (options.sectionNumbers()) {
             attributes.attribute("sectnums", "");
@@ -174,6 +177,38 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             .baseDir(sourcePath.getParent().toFile())
             .attributes(attributes.build())
             .build();
+    }
+
+    private Options buildPdfOptions(Path sourcePath, Path targetPath, Map<String, Object> pdfAttributes, String language) {
+        AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
+        String resolvedLanguage = normalizeLanguage(language);
+        attributes.attribute("lang", resolvedLanguage);
+
+        Map<String, Object> mergedAttributes = new LinkedHashMap<>();
+        if (pdfAttributes != null) {
+            mergedAttributes.putAll(pdfAttributes);
+        }
+        for (Map.Entry<String, Object> entry : mergedAttributes.entrySet()) {
+            attributes.attribute(entry.getKey(), entry.getValue());
+        }
+
+        return org.asciidoctor.Options.builder()
+            .backend("pdf")
+            .safe(SafeMode.UNSAFE)
+            .toFile(targetPath.toFile())
+            .baseDir(sourcePath.getParent().toFile())
+            .attributes(attributes.build())
+            .build();
+    }
+
+    private AttributesBuilder baseHtmlAttributes(String language) {
+        AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
+        attributes.attribute("source-highlighter", "null");
+        attributes.attribute("icons", "font");
+        attributes.attribute("sectanchors", "");
+        String resolvedLanguage = normalizeLanguage(language);
+        attributes.attribute("lang", resolvedLanguage);
+        return attributes;
     }
 
     private static String normalizeLanguage(String language) {

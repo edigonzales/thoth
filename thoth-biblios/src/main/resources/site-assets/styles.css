@@ -337,7 +337,7 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 }
 
 /* Content */
-.content {
+.layout > main.content {
     flex: 1;
     padding: 2rem 3rem;
     min-width: 0;
@@ -460,6 +460,7 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 }
 
 .component-card {
+    position: relative;
     display: block;
     padding: 1.5rem;
     border: 1px solid var(--color-border);
@@ -467,15 +468,35 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     transition: box-shadow 0.2s;
 }
 
-.component-card:hover {
+.component-card:hover,
+.component-card:focus-within {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     text-decoration: none;
+}
+
+.component-card-default-link {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: 6px;
+}
+
+.component-card-default-link:focus-visible {
+    outline: 2px solid rgba(3, 102, 214, 0.45);
+    outline-offset: 2px;
 }
 
 .component-card h2 {
     font-size: 1.25rem;
     line-height: 1.2;
     margin-bottom: 0.75rem;
+    position: relative;
+    z-index: 0;
+}
+
+.versions {
+    position: relative;
+    z-index: 2;
 }
 
 .version-tag {
@@ -485,6 +506,14 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     border-radius: 3px;
     font-size: 0.8rem;
     margin-right: 0.4rem;
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.version-tag:hover,
+.version-tag:focus-visible {
+    background: var(--ng-200);
+    text-decoration: none;
 }
 
 /* Component Home */
@@ -643,10 +672,31 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 .doc-content table.tableblock th,
 .doc-content table.tableblock td {
     border: 1px solid var(--color-border);
-    padding: 0.5rem 0.75rem;
+    padding: 0.3rem 0.45rem;
     line-height: 1.35;
     text-align: left;
     vertical-align: top;
+}
+
+.doc-content table.tableblock td.tableblock > .content {
+    margin: 0;
+    padding: 0;
+}
+
+.doc-content table.tableblock td.tableblock > .content > :first-child {
+    margin-top: 0;
+}
+
+.doc-content table.tableblock td.tableblock > .content > :last-child {
+    margin-bottom: 0;
+}
+
+.doc-content table.tableblock td.tableblock .listingblock {
+    margin: 0.125rem 0;
+}
+
+.doc-content table.tableblock td.tableblock pre {
+    margin: 0;
 }
 
 .doc-content table.tableblock td > p,
@@ -945,7 +995,7 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
         border-right: none;
         border-bottom: 1px solid var(--color-border);
     }
-    .content {
+    .layout > main.content {
         padding: 1.5rem;
     }
     .doc-page {

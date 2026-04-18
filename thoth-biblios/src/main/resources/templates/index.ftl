@@ -13,14 +13,17 @@
 
         <div class="components-grid">
             <#list catalog.components as component>
-                <a href="${basePath}/${component.id}/${component.defaultVersion}/" class="component-card">
+                <article class="component-card">
+                    <a href="${basePath}/${component.id}/${component.defaultVersion}/"
+                       class="component-card-default-link"
+                       aria-label="Open ${component.displayName} (${component.defaultVersion})"></a>
                     <h2>${component.displayName}</h2>
                     <p class="versions">
                         <#list component.versions as version>
-                            <span class="version-tag">${version.displayVersion}</span>
+                            <a href="${basePath}/${component.id}/${version.version}/" class="version-tag">${version.displayVersion}</a>
                         </#list>
                     </p>
-                </a>
+                </article>
             </#list>
         </div>
     </div>

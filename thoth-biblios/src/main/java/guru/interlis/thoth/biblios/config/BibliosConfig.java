@@ -11,12 +11,14 @@ public final class BibliosConfig {
     private final SiteSection site;
     private final OutputSection output;
     private final UiSection ui;
+    private final PdfSection pdf;
     private final ContentSection content;
 
-    public BibliosConfig(SiteSection site, OutputSection output, UiSection ui, ContentSection content) {
+    public BibliosConfig(SiteSection site, OutputSection output, UiSection ui, PdfSection pdf, ContentSection content) {
         this.site = Objects.requireNonNull(site, "site section is required");
         this.output = Objects.requireNonNull(output, "output section is required");
         this.ui = Objects.requireNonNull(ui, "ui section is required");
+        this.pdf = Objects.requireNonNull(pdf, "pdf section is required");
         this.content = Objects.requireNonNull(content, "content section is required");
     }
 
@@ -32,12 +34,17 @@ public final class BibliosConfig {
         return ui;
     }
 
+    public PdfSection pdf() {
+        return pdf;
+    }
+
     public ContentSection content() {
         return content;
     }
 
     @Override
     public String toString() {
-        return "BibliosConfig{site=" + site + ", output=" + output + ", content.sources=" + content.sources().size() + "}";
+        return "BibliosConfig{site=" + site + ", output=" + output + ", pdf=" + pdf +
+            ", content.sources=" + content.sources().size() + "}";
     }
 }

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -113,6 +114,9 @@ class BibliosIntegrationTest {
         assertTrue(homePage.contains("class=\"brand-logo\""));
         assertTrue(homePage.contains("src=\"/site-assets/site-logo.svg\""));
         assertTrue(homePage.contains("action=\"/search/\""));
+        assertTrue(homePage.contains("class=\"component-card-default-link\""));
+        assertTrue(homePage.contains("href=\"/mydocs/main/\""));
+        assertTrue(homePage.contains("href=\"/mydocs/main/\" class=\"version-tag\""));
         String homeHead = extractHead(homePage);
         assertFalse(homeHead.contains("<div class=\"home\">"));
 
@@ -190,6 +194,166 @@ class BibliosIntegrationTest {
             assertEquals("Version 1.x", v1x.displayVersion());
             assertNotNull(v1x.findPageBySourcePath("guide.adoc"));
             assertTrue(v1x.findPageBySourcePath("guide.adoc").html().contains("v1.x"));
+
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(parsedConfig, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        String homePage = Files.readString(outputRoot.resolve("index.html"));
+        assertTrue(homePage.contains("class=\"component-card-default-link\""));
+        assertTrue(homePage.contains("href=\"/mydocs/main/\""));
+        assertTrue(homePage.contains("href=\"/mydocs/main/\" class=\"version-tag\""));
+        assertTrue(homePage.contains("href=\"/mydocs/v1.x/\" class=\"version-tag\""));
+    }
+
+    @Test
+    void fullBuildPipelineGeneratesPdfArtifacts() throws Exception {
+        Path repoDir = tempDir.resolve("pdf-repo");
+        Path workRoot = tempDir.resolve("pdf-work");
+        Path outputRoot = tempDir.resolve("pdf-output");
+        Path configFile = tempDir.resolve("pdf-biblios.yml");
+        Path themeDir = tempDir.resolve("themes");
+        Path themeFile = themeDir.resolve("pdf-theme.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+        Files.createDirectories(themeDir);
+        Files.writeString(themeFile, "extends: default\n");
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("PDF Docs")
+            .withOutputDir(outputRoot)
+            .withPdfEnabled(true)
+            .withPdfAttributes(Map.of("pdf-theme", "./themes/pdf-theme.yml"))
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        Path pdfFile = outputRoot.resolve("mydocs/main/mydocs-main.pdf");
+        assertTrue(Files.exists(pdfFile));
+        byte[] bytes = Files.readAllBytes(pdfFile);
+        assertTrue(bytes.length > 5);
+        assertEquals("%PDF-", new String(bytes, 0, 5));
+    }
+
+    @Test
+    void localWorkingTreeOverrideIncludesUncommittedChangesWhenEnabled() throws Exception {
+        Path repoDir = tempDir.resolve("local-working-tree-repo");
+        Path workRoot = tempDir.resolve("work-local-working-tree");
+        Path configFile = tempDir.resolve("local-working-tree-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Local Working Tree Docs")
+            .withOutputDir(tempDir.resolve("output-local-working-tree"))
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        // Warm cache with committed content.
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot, true, false, configFile)) {
+            SiteCatalog catalog = builder.build();
+            ComponentVersion main = catalog.findById("mydocs").getVersion("main");
+            assertNotNull(main);
+            assertTrue(main.findPageBySourcePath("index.adoc").html().contains("This is the main documentation index."));
+        }
+
+        // Local, uncommitted edit in the repository working tree.
+        Files.writeString(repoDir.resolve("docs/index.adoc"), """
+            = Welcome
+            :doctype: book
+
+            LOCAL UNCOMMITTED CHANGE
+            """);
+
+        // Without local working tree mode: cached content remains visible.
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot, false, false, configFile)) {
+            SiteCatalog catalog = builder.build();
+            ComponentVersion main = catalog.findById("mydocs").getVersion("main");
+            assertNotNull(main);
+            assertFalse(main.findPageBySourcePath("index.adoc").html().contains("LOCAL UNCOMMITTED CHANGE"));
+        }
+
+        // With local working tree mode: uncommitted change is visible.
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot, false, true, configFile)) {
+            SiteCatalog catalog = builder.build();
+            ComponentVersion main = catalog.findById("mydocs").getVersion("main");
+            assertNotNull(main);
+            assertTrue(main.findPageBySourcePath("index.adoc").html().contains("LOCAL UNCOMMITTED CHANGE"));
+        }
+    }
+
+    @Test
+    void localWorkingTreeOverrideUsesCurrentBranchOnlyAndKeepsOtherBranchesCached() throws Exception {
+        Path repoDir = tempDir.resolve("local-working-tree-multi-repo");
+        Path workRoot = tempDir.resolve("work-local-working-tree-multi");
+        Path configFile = tempDir.resolve("local-working-tree-multi-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+
+        new TestRepoBuilder(repoDir)
+            .withBasicDocs()
+            .withSecondBranch("v1.x");
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Local Working Tree Multi")
+            .withOutputDir(tempDir.resolve("output-local-working-tree-multi"))
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: mydocs
+                  display_name: Multi-Version Docs
+                  url: file://%s
+                  branches:
+                    - name: main
+                      display_version: Latest
+                    - name: v1.x
+                      display_version: Version 1.x
+                  start_path: docs
+                  default_version: main
+                  navigation:
+                    file: nav.yml
+                """.formatted(repoDir.toString())))
+            .writeTo(configFile);
+
+        // Warm cache for both branches.
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot, true, false, configFile)) {
+            builder.build();
+        }
+
+        // Change only main branch locally, without commit.
+        Files.writeString(repoDir.resolve("docs/guide.adoc"), """
+            = User Guide
+            :doctype: book
+
+            LOCAL MAIN GUIDE
+            """);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot, false, true, configFile)) {
+            SiteCatalog catalog = builder.build();
+            DocComponent component = catalog.findById("mydocs");
+            assertNotNull(component);
+
+            ComponentVersion main = component.getVersion("main");
+            ComponentVersion v1x = component.getVersion("v1.x");
+            assertNotNull(main);
+            assertNotNull(v1x);
+            assertTrue(main.findPageBySourcePath("guide.adoc").html().contains("LOCAL MAIN GUIDE"));
+            assertTrue(v1x.findPageBySourcePath("guide.adoc").html().contains("This is the v1.x user guide."));
         }
     }
 

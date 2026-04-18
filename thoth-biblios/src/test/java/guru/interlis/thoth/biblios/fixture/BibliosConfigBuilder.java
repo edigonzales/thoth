@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Helper for creating biblios.yml configuration files for testing.
@@ -30,6 +32,8 @@ public final class BibliosConfigBuilder {
     private String contentToc = null;
     private String syntaxHighlightingMode = null;
     private final ArrayList<String> prismCustomComponents = new ArrayList<>();
+    private boolean pdfEnabled = false;
+    private final LinkedHashMap<String, Object> pdfAttributes = new LinkedHashMap<>();
     private final java.util.ArrayList<SourceEntry> sources = new java.util.ArrayList<>();
 
     public BibliosConfigBuilder withSiteTitle(String title) {
@@ -108,6 +112,19 @@ public final class BibliosConfigBuilder {
         this.prismCustomComponents.clear();
         if (components != null) {
             this.prismCustomComponents.addAll(components);
+        }
+        return this;
+    }
+
+    public BibliosConfigBuilder withPdfEnabled(boolean enabled) {
+        this.pdfEnabled = enabled;
+        return this;
+    }
+
+    public BibliosConfigBuilder withPdfAttributes(Map<String, Object> attributes) {
+        this.pdfAttributes.clear();
+        if (attributes != null) {
+            this.pdfAttributes.putAll(attributes);
         }
         return this;
     }
@@ -226,6 +243,16 @@ public final class BibliosConfigBuilder {
             }
         }
 
+        StringBuilder pdfSection = new StringBuilder();
+        if (pdfEnabled || !pdfAttributes.isEmpty()) {
+            pdfSection.append("pdf:\n");
+            pdfSection.append("  enabled: %s\n".formatted(pdfEnabled));
+            if (!pdfAttributes.isEmpty()) {
+                pdfSection.append("  attributes:\n");
+                appendYamlMap(pdfSection, 4, pdfAttributes);
+            }
+        }
+
         String yaml = """
             site:
               title: %s
@@ -235,10 +262,10 @@ public final class BibliosConfigBuilder {
             output:
               dir: %s
               clean: %s
-            %scontent:
+            %s%scontent:
               sources:
             %s""".formatted(siteTitle, siteUrl, siteLanguage, siteLogoYaml(), outputDir.toString(), clean,
-                uiSection.toString(), sourcesYaml.toString().stripTrailing());
+                uiSection.toString(), pdfSection.toString(), sourcesYaml.toString().stripTrailing());
 
         Files.writeString(configFile, yaml);
 
@@ -263,5 +290,36 @@ public final class BibliosConfigBuilder {
 
     private String escapeYaml(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private void appendYamlMap(StringBuilder builder, int indent, Map<String, Object> values) {
+        String prefix = " ".repeat(indent);
+        for (Map.Entry<String, Object> entry : values.entrySet()) {
+            appendYamlValue(builder, prefix, entry.getKey(), entry.getValue());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void appendYamlValue(StringBuilder builder, String prefix, String key, Object value) {
+        if (value instanceof List<?> list) {
+            builder.append(prefix).append(key).append(":\n");
+            for (Object item : list) {
+                builder.append(prefix).append("  - ").append(formatYamlScalar(item)).append("\n");
+            }
+            return;
+        }
+        if (value instanceof Map<?, ?> nested) {
+            builder.append(prefix).append(key).append(":\n");
+            appendYamlMap(builder, prefix.length() + 2, (Map<String, Object>) nested);
+            return;
+        }
+        builder.append(prefix).append(key).append(": ").append(formatYamlScalar(value)).append("\n");
+    }
+
+    private String formatYamlScalar(Object value) {
+        if (value instanceof Boolean || value instanceof Number) {
+            return String.valueOf(value);
+        }
+        return "\"%s\"".formatted(escapeYaml(String.valueOf(value)));
     }
 }

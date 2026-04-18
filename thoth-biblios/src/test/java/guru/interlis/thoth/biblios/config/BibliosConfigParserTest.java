@@ -43,6 +43,8 @@ class BibliosConfigParserTest {
         assertEquals(ContentTocMode.ON, config.ui().contentToc());
         assertEquals(SyntaxHighlightingMode.PRISM, config.ui().syntaxHighlightingMode());
         assertTrue(config.ui().prismCustomComponents().isEmpty());
+        assertFalse(config.pdf().enabled());
+        assertTrue(config.pdf().attributes().isEmpty());
 
         // Content sources
         assertEquals(2, config.content().sources().size());
@@ -74,6 +76,7 @@ class BibliosConfigParserTest {
         assertEquals("Current", beta.branches().get(0).displayVersion());
         assertEquals(RenderMode.SPLIT, beta.renderMode());
         assertEquals(SidebarTocNumbersMode.OFF, beta.sidebarTocNumbers());
+        assertNull(beta.pdf());
     }
 
     @Test
@@ -363,6 +366,8 @@ class BibliosConfigParserTest {
         assertEquals(ContentTocMode.OFF, config.ui().contentToc());
         assertEquals(SyntaxHighlightingMode.PRISM, config.ui().syntaxHighlightingMode());
         assertTrue(config.ui().prismCustomComponents().isEmpty());
+        assertFalse(config.pdf().enabled());
+        assertTrue(config.pdf().attributes().isEmpty());
     }
 
     @Test
@@ -754,6 +759,83 @@ class BibliosConfigParserTest {
 
         BibliosConfig config = parser.parse(file);
         assertEquals(SidebarTocNumbersMode.ON, config.content().sources().get(0).sidebarTocNumbers());
+    }
+
+    @Test
+    void parsesGlobalPdfSection(@TempDir Path tempDir) throws IOException {
+        Path themesDir = tempDir.resolve("themes");
+        Path fontsDir = tempDir.resolve("fonts");
+        Files.createDirectories(themesDir);
+        Files.createDirectories(fontsDir);
+        Path themeFile = themesDir.resolve("basic-theme.yml");
+        Files.writeString(themeFile, "extends: default\n");
+
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            pdf:
+              enabled: true
+              attributes:
+                pdf-theme: ./themes/basic-theme.yml
+                pdf-fontsdir:
+                  - ./fonts
+                  - GEM_FONTS_DIR
+                optimize: default
+                compress: true
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("pdf.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertTrue(config.pdf().enabled());
+        assertEquals(themeFile.toAbsolutePath().normalize().toString(), config.pdf().attributes().get("pdf-theme"));
+        assertEquals(fontsDir.toAbsolutePath().normalize() + ";GEM_FONTS_DIR", config.pdf().attributes().get("pdf-fontsdir"));
+        assertEquals("default", config.pdf().attributes().get("optimize"));
+        assertEquals(Boolean.TRUE, config.pdf().attributes().get("compress"));
+    }
+
+    @Test
+    void parsesPerSourcePdfOverrides(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            pdf:
+              enabled: true
+              attributes:
+                optimize: default
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+                  pdf:
+                    enabled: false
+                    master_file: pdf/book.adoc
+                    attributes:
+                      compress: true
+            """;
+        Path file = tempDir.resolve("source-pdf.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        SourceConfig source = config.content().sources().get(0);
+        assertNotNull(source.pdf());
+        assertEquals(Boolean.FALSE, source.pdf().enabled());
+        assertEquals("pdf/book.adoc", source.pdf().masterFile());
+        assertEquals(Boolean.TRUE, source.pdf().attributes().get("compress"));
     }
 
     @Test

@@ -6,7 +6,7 @@ Multi-repo documentation site generator with versioning support.
 
 **Thoth Biblios** builds a complete documentation portal from multiple Git repositories. Each repository can publish multiple versions (based on Git branches), and Biblios combines them into a unified, searchable site with navigation, breadcrumbs, and version switching.
 
-Think of it as a lightweight, JVM-native alternative to Antora: you point it at Git repos, define your navigation in `nav.yml`, and Biblios generates a full HTML documentation portal.
+Think of it as a lightweight, JVM-native alternative to Antora: you point it at Git repos, define your navigation in `nav.yml`, and Biblios generates a full HTML documentation portal plus optional PDF artifacts per component version.
 
 ## Quick Start
 
@@ -53,6 +53,11 @@ content:
       default_version: main
       navigation:
         file: nav.yml
+
+pdf:
+  enabled: true
+  attributes:
+    pdf-theme: ./themes/default-theme.yml
 ```
 
 2. Run the build:
@@ -183,6 +188,21 @@ If `site.logo` points to a local file that does not exist, the build fails with 
 | `sidebar_toc_depth` | No | Sidebar heading depth for generated TOC entries. Allowed: `1..6`. Default: `2` |
 | `content_toc` | No | Render AsciiDoc in-content TOC. Allowed values: `off`, `on`. Default: `off` |
 
+#### `pdf` – PDF Output Settings
+
+When `pdf.enabled: true`, Biblios writes one PDF per published component version into the corresponding version output directory.
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `enabled` | No | Generate PDF artifacts in addition to HTML. Default: `false` |
+| `attributes` | No | Mapping of PDF-relevant Asciidoctor attributes passed to the PDF backend. Supports PDF theme/font options such as `pdf-theme`, `pdf-themesdir`, `pdf-fontsdir`, plus other PDF attributes like `optimize`, `compress`, `scripts`, `pdf-page-size`, etc. |
+
+Path handling inside `pdf.attributes`:
+
+- `pdf-theme`: accepts built-in theme names such as `default` or a local `.yml`/`.yaml` file path. Local paths are resolved relative to `biblios.yml`.
+- `pdf-themesdir`: accepts a local directory path, resolved relative to `biblios.yml`.
+- `pdf-fontsdir`: accepts either a string or a YAML list. Local directories are resolved relative to `biblios.yml`. `GEM_FONTS_DIR` and `uri:classloader:` entries are preserved.
+
 #### `content.sources` – Content Sources
 
 Each entry defines a Git repository as a documentation source.
@@ -200,6 +220,9 @@ Each entry defines a Git repository as a documentation source.
 | `render_mode` | No | Rendering mode. Allowed values: `split`, `single_page`. Default: `split` |
 | `master_file` | Conditionally | Required when `render_mode: single_page`. Path to the AsciiDoc master file under `start_path` |
 | `sidebar_toc_numbers` | No | Show chapter numbers in the sidebar TOC. Allowed values: `off`, `on`. Default: `off` |
+| `pdf.enabled` | No | Override global PDF enablement for this source only. |
+| `pdf.master_file` | No | Optional PDF-specific master file under `start_path`. Useful for `split` sources that need a dedicated PDF assembly document. |
+| `pdf.attributes` | No | Source-specific PDF attribute overrides merged on top of global `pdf.attributes`. |
 
 For `render_mode: single_page`, chapter entries with `[unnumbered]` are hidden from the sidebar TOC by default.  
 If you want an unnumbered chapter to be shown (for example appendices like `Anhang A - ...`), add role `[.appendix]` to that section:
@@ -453,6 +476,7 @@ java -jar thoth-biblios-<version>-all.jar serve \
 | `--config` | Yes | Path to `biblios.yml` configuration file |
 | `--output` | No | Output directory (overrides `output.dir` in config) |
 | `--port` | No | HTTP server port. Default: `8080` |
+| `--use-local-working-tree` | No | For local sources (`file://` or local paths), render the currently checked-out branch directly from the local working tree |
 
 **Serve behavior:**
 1. Performs an initial build
@@ -462,9 +486,11 @@ java -jar thoth-biblios-<version>-all.jar serve \
 5. Ignores `.git` metadata changes in watched local sources (prevents rebuild loops caused by internal Git updates)
 6. Does not watch `.thoth/cache` directly
 7. Runs `git fetch` only during the initial `serve` build; watch-triggered rebuilds use the cached repository without fetching
-8. Remote updates are picked up after restarting `serve`
-9. Why: avoids self-triggered rebuild loops where the build process modifies the same path that is being watched
-10. Press `Ctrl+C` to stop
+8. With `--use-local-working-tree`, local sources read the currently checked-out branch directly from the local repository path (uncommitted changes become visible immediately)
+9. With `--use-local-working-tree`, additional configured branches of the same source still use the cached repository checkout
+10. Remote updates are picked up after restarting `serve`
+11. Why: avoids self-triggered rebuild loops where the build process modifies the same path that is being watched
+12. Press `Ctrl+C` to stop
 
 ## Multi-Source Example
 
@@ -577,7 +603,7 @@ Each branch (`main`, `stable`, `v1.x`) is checked out independently and rendered
 4. **No Tag-Based Versions**: Only branch-based versions are supported.
 5. **Global Search Only**: Search covers all documentation and versions without faceting or filtering.
 6. **Single Theme Only**: Only the default theme is available. No theming API yet.
-7. **No PDF Output**: HTML only.
+7. **Single Theme for HTML**: HTML theming is still limited to the bundled default theme.
 8. **No Multi-Language**: Each component has a single language.
 9. **Edit/Source Links**: Configurable via `ui.show_edit_link`, `ui.show_source_link`, `ui.edit_url_pattern`, and `ui.source_url_pattern` in `biblios.yml`. Patterns support `{repo_url}`, `{branch}`, and `{path}` placeholders. Example: `edit_url_pattern: "https://github.com/org/repo/edit/{branch}/{path}"`.
 

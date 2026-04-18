@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -105,6 +106,27 @@ class AsciidoctorRendererTest {
             // Empty content may return null or empty string
             assertNotNull(html);
         }
+    }
+
+    @Test
+    void writesPdfDocument(@TempDir Path tempDir) throws Exception {
+        Path adoc = tempDir.resolve("test.adoc");
+        Path pdf = tempDir.resolve("test.pdf");
+        Files.writeString(adoc, """
+            = PDF Test
+            :doctype: book
+
+            Hello PDF.
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            renderer.writePdf(adoc, pdf, Map.of(), "en");
+        }
+
+        assertTrue(Files.exists(pdf));
+        byte[] prefix = Files.readAllBytes(pdf);
+        assertTrue(prefix.length > 5);
+        assertEquals("%PDF-", new String(prefix, 0, 5));
     }
 
     @Test

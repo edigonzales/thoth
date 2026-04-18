@@ -27,17 +27,26 @@ public final class CatalogBuilder implements AutoCloseable {
     private final BibliosConfig config;
     private final Path workRoot;
     private final boolean fetchEnabled;
+    private final boolean localWorkingTreeEnabled;
+    private final Path configPath;
     private final NavParser navParser = new NavParser();
     private final List<GitSourceResolver> resolvers = new ArrayList<>();
 
     public CatalogBuilder(BibliosConfig config, Path workRoot) {
-        this(config, workRoot, true);
+        this(config, workRoot, true, false, null);
     }
 
     public CatalogBuilder(BibliosConfig config, Path workRoot, boolean fetchEnabled) {
+        this(config, workRoot, fetchEnabled, false, null);
+    }
+
+    public CatalogBuilder(BibliosConfig config, Path workRoot, boolean fetchEnabled,
+                          boolean localWorkingTreeEnabled, Path configPath) {
         this.config = config;
         this.workRoot = workRoot;
         this.fetchEnabled = fetchEnabled;
+        this.localWorkingTreeEnabled = localWorkingTreeEnabled;
+        this.configPath = configPath;
     }
 
     /**
@@ -56,24 +65,48 @@ public final class CatalogBuilder implements AutoCloseable {
     }
 
     private DocComponent buildComponent(SourceConfig source, UiSection ui) throws IOException {
+        LocalWorkingTreeOverride localOverride = LocalWorkingTreeOverride.resolve(source, configPath, localWorkingTreeEnabled);
+        if (localOverride.isEnabled()) {
+            System.out.println("[info] Local working tree mode active for source: " + source.id());
+            System.out.println("[info] Current local branch: " + localOverride.currentBranch());
+        }
+
         GitSourceResolver resolver = new GitSourceResolver(workRoot);
         resolvers.add(resolver);
 
         resolver.resolve(source.url(), source.id(), fetchEnabled);
 
         List<ComponentVersion> versions = new ArrayList<>();
+        boolean usedLocalWorkingTree = false;
 
         for (BranchConfig branch : source.branches()) {
-            if (!resolver.branchExists(branch.name())) {
-                System.err.println("[warn] Branch '" + branch.name() + "' not found in " + source.id() + ", skipping");
-                continue;
+            Path versionWorkTree;
+            if (localOverride.appliesToBranch(branch.name())) {
+                System.out.println("[info] Using local working tree for " + source.id() + "/" + branch.name() + ": " + localOverride.sourceRoot());
+                versionWorkTree = localOverride.sourceRoot();
+                usedLocalWorkingTree = true;
+            } else {
+                if (!resolver.branchExists(branch.name())) {
+                    System.err.println("[warn] Branch '" + branch.name() + "' not found in " + source.id() + ", skipping");
+                    continue;
+                }
+                System.out.println("[info] Checking out " + source.id() + "/" + branch.name());
+                if (localOverride.isEnabled()) {
+                    System.out.println("[info] Using cached repository for " + source.id() + "/" + branch.name());
+                }
+                resolver.checkout(branch.name());
+                versionWorkTree = resolver.workTree();
             }
 
-            System.out.println("[info] Checking out " + source.id() + "/" + branch.name());
-            resolver.checkout(branch.name());
-
-            ComponentVersion version = buildVersion(source, branch, resolver.workTree(), ui);
+            ComponentVersion version = buildVersion(source, branch, versionWorkTree, ui);
             versions.add(version);
+        }
+
+        if (localOverride.isEnabled() && !usedLocalWorkingTree) {
+            System.out.println(
+                "[info] Local current branch '" + localOverride.currentBranch() +
+                    "' is not configured for source '" + source.id() + "'. Using cache for all configured branches."
+            );
         }
 
         if (versions.isEmpty()) {

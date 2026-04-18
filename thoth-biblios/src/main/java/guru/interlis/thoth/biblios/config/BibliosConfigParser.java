@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -127,6 +128,12 @@ public final class BibliosConfigParser {
             parsePrismCustomComponents(uiMap, configPath)
         );
 
+        Map<String, Object> pdfMap = root.containsKey("pdf") ? getMap(root, "pdf") : Map.of();
+        PdfSection pdf = new PdfSection(
+            getBoolean(pdfMap, "enabled", false),
+            parsePdfAttributes(pdfMap, configPath, "pdf.attributes")
+        );
+
         // Parse content section
         Map<String, Object> contentMap = getMap(root, "content");
         List<Map<String, Object>> sourcesList = getList(contentMap, "sources");
@@ -144,7 +151,7 @@ public final class BibliosConfigParser {
             Map<String, Object> sourceMap = sourcesList.get(i);
             String sourceLabel = "content.sources[" + i + "]";
             try {
-                sources.add(parseSource(sourceMap, sourceLabel));
+                sources.add(parseSource(sourceMap, sourceLabel, configPath));
             } catch (ThothBuildException e) {
                 throw new ThothBuildException(
                     "Error in " + sourceLabel + ": " + e.getMessage(),
@@ -156,7 +163,7 @@ public final class BibliosConfigParser {
 
         ContentSection content = new ContentSection(sources);
 
-        return new BibliosConfig(site, output, ui, content);
+        return new BibliosConfig(site, output, ui, pdf, content);
     }
 
     private String parseSiteLogo(Map<String, Object> siteMap, Path configPath) {
@@ -231,7 +238,7 @@ public final class BibliosConfigParser {
     }
 
     @SuppressWarnings("unchecked")
-    private SourceConfig parseSource(Map<String, Object> sourceMap, String label) {
+    private SourceConfig parseSource(Map<String, Object> sourceMap, String label, Path configPath) {
         String id = getString(sourceMap, "id");
         String displayName = getString(sourceMap, "display_name");
         String url = getString(sourceMap, "url");
@@ -255,6 +262,7 @@ public final class BibliosConfigParser {
         String startPage = (String) sourceMap.get("start_page");
         RenderMode renderMode = parseRenderMode(sourceMap, label);
         SidebarTocNumbersMode sidebarTocNumbers = parseSidebarTocNumbersMode(sourceMap, label);
+        SourcePdfSection pdf = parseSourcePdfSection(sourceMap, configPath, label);
         String masterFile = null;
         Object masterFileValue = sourceMap.get("master_file");
         if (masterFileValue != null) {
@@ -294,7 +302,56 @@ public final class BibliosConfigParser {
             startPage,
             renderMode,
             masterFile,
-            sidebarTocNumbers
+            sidebarTocNumbers,
+            pdf
+        );
+    }
+
+    private SourcePdfSection parseSourcePdfSection(Map<String, Object> sourceMap, Path configPath, String label) {
+        if (!sourceMap.containsKey("pdf")) {
+            return null;
+        }
+
+        Map<String, Object> pdfMap = castMap(sourceMap.get("pdf"), label + ".pdf");
+        Boolean enabled = null;
+        if (pdfMap.containsKey("enabled")) {
+            Object enabledValue = pdfMap.get("enabled");
+            if (!(enabledValue instanceof Boolean)) {
+                throw new ThothBuildException(
+                    "Expected boolean for '" + label + ".pdf.enabled', got: " +
+                        (enabledValue == null ? "null" : enabledValue.getClass().getSimpleName()),
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            enabled = (Boolean) enabledValue;
+        }
+
+        String masterFile = null;
+        if (pdfMap.containsKey("master_file")) {
+            Object masterFileValue = pdfMap.get("master_file");
+            if (!(masterFileValue instanceof String text)) {
+                throw new ThothBuildException(
+                    "Expected string for '" + label + ".pdf.master_file', got: " +
+                        (masterFileValue == null ? "null" : masterFileValue.getClass().getSimpleName()),
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            if (text.isBlank()) {
+                throw new ThothBuildException(
+                    "Configuration '" + label + ".pdf.master_file' must not be blank",
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            masterFile = text.trim();
+        }
+
+        return new SourcePdfSection(
+            enabled,
+            masterFile,
+            parsePdfAttributes(pdfMap, configPath, label + ".pdf.attributes")
         );
     }
 
@@ -580,6 +637,215 @@ public final class BibliosConfigParser {
             }
         }
         return path.toAbsolutePath().normalize();
+    }
+
+    private Map<String, Object> parsePdfAttributes(Map<String, Object> parent, Path configPath, String label) {
+        Object value = parent.get("attributes");
+        if (value == null) {
+            return Map.of();
+        }
+        if (!(value instanceof Map<?, ?> rawMap)) {
+            throw new ThothBuildException(
+                "Expected mapping for '" + label + "', got: " + value.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+
+        Map<String, Object> resolved = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+            if (!(entry.getKey() instanceof String rawKey)) {
+                throw new ThothBuildException(
+                    "Expected string key in '" + label + "', got: " +
+                        (entry.getKey() == null ? "null" : entry.getKey().getClass().getSimpleName()),
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            String key = rawKey.trim();
+            if (key.isEmpty()) {
+                throw new ThothBuildException(
+                    "PDF attribute keys in '" + label + "' must not be blank",
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            resolved.put(key, normalizePdfAttributeValue(key, entry.getValue(), configPath, label + "." + key));
+        }
+        return Map.copyOf(resolved);
+    }
+
+    private Object normalizePdfAttributeValue(String key, Object value, Path configPath, String label) {
+        return switch (key) {
+            case "pdf-theme" -> normalizePdfTheme(value, configPath, label);
+            case "pdf-themesdir" -> normalizePdfDirectoryValue(value, configPath, label);
+            case "pdf-fontsdir" -> normalizePdfFontsDir(value, configPath, label);
+            default -> normalizeGenericPdfAttributeValue(value, label);
+        };
+    }
+
+    private Object normalizePdfTheme(Object value, Path configPath, String label) {
+        String raw = requirePdfString(value, label);
+        if (raw.startsWith("uri:classloader:")) {
+            return raw;
+        }
+        if (!looksLikePath(raw)) {
+            return raw;
+        }
+
+        Path resolved = resolveLocalPath(raw, configPath);
+        if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) {
+            throw new ThothBuildException(
+                "Invalid '" + label + "': file not found: " + resolved,
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return resolved.toString();
+    }
+
+    private Object normalizePdfDirectoryValue(Object value, Path configPath, String label) {
+        String raw = requirePdfString(value, label);
+        if (raw.startsWith("uri:classloader:")) {
+            return raw;
+        }
+        Path resolved = resolveLocalPath(raw, configPath);
+        if (!Files.exists(resolved) || !Files.isDirectory(resolved)) {
+            throw new ThothBuildException(
+                "Invalid '" + label + "': directory not found: " + resolved,
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return resolved.toString();
+    }
+
+    private Object normalizePdfFontsDir(Object value, Path configPath, String label) {
+        List<String> tokens = new ArrayList<>();
+        if (value instanceof List<?> rawList) {
+            if (rawList.isEmpty()) {
+                throw new ThothBuildException(
+                    "Configuration '" + label + "' must not be empty",
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            for (int i = 0; i < rawList.size(); i++) {
+                tokens.addAll(splitPdfFontTokens(requirePdfString(rawList.get(i), label + "[" + i + "]")));
+            }
+        } else {
+            tokens.addAll(splitPdfFontTokens(requirePdfString(value, label)));
+        }
+
+        if (tokens.isEmpty()) {
+            throw new ThothBuildException(
+                "Configuration '" + label + "' must not be empty",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+
+        List<String> resolvedTokens = new ArrayList<>();
+        for (String token : tokens) {
+            if (token.equals("GEM_FONTS_DIR") || token.startsWith("uri:classloader:")) {
+                resolvedTokens.add(token);
+                continue;
+            }
+            Path resolved = resolveLocalPath(token, configPath);
+            if (!Files.exists(resolved) || !Files.isDirectory(resolved)) {
+                throw new ThothBuildException(
+                    "Invalid '" + label + "': directory not found: " + resolved,
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            resolvedTokens.add(resolved.toString());
+        }
+        return String.join(";", resolvedTokens);
+    }
+
+    private Object normalizeGenericPdfAttributeValue(Object value, String label) {
+        if (value == null) {
+            throw new ThothBuildException(
+                "Configuration '" + label + "' must not be null",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        if (value instanceof String text) {
+            if (text.isBlank()) {
+                throw new ThothBuildException(
+                    "Configuration '" + label + "' must not be blank",
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            return text.trim();
+        }
+        if (value instanceof Number || value instanceof Boolean) {
+            return value;
+        }
+        if (value instanceof List<?> rawList) {
+            List<String> items = new ArrayList<>();
+            for (int i = 0; i < rawList.size(); i++) {
+                items.add(requirePdfString(rawList.get(i), label + "[" + i + "]"));
+            }
+            if (items.isEmpty()) {
+                throw new ThothBuildException(
+                    "Configuration '" + label + "' must not be empty",
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            return String.join(",", items);
+        }
+        throw new ThothBuildException(
+            "Expected scalar or list for '" + label + "', got: " + value.getClass().getSimpleName(),
+            ThothBuildException.ErrorSeverity.FATAL,
+            "config"
+        );
+    }
+
+    private String requirePdfString(Object value, String label) {
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for '" + label + "', got: " +
+                    (value == null ? "null" : value.getClass().getSimpleName()),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        if (text.isBlank()) {
+            throw new ThothBuildException(
+                "Configuration '" + label + "' must not be blank",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return text.trim();
+    }
+
+    private List<String> splitPdfFontTokens(String raw) {
+        String[] parts = raw.split("[,;]");
+        List<String> result = new ArrayList<>();
+        for (String part : parts) {
+            String token = part.trim();
+            if (!token.isEmpty()) {
+                result.add(token);
+            }
+        }
+        return result;
+    }
+
+    private boolean looksLikePath(String value) {
+        String normalized = value.trim();
+        return normalized.startsWith(".")
+            || normalized.startsWith("/")
+            || normalized.startsWith("file:")
+            || normalized.contains("/")
+            || normalized.contains("\\")
+            || normalized.endsWith(".yml")
+            || normalized.endsWith(".yaml");
     }
 
     private RenderMode parseRenderMode(Map<String, Object> sourceMap, String label) {

@@ -130,25 +130,36 @@ public final class ThothBibliosCli implements Callable<Integer> {
         @Option(names = "--port", description = "Dev server port")
         private Integer port;
 
+        @Option(
+            names = "--use-local-working-tree",
+            description = "For local sources, render the currently checked-out branch directly from the local working tree"
+        )
+        private boolean useLocalWorkingTree;
+
         @Override
         public Integer call() throws Exception {
             System.out.println("[info] thoth-biblios serve");
             System.out.println("[info] config: " + config);
             int resolvedPort = port != null ? port : 8080;
             System.out.println("[info] port: " + resolvedPort);
+            if (useLocalWorkingTree) {
+                System.out.println("[info] local working tree mode: enabled");
+            }
 
             Path workRoot = Path.of(".thoth/cache");
 
             // Initial build
-            doBuild(config, output, workRoot, true);
+            doBuild(config, output, workRoot, true, useLocalWorkingTree);
 
             // Start dev server and watchers
             Path outputDir = resolveOutputDir(config, output);
             AtomicBoolean rebuilding = new AtomicBoolean(false);
             AtomicReference<List<InputWatcher>> sourceWatchers = new AtomicReference<>(List.of());
 
-            try (InputWatcher configWatcher = watchConfig(config, workRoot, output, rebuilding, sourceWatchers)) {
-                refreshLocalSourceWatchers(config, rebuilding, sourceWatchers, workRoot, output);
+            try (InputWatcher configWatcher = watchConfig(
+                config, workRoot, output, rebuilding, sourceWatchers, useLocalWorkingTree
+            )) {
+                refreshLocalSourceWatchers(config, rebuilding, sourceWatchers, workRoot, output, useLocalWorkingTree);
                 // Server lifecycle managed via shutdown hook
                 final var server = new guru.interlis.thoth.core.DevServer(outputDir, resolvedPort);
                 server.start();
@@ -170,7 +181,8 @@ public final class ThothBibliosCli implements Callable<Integer> {
         }
 
         private InputWatcher watchConfig(Path configPath, Path workRoot, Path outputOverride,
-                                         AtomicBoolean rebuilding, AtomicReference<List<InputWatcher>> sourceWatchers) throws Exception {
+                                         AtomicBoolean rebuilding, AtomicReference<List<InputWatcher>> sourceWatchers,
+                                         boolean useLocalWorkingTree) throws Exception {
             Path configFile = configPath.toAbsolutePath().normalize();
             Path configDirectory = configFile.getParent();
             if (configDirectory == null) {
@@ -181,8 +193,10 @@ public final class ThothBibliosCli implements Callable<Integer> {
                     !rebuilding.getAndSet(true)) {
                     System.out.println("[info] Config changed (" + eventType + "), rebuilding...");
                     try {
-                        doBuild(configPath, outputOverride, workRoot, false);
-                        refreshLocalSourceWatchers(configPath, rebuilding, sourceWatchers, workRoot, outputOverride);
+                        doBuild(configPath, outputOverride, workRoot, false, useLocalWorkingTree);
+                        refreshLocalSourceWatchers(
+                            configPath, rebuilding, sourceWatchers, workRoot, outputOverride, useLocalWorkingTree
+                        );
                     } catch (Exception e) {
                         System.err.println("[error] Rebuild failed: " + e.getMessage());
                     } finally {
@@ -198,7 +212,8 @@ public final class ThothBibliosCli implements Callable<Integer> {
                                                 AtomicBoolean rebuilding,
                                                 AtomicReference<List<InputWatcher>> sourceWatchers,
                                                 Path workRoot,
-                                                Path outputOverride) throws Exception {
+                                                Path outputOverride,
+                                                boolean useLocalWorkingTree) throws Exception {
             BibliosConfigParser parser = new BibliosConfigParser();
             BibliosConfig bibliosConfig = parser.parse(configPath);
             List<Path> roots = ServeWatchSupport.localSourceRoots(bibliosConfig, configPath);
@@ -218,7 +233,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
                         System.out.println("[info] Local source changed (" + eventType + "): " + changedPath);
                         System.out.println("[info] Rebuilding...");
                         try {
-                            doBuild(configPath, outputOverride, workRoot, false);
+                            doBuild(configPath, outputOverride, workRoot, false, useLocalWorkingTree);
                         } catch (Exception e) {
                             System.err.println("[error] Rebuild failed: " + e.getMessage());
                         } finally {
@@ -249,14 +264,17 @@ public final class ThothBibliosCli implements Callable<Integer> {
             }
         }
 
-        private void doBuild(Path configPath, Path outputOverride, Path workRoot, boolean fetchEnabled) throws Exception {
+        private void doBuild(Path configPath, Path outputOverride, Path workRoot,
+                             boolean fetchEnabled, boolean useLocalWorkingTree) throws Exception {
             BibliosConfigParser parser = new BibliosConfigParser();
             BibliosConfig bibliosConfig = parser.parse(configPath);
             Path outputDir = ThothBibliosCli.resolveOutputDir(configPath, bibliosConfig, outputOverride);
 
             System.out.println("[info] Building site...");
             System.out.println("[info] Output directory: " + outputDir);
-            try (CatalogBuilder catalogBuilder = new CatalogBuilder(bibliosConfig, workRoot, fetchEnabled)) {
+            try (CatalogBuilder catalogBuilder = new CatalogBuilder(
+                bibliosConfig, workRoot, fetchEnabled, useLocalWorkingTree, configPath
+            )) {
                 SiteCatalog catalog = catalogBuilder.build();
                 System.out.println("[info] Catalog: " + catalog.components().size() + " components");
 

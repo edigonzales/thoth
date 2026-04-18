@@ -166,8 +166,7 @@ thoth/
 3. No tag-based versions – only branch-based
 4. Global search only – no faceting
 5. Single theme only
-6. No PDF output – HTML only
-7. No multi-language per component
+6. No multi-language per component
 
 See [thoth-biblios/README.md](thoth-biblios/README.md) for the full list.
 

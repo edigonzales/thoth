@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-final class ServeWatchSupport {
+public final class ServeWatchSupport {
     private ServeWatchSupport() {
     }
 
@@ -24,7 +24,7 @@ final class ServeWatchSupport {
         return roots;
     }
 
-    static Path toLocalSourceRoot(String sourceUrl, Path configDir) {
+    public static Path toLocalSourceRoot(String sourceUrl, Path configDir) {
         if (sourceUrl == null || sourceUrl.isBlank()) {
             return null;
         }
