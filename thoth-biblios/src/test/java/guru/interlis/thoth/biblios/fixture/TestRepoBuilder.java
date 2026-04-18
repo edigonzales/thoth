@@ -236,6 +236,41 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Extend the basic docs fixture with a keypoint sidebar block in guide.adoc.
+     */
+    public TestRepoBuilder withKeypointSidebarBlockInGuide() throws Exception {
+        withBasicDocs();
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Path guide = repoDir.resolve("docs/guide.adoc");
+            Files.writeString(guide, """
+                = User Guide
+                :doctype: book
+
+                This is the user guide.
+
+                == Installation
+
+                Follow these steps to install the software.
+
+                [.keypoint]
+                ****
+                This guide includes a keypoint sidebar block for UI styling tests.
+                ****
+
+                == Configuration
+
+                Configure the software to your needs.
+                """);
+
+            git.add().addFilepattern("docs/guide.adoc").call();
+            git.commit().setMessage("Add keypoint sidebar block to guide").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Extend the basic docs fixture with a listing callout and colist legend in guide.adoc.
      */
     public TestRepoBuilder withListingCalloutInGuide() throws Exception {

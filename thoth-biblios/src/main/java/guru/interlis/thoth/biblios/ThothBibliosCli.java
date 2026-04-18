@@ -79,10 +79,27 @@ public final class ThothBibliosCli implements Callable<Integer> {
         @Option(names = "--clean", description = "Delete output directory before build")
         private boolean clean;
 
+        @Option(names = "--pdf", description = "Generate PDF artifacts in addition to HTML output")
+        private boolean pdf;
+
+        @Option(
+            names = "--pdf-version",
+            split = ",",
+            description = "Limit PDF generation to one or more versions (e.g. main, v1.x, or component/main). Requires --pdf."
+        )
+        private List<String> pdfVersions = new ArrayList<>();
+
         @Override
         public Integer call() throws Exception {
             System.out.println("[info] thoth-biblios build");
             System.out.println("[info] config: " + config);
+            if (pdfVersions == null) {
+                pdfVersions = new ArrayList<>();
+            }
+            if (!pdf && !pdfVersions.isEmpty()) {
+                System.err.println("[error] --pdf-version requires --pdf.");
+                return 2;
+            }
 
             // Load configuration
             BibliosConfigParser parser = new BibliosConfigParser();
@@ -104,7 +121,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
                 // Generate site
                 try (BibliosSiteGenerator generator = new BibliosSiteGenerator(bibliosConfig, catalog, outputDir)) {
-                    generator.generate();
+                    generator.generate(pdf, selectedPdfVersions());
                 }
             }
 
@@ -116,6 +133,23 @@ public final class ThothBibliosCli implements Callable<Integer> {
             // For simplicity, just note it in output - real impl would override output section
             System.out.println("[info] clean: true");
             return cfg;
+        }
+
+        private Set<String> selectedPdfVersions() {
+            if (pdfVersions == null || pdfVersions.isEmpty()) {
+                return Set.of();
+            }
+            Set<String> selected = new LinkedHashSet<>();
+            for (String candidate : pdfVersions) {
+                if (candidate == null) {
+                    continue;
+                }
+                String trimmed = candidate.trim();
+                if (!trimmed.isBlank()) {
+                    selected.add(trimmed);
+                }
+            }
+            return Set.copyOf(selected);
         }
     }
 

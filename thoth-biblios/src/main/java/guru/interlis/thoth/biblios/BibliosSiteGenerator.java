@@ -83,6 +83,13 @@ public final class BibliosSiteGenerator implements AutoCloseable {
      * Generate the complete site.
      */
     public void generate() throws IOException {
+        generate(true, Set.of());
+    }
+
+    /**
+     * Generate the complete site with optional PDF generation control.
+     */
+    public void generate(boolean generatePdf, Set<String> selectedPdfVersions) throws IOException {
         System.out.println("[info] Generating site to: " + outputRoot);
 
         // Clean output if configured
@@ -108,13 +115,15 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         // Generate search index
         generateSearchIndex();
 
-        if (config.pdf() != null && config.pdf().enabled()) {
-            new BibliosPdfGenerator(config, catalog, outputRoot).generate();
-        } else if (hasSourceLevelPdfEnablement()) {
-            new BibliosPdfGenerator(config, catalog, outputRoot).generate();
+        if (generatePdf && (isGlobalPdfEnabled() || hasSourceLevelPdfEnablement())) {
+            new BibliosPdfGenerator(config, catalog, outputRoot).generate(selectedPdfVersions);
         }
 
         System.out.println("[info] Site generation complete.");
+    }
+
+    private boolean isGlobalPdfEnabled() {
+        return config.pdf() != null && config.pdf().enabled();
     }
 
     private boolean hasSourceLevelPdfEnablement() {

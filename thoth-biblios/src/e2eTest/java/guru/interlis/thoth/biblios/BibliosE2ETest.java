@@ -499,6 +499,36 @@ class BibliosE2ETest {
     }
 
     /**
+     * E2E-9b: Keypoint sidebar block keeps base sidebar style and adds dedicated keypoint style.
+     */
+    @Test
+    void keypointSidebarBlockIsStyledWithoutAffectingOtherSidebarBlocks() throws Exception {
+        Path repoDir = tempDir.resolve("keypoint-sidebar-block-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withKeypointSidebarBlockInGuide();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Keypoint Sidebar Block Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"sidebarblock keypoint\"");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .sidebarblock.keypoint {");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .sidebarblock.keypoint::before {");
+        assertions.assertFileContains("site-assets/styles.css", "top: calc((1em * var(--lh-body) - var(--keypoint-triangle-height)) / 2);");
+        assertions.assertFileContains("site-assets/styles.css", "margin: 1.25rem 0 1.25rem 1.5rem;");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .sidebarblock {");
+        assertions.assertFileContains("site-assets/styles.css", "border: 1px solid var(--color-sidebarblock-border);");
+    }
+
+    /**
      * E2E-10: Listing callouts render marker circles and colist legend styling.
      */
     @Test

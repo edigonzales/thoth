@@ -15,8 +15,10 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Generates PDF artifacts for component versions when configured.
@@ -35,6 +37,12 @@ public final class BibliosPdfGenerator {
     }
 
     public void generate() throws IOException {
+        generate(Set.of());
+    }
+
+    public void generate(Set<String> selectedVersions) throws IOException {
+        Set<String> filters = normalizeFilters(selectedVersions);
+        Set<String> unmatched = new HashSet<>(filters);
         try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
             for (DocComponent component : catalog.components()) {
                 SourceConfig source = sourceConfigById.get(component.id());
@@ -47,9 +55,16 @@ public final class BibliosPdfGenerator {
                     continue;
                 }
                 for (ComponentVersion version : component.versions()) {
+                    if (!matchesFilter(component, version, filters)) {
+                        continue;
+                    }
+                    markMatched(component, version, unmatched);
                     generateVersionPdf(component, version, source, effective, renderer);
                 }
             }
+        }
+        for (String missing : unmatched) {
+            System.err.println("[warn] No PDF version matched filter: " + missing);
         }
     }
 
@@ -180,6 +195,35 @@ public final class BibliosPdfGenerator {
 
     private String pdfFileName(DocComponent component, ComponentVersion version) {
         return component.id() + "-" + version.version() + ".pdf";
+    }
+
+    private Set<String> normalizeFilters(Set<String> selectedVersions) {
+        if (selectedVersions == null || selectedVersions.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> normalized = new HashSet<>();
+        for (String candidate : selectedVersions) {
+            if (candidate == null) {
+                continue;
+            }
+            String trimmed = candidate.trim();
+            if (!trimmed.isBlank()) {
+                normalized.add(trimmed);
+            }
+        }
+        return Set.copyOf(normalized);
+    }
+
+    private boolean matchesFilter(DocComponent component, ComponentVersion version, Set<String> filters) {
+        if (filters.isEmpty()) {
+            return true;
+        }
+        return filters.contains(version.version()) || filters.contains(component.id() + "/" + version.version());
+    }
+
+    private void markMatched(DocComponent component, ComponentVersion version, Set<String> unmatched) {
+        unmatched.remove(version.version());
+        unmatched.remove(component.id() + "/" + version.version());
     }
 
     private Map<String, SourceConfig> indexSourceConfigs(BibliosConfig cfg) {

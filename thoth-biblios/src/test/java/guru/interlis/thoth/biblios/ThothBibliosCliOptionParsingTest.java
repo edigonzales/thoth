@@ -3,10 +3,50 @@ package guru.interlis.thoth.biblios;
 import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ThothBibliosCliOptionParsingTest {
+
+    @Test
+    void buildParsesPdfFlags() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        CommandLine.ParseResult parseResult = cli.parseArgs(
+            "build",
+            "--config", "biblios.yml",
+            "--pdf",
+            "--pdf-version", "main",
+            "--pdf-version", "docs/v1.x"
+        );
+
+        assertTrue(parseResult.subcommand().hasMatchedOption("--pdf"));
+        assertTrue(parseResult.subcommand().hasMatchedOption("--pdf-version"));
+    }
+
+    @Test
+    void buildLeavesPdfDisabledByDefault() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        CommandLine.ParseResult parseResult = cli.parseArgs(
+            "build",
+            "--config", "biblios.yml"
+        );
+
+        assertFalse(parseResult.subcommand().hasMatchedOption("--pdf"));
+        assertFalse(parseResult.subcommand().hasMatchedOption("--pdf-version"));
+    }
+
+    @Test
+    void buildRejectsPdfVersionWithoutPdfFlag() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        int exitCode = cli.execute(
+            "build",
+            "--config", "missing.yml",
+            "--pdf-version", "main"
+        );
+
+        assertEquals(2, exitCode);
+    }
 
     @Test
     void serveParsesUseLocalWorkingTreeFlag() {

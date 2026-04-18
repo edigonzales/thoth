@@ -60,11 +60,29 @@ pdf:
     pdf-theme: ./themes/default-theme.yml
 ```
 
-2. Run the build:
+2. Run the build (HTML only by default):
 
 ```bash
 java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
   --config biblios.yml
+```
+
+Optional: enable PDF output explicitly.
+
+```bash
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
+  --config biblios.yml \
+  --pdf
+```
+
+Optional: restrict PDF generation to selected versions.
+
+```bash
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
+  --config biblios.yml \
+  --pdf \
+  --pdf-version main \
+  --pdf-version mydocs/v1.x
 ```
 
 3. The site is generated in `build/site/`. Open `build/site/index.html` in your browser.
@@ -190,7 +208,8 @@ If `site.logo` points to a local file that does not exist, the build fails with 
 
 #### `pdf` – PDF Output Settings
 
-When `pdf.enabled: true`, Biblios writes one PDF per published component version into the corresponding version output directory.
+When `pdf.enabled: true`, Biblios can write one PDF per published component version into the corresponding version output directory.  
+PDF generation is only executed when the CLI build is started with `--pdf`.
 
 | Key | Required | Description |
 |-----|----------|-------------|
@@ -459,6 +478,8 @@ java -jar thoth-biblios-<version>-all.jar build \
 | `--config` | Yes | Path to `biblios.yml` configuration file |
 | `--output` | No | Output directory (overrides `output.dir` in config) |
 | `--clean` | No | Delete output directory before building |
+| `--pdf` | No | Enable PDF generation in addition to HTML (requires PDF to be enabled in config globally or per source) |
+| `--pdf-version` | No | Limit PDF generation to selected versions (`main`, `v1.x`, or `<component>/<version>`). Requires `--pdf`. |
 
 ### `serve`
 

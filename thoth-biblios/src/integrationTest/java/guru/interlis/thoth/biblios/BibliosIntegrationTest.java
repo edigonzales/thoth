@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -245,6 +246,64 @@ class BibliosIntegrationTest {
         byte[] bytes = Files.readAllBytes(pdfFile);
         assertTrue(bytes.length > 5);
         assertEquals("%PDF-", new String(bytes, 0, 5));
+    }
+
+    @Test
+    void generateHonorsPdfToggleAndVersionFilter() throws Exception {
+        Path repoDir = tempDir.resolve("pdf-filter-repo");
+        Path workRoot = tempDir.resolve("pdf-filter-work");
+        Path outputRoot = tempDir.resolve("pdf-filter-output");
+        Path configFile = tempDir.resolve("pdf-filter-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir)
+            .withBasicDocs()
+            .withSecondBranch("v1.x");
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("PDF Filter Docs")
+            .withOutputDir(outputRoot)
+            .withPdfEnabled(true)
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: mydocs
+                  display_name: My Documentation
+                  url: file://%s
+                  branches:
+                    - name: main
+                      display_version: Latest
+                    - name: v1.x
+                      display_version: Version 1.x
+                  start_path: docs
+                  default_version: main
+                  navigation:
+                    file: nav.yml
+                """.formatted(repoDir.toString())))
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate(false, Set.of());
+            }
+        }
+
+        assertTrue(Files.exists(outputRoot.resolve("mydocs/main/index.html")));
+        assertTrue(Files.exists(outputRoot.resolve("mydocs/v1.x/index.html")));
+        assertFalse(Files.exists(outputRoot.resolve("mydocs/main/mydocs-main.pdf")));
+        assertFalse(Files.exists(outputRoot.resolve("mydocs/v1.x/mydocs-v1.x.pdf")));
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate(true, Set.of("v1.x"));
+            }
+        }
+
+        assertFalse(Files.exists(outputRoot.resolve("mydocs/main/mydocs-main.pdf")));
+        assertTrue(Files.exists(outputRoot.resolve("mydocs/v1.x/mydocs-v1.x.pdf")));
     }
 
     @Test

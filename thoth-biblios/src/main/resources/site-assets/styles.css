@@ -785,6 +785,37 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     margin-bottom: 0.4rem;
 }
 
+.doc-content .sidebarblock.keypoint {
+    --keypoint-triangle-height: 1.2rem;
+    --keypoint-triangle-half-height: calc(var(--keypoint-triangle-height) / 2);
+    --keypoint-triangle-width: 0.7rem;
+    position: relative;
+    margin: 1.25rem 0 1.25rem 1.5rem;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+}
+
+.doc-content .sidebarblock.keypoint::before {
+    content: "";
+    position: absolute;
+    top: calc((1em * var(--lh-body) - var(--keypoint-triangle-height)) / 2);
+    left: 0;
+    width: 0;
+    height: 0;
+    border-top: var(--keypoint-triangle-half-height) solid transparent;
+    border-bottom: var(--keypoint-triangle-half-height) solid transparent;
+    border-left: var(--keypoint-triangle-width) solid #000;
+}
+
+.doc-content .sidebarblock.keypoint > .content {
+    padding: 0 0 0 2rem;
+}
+
+.doc-content .sidebarblock.keypoint > .content > :last-child {
+    margin-bottom: 0;
+}
+
 .doc-content .admonitionblock td.icon i[class*="icon-"]::after {
     content: attr(title);
     font-family: var(--font-chapter-headings);
