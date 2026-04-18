@@ -7,7 +7,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -51,11 +52,57 @@ class ServeWatchSupportTest {
             """.formatted(localRepo.toUri().getPath()));
 
         BibliosConfig config = new BibliosConfigParser().parse(configFile);
-        List<Path> roots = ServeWatchSupport.localSourceRoots(config, configFile);
+        Map<String, Path> roots = ServeWatchSupport.localSourceRootsForServe(config, configFile, true);
 
         assertEquals(2, roots.size());
-        assertTrue(roots.contains(localRepo.toAbsolutePath().normalize()));
-        assertTrue(roots.contains(relativeRepo.toAbsolutePath().normalize()));
+        assertEquals(localRepo.toAbsolutePath().normalize(), roots.get("local-file-url"));
+        assertEquals(relativeRepo.toAbsolutePath().normalize(), roots.get("local-relative-path"));
+    }
+
+    @Test
+    void disablesLocalSourceRootsWhenLocalWorkingTreeModeIsOff(@TempDir Path tempDir) throws Exception {
+        Path repo = tempDir.resolve("repo");
+        Files.createDirectories(repo);
+
+        Path configFile = tempDir.resolve("biblios.yml");
+        Files.writeString(configFile, """
+            site:
+              title: Test
+            output:
+              dir: build/site
+            content:
+              sources:
+                - id: local
+                  display_name: Local
+                  url: file://%s
+                  branches:
+                    - name: main
+            """.formatted(repo.toUri().getPath()));
+
+        BibliosConfig config = new BibliosConfigParser().parse(configFile);
+        Map<String, Path> roots = ServeWatchSupport.localSourceRootsForServe(config, configFile, false);
+        assertTrue(roots.isEmpty());
+    }
+
+    @Test
+    void resolvesChangedSourceByLongestMatchingRoot() {
+        Path root = Path.of("/tmp/work/repo").toAbsolutePath().normalize();
+        Path nestedRoot = root.resolve("docs/sub").normalize();
+        Map<String, Path> rootsById = new LinkedHashMap<>();
+        rootsById.put("repo", root);
+        rootsById.put("nested", nestedRoot);
+
+        assertEquals(
+            "nested",
+            ServeWatchSupport.findChangedSourceId(rootsById, nestedRoot.resolve("page.adoc"))
+        );
+        assertEquals(
+            "repo",
+            ServeWatchSupport.findChangedSourceId(rootsById, root.resolve("docs/index.adoc"))
+        );
+        assertNull(
+            ServeWatchSupport.findChangedSourceId(rootsById, Path.of("/tmp/elsewhere/page.adoc"))
+        );
     }
 
     @Test

@@ -69,6 +69,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         this.config = config;
         this.catalog = catalog;
         this.outputRoot = outputRoot;
+        this.siteLogo = resolveConfiguredLogoReference();
 
         // Initialize FreeMarker
         freemarker = new Configuration(Configuration.VERSION_2_3_34);
@@ -120,6 +121,29 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         }
 
         System.out.println("[info] Site generation complete.");
+    }
+
+    /**
+     * Regenerate a single component tree and keep other component outputs untouched.
+     */
+    public void regenerateComponent(DocComponent component) throws IOException {
+        Objects.requireNonNull(component, "component is required");
+        Files.createDirectories(outputRoot);
+        Path componentRoot = outputRoot.resolve(component.id());
+        if (Files.exists(componentRoot)) {
+            deleteDirectory(componentRoot);
+        }
+        generateComponentPages(component);
+    }
+
+    /**
+     * Regenerate global artifacts that aggregate all components.
+     */
+    public void regenerateGlobalArtifacts() throws IOException {
+        Files.createDirectories(outputRoot);
+        generateHomePage();
+        generateSearchPage();
+        generateSearchIndex();
     }
 
     private boolean isGlobalPdfEnabled() {
@@ -443,8 +467,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
 
         json.append("\n]");
 
-        Path searchIndex = outputRoot.resolve("search-index.json");
-        Files.writeString(searchIndex, json.toString(), StandardCharsets.UTF_8);
+        writeOutput(Path.of("search-index.json"), json.toString());
     }
 
     private void copyAssets() throws IOException {
@@ -526,6 +549,19 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         return "/site-assets/" + fileName;
     }
 
+    private String resolveConfiguredLogoReference() {
+        String logo = config.site().logo();
+        if (logo == null || logo.isBlank()) {
+            return null;
+        }
+        if (isExternalLogoReference(logo)) {
+            return logo;
+        }
+        Path sourceLogoPath = resolveLocalLogoPath(logo);
+        String extension = fileExtension(sourceLogoPath.getFileName().toString());
+        return "/site-assets/site-logo" + extension;
+    }
+
     private boolean isExternalLogoReference(String logo) {
         try {
             URI uri = new URI(logo);
@@ -604,6 +640,16 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private void writeOutput(Path relativePath, String content) throws IOException {
         Path target = outputRoot.resolve(relativePath);
         Files.createDirectories(target.getParent());
+        writeIfChanged(target, content);
+    }
+
+    private void writeIfChanged(Path target, String content) throws IOException {
+        if (Files.exists(target) && Files.isRegularFile(target)) {
+            String current = Files.readString(target, StandardCharsets.UTF_8);
+            if (current.equals(content)) {
+                return;
+            }
+        }
         Files.writeString(target, content, StandardCharsets.UTF_8);
     }
 

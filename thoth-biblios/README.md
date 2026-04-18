@@ -502,16 +502,19 @@ java -jar thoth-biblios-<version>-all.jar serve \
 **Serve behavior:**
 1. Performs an initial build
 2. Starts an HTTP server serving the output directory
-3. Watches `biblios.yml` for config changes → triggers rebuild
-4. Watches local content source paths (`file://...` and local filesystem paths) for changes → triggers rebuild
-5. Ignores `.git` metadata changes in watched local sources (prevents rebuild loops caused by internal Git updates)
-6. Does not watch `.thoth/cache` directly
-7. Runs `git fetch` only during the initial `serve` build; watch-triggered rebuilds use the cached repository without fetching
-8. With `--use-local-working-tree`, local sources read the currently checked-out branch directly from the local repository path (uncommitted changes become visible immediately)
-9. With `--use-local-working-tree`, additional configured branches of the same source still use the cached repository checkout
-10. Remote updates are picked up after restarting `serve`
-11. Why: avoids self-triggered rebuild loops where the build process modifies the same path that is being watched
-12. Press `Ctrl+C` to stop
+3. Watches `biblios.yml` for config changes → triggers full clean rebuild
+4. Watches local content source paths only with `--use-local-working-tree`
+5. Without `--use-local-working-tree`, local content watching is disabled
+6. Local content changes trigger an incremental rebuild for the affected source only
+7. Config changes still trigger a full rebuild to avoid stale output artifacts
+8. Ignores `.git` metadata changes in watched local sources (prevents rebuild loops caused by internal Git updates)
+9. Does not watch `.thoth/cache` directly
+10. Runs `git fetch` only during the initial `serve` build; watch-triggered rebuilds use the cached repository without fetching
+11. With `--use-local-working-tree`, local sources read the currently checked-out branch directly from the local repository path (uncommitted changes become visible immediately)
+12. With `--use-local-working-tree`, additional configured branches of the same source still use the cached repository checkout
+13. Remote updates are picked up after restarting `serve`
+14. Why: avoids self-triggered rebuild loops where the build process modifies the same path that is being watched
+15. Press `Ctrl+C` to stop
 
 ## Multi-Source Example
 

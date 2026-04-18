@@ -2,6 +2,7 @@ package guru.interlis.thoth.biblios;
 
 import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.BibliosConfigParser;
+import guru.interlis.thoth.biblios.config.SourceConfig;
 import guru.interlis.thoth.biblios.catalog.CatalogBuilder;
 import guru.interlis.thoth.biblios.catalog.SiteCatalog;
 import guru.interlis.thoth.biblios.catalog.DocComponent;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.Map;
 import java.util.List;
 import java.util.Set;
@@ -921,6 +923,166 @@ class BibliosIntegrationTest {
         assertTrue(html.matches("(?s).*\\b1\\.\\s+Einleitung\\b.*"));
         assertTrue(html.matches("(?s).*\\b1\\.1\\.\\s+Status\\b.*"));
         assertTrue(html.contains("data-chapter-title=\"Einleitung\""));
+    }
+
+    @Test
+    void incrementalSourceRegenerationUpdatesOnlyChangedComponent() throws Exception {
+        Path repoADir = tempDir.resolve("incremental-repo-a");
+        Path repoBDir = tempDir.resolve("incremental-repo-b");
+        Path workRoot = tempDir.resolve("incremental-work");
+        Path outputRoot = tempDir.resolve("incremental-output");
+        Path configFile = tempDir.resolve("incremental-biblios.yml");
+
+        Files.createDirectories(repoADir);
+        Files.createDirectories(repoBDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoADir).withBasicDocs();
+        new TestRepoBuilder(repoBDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Incremental Integration")
+            .withOutputDir(outputRoot)
+            .withClean(false)
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: docs-a
+                  display_name: Docs A
+                  url: file://%s
+                  branches:
+                    - name: main
+                  start_path: docs
+                  default_version: main
+                """.formatted(repoADir)))
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: docs-b
+                  display_name: Docs B
+                  url: file://%s
+                  branches:
+                    - name: main
+                  start_path: docs
+                  default_version: main
+                """.formatted(repoBDir)))
+            .writeTo(configFile);
+
+        SiteCatalog catalog;
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot, true, true, configFile)) {
+            catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        Path docsBGuide = outputRoot.resolve("docs-b/main/guide/index.html");
+        byte[] docsBGuideBefore = Files.readAllBytes(docsBGuide);
+        FileTime docsBGuideMtimeBefore = Files.getLastModifiedTime(docsBGuide);
+
+        Files.writeString(repoADir.resolve("docs/guide.adoc"), """
+            = User Guide
+            :doctype: book
+
+            This guide was changed incrementally.
+            """);
+
+        SourceConfig sourceA = config.content().sources().stream()
+            .filter(source -> source.id().equals("docs-a"))
+            .findFirst()
+            .orElseThrow();
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot, false, true, configFile)) {
+            DocComponent updatedComponent = builder.buildComponent(sourceA);
+            SiteCatalog updatedCatalog = catalog.withReplacedComponent(updatedComponent);
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, updatedCatalog, outputRoot)) {
+                generator.regenerateComponent(updatedComponent);
+                generator.regenerateGlobalArtifacts();
+            }
+            catalog = updatedCatalog;
+        }
+
+        String docsAGuide = Files.readString(outputRoot.resolve("docs-a/main/guide/index.html"));
+        assertTrue(docsAGuide.contains("This guide was changed incrementally."));
+        assertArrayEquals(docsBGuideBefore, Files.readAllBytes(docsBGuide));
+        assertEquals(docsBGuideMtimeBefore, Files.getLastModifiedTime(docsBGuide));
+
+        Files.delete(repoADir.resolve("docs/guide.adoc"));
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot, false, true, configFile)) {
+            DocComponent updatedComponent = builder.buildComponent(sourceA);
+            SiteCatalog updatedCatalog = catalog.withReplacedComponent(updatedComponent);
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, updatedCatalog, outputRoot)) {
+                generator.regenerateComponent(updatedComponent);
+                generator.regenerateGlobalArtifacts();
+            }
+            catalog = updatedCatalog;
+        }
+
+        assertFalse(Files.exists(outputRoot.resolve("docs-a/main/guide/index.html")));
+    }
+
+    @Test
+    void fullCleanConfigRebuildRemovesStaleOutputs() throws Exception {
+        Path repoADir = tempDir.resolve("config-rebuild-repo-a");
+        Path repoBDir = tempDir.resolve("config-rebuild-repo-b");
+        Path workRoot = tempDir.resolve("config-rebuild-work");
+        Path outputRoot = tempDir.resolve("config-rebuild-output");
+        Path configFile = tempDir.resolve("config-rebuild-biblios.yml");
+
+        Files.createDirectories(repoADir);
+        Files.createDirectories(repoBDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoADir).withBasicDocs();
+        new TestRepoBuilder(repoBDir).withBasicDocs();
+
+        BibliosConfig initialConfig = new BibliosConfigBuilder()
+            .withSiteTitle("Config Rebuild Integration")
+            .withOutputDir(outputRoot)
+            .withClean(false)
+            .withSingleSourceGitRepo(repoADir, "docs-a", "Docs A", "docs", "main", "main")
+            .withSingleSourceGitRepo(repoBDir, "docs-b", "Docs B", "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(initialConfig, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(initialConfig, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+        assertTrue(Files.exists(outputRoot.resolve("docs-b/main/index.html")));
+
+        BibliosConfig updatedConfig = new BibliosConfigBuilder()
+            .withSiteTitle("Config Rebuild Integration")
+            .withOutputDir(outputRoot)
+            .withClean(false)
+            .withSingleSourceGitRepo(repoADir, "docs-a", "Docs A", "docs", "main", "main")
+            .writeTo(configFile);
+
+        deleteRecursively(outputRoot);
+        try (CatalogBuilder builder = new CatalogBuilder(updatedConfig, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(updatedConfig, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        assertFalse(Files.exists(outputRoot.resolve("docs-b")));
+        assertTrue(Files.exists(outputRoot.resolve("docs-a/main/index.html")));
+    }
+
+    private void deleteRecursively(Path root) throws Exception {
+        if (!Files.exists(root)) {
+            return;
+        }
+        try (var stream = Files.walk(root)) {
+            stream.sorted(java.util.Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        Files.delete(path);
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                });
+        }
     }
 
     private String extractHead(String html) {

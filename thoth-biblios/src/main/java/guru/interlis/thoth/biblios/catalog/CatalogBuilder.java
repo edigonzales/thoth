@@ -56,12 +56,19 @@ public final class CatalogBuilder implements AutoCloseable {
         List<DocComponent> components = new ArrayList<>();
 
         for (SourceConfig source : config.content().sources()) {
-            System.out.println("[info] Resolving source: " + source.id() + " (" + source.url() + ")");
-            DocComponent component = buildComponent(source, config.ui());
+            DocComponent component = buildComponent(source);
             components.add(component);
         }
 
         return new SiteCatalog(components);
+    }
+
+    /**
+     * Build a single component for a source from this builder configuration.
+     */
+    public DocComponent buildComponent(SourceConfig source) throws IOException {
+        System.out.println("[info] Resolving source: " + source.id() + " (" + source.url() + ")");
+        return buildComponent(source, config.ui());
     }
 
     private DocComponent buildComponent(SourceConfig source, UiSection ui) throws IOException {

@@ -1,7 +1,7 @@
 package guru.interlis.thoth.biblios.catalog;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -40,6 +40,28 @@ public final class SiteCatalog {
             return null;
         }
         return component.getVersion(version);
+    }
+
+    /**
+     * Return a new catalog with the given component replaced by ID.
+     * If no component with the same ID exists yet, it is appended.
+     */
+    public SiteCatalog withReplacedComponent(DocComponent component) {
+        Objects.requireNonNull(component, "component is required");
+        List<DocComponent> updated = new ArrayList<>(components.size() + 1);
+        boolean replaced = false;
+        for (DocComponent existing : components) {
+            if (existing.id().equals(component.id())) {
+                updated.add(component);
+                replaced = true;
+            } else {
+                updated.add(existing);
+            }
+        }
+        if (!replaced) {
+            updated.add(component);
+        }
+        return new SiteCatalog(updated);
     }
 
     @Override
