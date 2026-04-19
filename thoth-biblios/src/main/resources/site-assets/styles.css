@@ -52,6 +52,8 @@
     --content-width: 72ch;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale; /* mac Firefox */    
+
+    --keypoint-vertical-nudge: 0.12em;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -799,7 +801,8 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 .doc-content .sidebarblock.keypoint::before {
     content: "";
     position: absolute;
-    top: calc((1em * var(--lh-body) - var(--keypoint-triangle-height)) / 2);
+    /*top: calc((1em * var(--lh-body) - var(--keypoint-triangle-height)) / 2);*/
+    top: calc((1em * var(--lh-body) - var(--keypoint-triangle-height)) / 2 + var(--keypoint-vertical-nudge));
     left: 0;
     width: 0;
     height: 0;
