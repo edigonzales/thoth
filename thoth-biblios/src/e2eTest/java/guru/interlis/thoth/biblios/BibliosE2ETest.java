@@ -8,19 +8,26 @@ import guru.interlis.thoth.biblios.fixture.BibliosConfigBuilder;
 import guru.interlis.thoth.biblios.fixture.SiteAssertions;
 import guru.interlis.thoth.biblios.fixture.TestRepoBuilder;
 import guru.interlis.thoth.core.DevServer;
+import org.eclipse.jgit.api.Git;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -989,6 +996,29 @@ class BibliosE2ETest {
         assertions.assertFileNotExists("mydocs/main/guide/index.html");
     }
 
+    @Test
+    void docxE2eIncludesSeqAndPageRefFields() throws Exception {
+        Path repoDir = setupTestRepo("docx-e2e-repo");
+        setupOutputDirs();
+        prepareDocxReferenceFixture(repoDir);
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("DOCX E2E Docs")
+            .withOutputDir(outputRoot)
+            .withDocxEnabled(true)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation", "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config, false, Set.of(), true, Set.of("main"));
+
+        Path docx = outputRoot.resolve("mydocs/main/mydocs-main.docx");
+        assertTrue(Files.exists(docx));
+        String xml = readDocxEntry(docx, "word/document.xml");
+        assertTrue(xml.contains("SEQ Figure"));
+        assertTrue(xml.contains(" PAGEREF "));
+        assertTrue(xml.contains(" REF "));
+    }
+
     // ================================================================
     // Helper methods
     // ================================================================
@@ -1014,10 +1044,60 @@ class BibliosE2ETest {
     }
 
     private void buildAndGenerate(BibliosConfig config) throws Exception {
+        buildAndGenerate(config, true, Set.of(), false, Set.of());
+    }
+
+    private void buildAndGenerate(BibliosConfig config,
+                                  boolean generatePdf,
+                                  Set<String> selectedPdfVersions,
+                                  boolean generateDocx,
+                                  Set<String> selectedDocxVersions) throws Exception {
         try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
             SiteCatalog catalog = builder.build();
             try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
-                generator.generate();
+                generator.generate(generatePdf, selectedPdfVersions, generateDocx, selectedDocxVersions);
+            }
+        }
+    }
+
+    private void prepareDocxReferenceFixture(Path repoDir) throws Exception {
+        byte[] onePixelPng = Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sN3cJQAAAAASUVORK5CYII="
+        );
+        Files.createDirectories(repoDir.resolve("docs/images"));
+        Files.write(repoDir.resolve("docs/images/overview.png"), onePixelPng);
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Files.writeString(repoDir.resolve("docs/guide.adoc"), """
+                = User Guide
+                :doctype: book
+
+                Siehe link:#fig-overview[Abbildung].
+                Siehe auf Seite link:#fig-overview[dieser Abbildung].
+
+                [#fig-overview]
+                .System overview
+                image::images/overview.png[]
+                """);
+
+            Files.writeString(repoDir.resolve("docs/nav.yml"), """
+                items:
+                  - title: Welcome
+                    page: index.adoc
+                  - title: User Guide
+                    page: guide.adoc
+                """);
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Add DOCX E2E reference fixture").call();
+        }
+    }
+
+    private String readDocxEntry(Path docxFile, String entryName) throws IOException {
+        try (ZipFile zip = new ZipFile(docxFile.toFile())) {
+            ZipEntry entry = zip.getEntry(entryName);
+            assertNotNull(entry, "Missing DOCX entry: " + entryName);
+            try (InputStream in = zip.getInputStream(entry)) {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8);
             }
         }
     }

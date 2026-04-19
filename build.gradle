@@ -227,6 +227,7 @@ project(':thoth-biblios') {
         implementation 'org.snakeyaml:snakeyaml-engine:2.9'
         implementation 'org.eclipse.jgit:org.eclipse.jgit:7.1.0.202411261347-r'
         implementation 'org.asciidoctor:asciidoctorj-pdf:2.3.6'
+        implementation 'org.apache.poi:poi-ooxml:5.4.1'
 
         testImplementation 'org.junit.jupiter:junit-jupiter:5.14.2'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -235,6 +236,14 @@ project(':thoth-biblios') {
     // JaCoCo coverage – same convention as thoth-blog
     jacoco {
         toolVersion = '0.8.13'
+    }
+
+    tasks.named('integrationTest', Test) {
+        maxHeapSize = '1024m'
+    }
+
+    tasks.named('e2eTest', Test) {
+        maxHeapSize = '1024m'
     }
 
     jacocoTestReport {

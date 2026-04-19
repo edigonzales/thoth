@@ -94,6 +94,16 @@ public final class ThothBibliosCli implements Callable<Integer> {
         )
         private List<String> pdfVersions = new ArrayList<>();
 
+        @Option(names = "--docx", description = "Generate DOCX artifacts in addition to HTML output")
+        private boolean docx;
+
+        @Option(
+            names = "--docx-version",
+            split = ",",
+            description = "Limit DOCX generation to one or more versions (e.g. main, v1.x, or component/main). Requires --docx."
+        )
+        private List<String> docxVersions = new ArrayList<>();
+
         @Override
         public Integer call() throws Exception {
             System.out.println("[info] thoth-biblios build");
@@ -103,6 +113,17 @@ public final class ThothBibliosCli implements Callable<Integer> {
             }
             if (!pdf && !pdfVersions.isEmpty()) {
                 System.err.println("[error] --pdf-version requires --pdf.");
+                return 2;
+            }
+            if (docxVersions == null) {
+                docxVersions = new ArrayList<>();
+            }
+            if (!docx && !docxVersions.isEmpty()) {
+                System.err.println("[error] --docx-version requires --docx.");
+                return 2;
+            }
+            if (docx && docxVersions.isEmpty()) {
+                System.err.println("[error] --docx requires at least one --docx-version.");
                 return 2;
             }
 
@@ -126,7 +147,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
                 // Generate site
                 try (BibliosSiteGenerator generator = new BibliosSiteGenerator(bibliosConfig, catalog, outputDir)) {
-                    generator.generate(pdf, selectedPdfVersions());
+                    generator.generate(pdf, selectedPdfVersions(), docx, selectedDocxVersions());
                 }
             }
 
@@ -146,6 +167,23 @@ public final class ThothBibliosCli implements Callable<Integer> {
             }
             Set<String> selected = new LinkedHashSet<>();
             for (String candidate : pdfVersions) {
+                if (candidate == null) {
+                    continue;
+                }
+                String trimmed = candidate.trim();
+                if (!trimmed.isBlank()) {
+                    selected.add(trimmed);
+                }
+            }
+            return Set.copyOf(selected);
+        }
+
+        private Set<String> selectedDocxVersions() {
+            if (docxVersions == null || docxVersions.isEmpty()) {
+                return Set.of();
+            }
+            Set<String> selected = new LinkedHashSet<>();
+            for (String candidate : docxVersions) {
                 if (candidate == null) {
                     continue;
                 }

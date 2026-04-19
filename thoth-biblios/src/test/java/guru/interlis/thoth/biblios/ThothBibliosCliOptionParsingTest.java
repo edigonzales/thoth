@@ -25,6 +25,21 @@ class ThothBibliosCliOptionParsingTest {
     }
 
     @Test
+    void buildParsesDocxFlags() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        CommandLine.ParseResult parseResult = cli.parseArgs(
+            "build",
+            "--config", "biblios.yml",
+            "--docx",
+            "--docx-version", "main",
+            "--docx-version", "docs/v1.x"
+        );
+
+        assertTrue(parseResult.subcommand().hasMatchedOption("--docx"));
+        assertTrue(parseResult.subcommand().hasMatchedOption("--docx-version"));
+    }
+
+    @Test
     void buildLeavesPdfDisabledByDefault() {
         CommandLine cli = new CommandLine(new ThothBibliosCli());
         CommandLine.ParseResult parseResult = cli.parseArgs(
@@ -34,6 +49,8 @@ class ThothBibliosCliOptionParsingTest {
 
         assertFalse(parseResult.subcommand().hasMatchedOption("--pdf"));
         assertFalse(parseResult.subcommand().hasMatchedOption("--pdf-version"));
+        assertFalse(parseResult.subcommand().hasMatchedOption("--docx"));
+        assertFalse(parseResult.subcommand().hasMatchedOption("--docx-version"));
     }
 
     @Test
@@ -43,6 +60,30 @@ class ThothBibliosCliOptionParsingTest {
             "build",
             "--config", "missing.yml",
             "--pdf-version", "main"
+        );
+
+        assertEquals(2, exitCode);
+    }
+
+    @Test
+    void buildRejectsDocxVersionWithoutDocxFlag() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        int exitCode = cli.execute(
+            "build",
+            "--config", "missing.yml",
+            "--docx-version", "main"
+        );
+
+        assertEquals(2, exitCode);
+    }
+
+    @Test
+    void buildRejectsDocxFlagWithoutDocxVersion() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        int exitCode = cli.execute(
+            "build",
+            "--config", "missing.yml",
+            "--docx"
         );
 
         assertEquals(2, exitCode);

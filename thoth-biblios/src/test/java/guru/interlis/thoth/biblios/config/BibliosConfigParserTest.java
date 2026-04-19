@@ -45,6 +45,11 @@ class BibliosConfigParserTest {
         assertTrue(config.ui().prismCustomComponents().isEmpty());
         assertFalse(config.pdf().enabled());
         assertTrue(config.pdf().attributes().isEmpty());
+        assertFalse(config.docx().enabled());
+        assertNull(config.docx().referenceDoc());
+        assertFalse(config.docx().features().titlePage());
+        assertTrue(config.docx().features().toc());
+        assertFalse(config.docx().features().changeLog());
 
         // Content sources
         assertEquals(2, config.content().sources().size());
@@ -836,6 +841,86 @@ class BibliosConfigParserTest {
         assertEquals(Boolean.FALSE, source.pdf().enabled());
         assertEquals("pdf/book.adoc", source.pdf().masterFile());
         assertEquals(Boolean.TRUE, source.pdf().attributes().get("compress"));
+    }
+
+    @Test
+    void parsesGlobalDocxSection(@TempDir Path tempDir) throws IOException {
+        Path ref = tempDir.resolve("reference.docx");
+        Files.writeString(ref, "fake");
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            docx:
+              enabled: true
+              reference_doc: ./reference.docx
+              features:
+                title_page: true
+                toc: true
+                change_log: false
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("docx.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertTrue(config.docx().enabled());
+        assertEquals(ref.toAbsolutePath().normalize().toString(), config.docx().referenceDoc());
+        assertTrue(config.docx().features().titlePage());
+        assertTrue(config.docx().features().toc());
+        assertFalse(config.docx().features().changeLog());
+    }
+
+    @Test
+    void parsesPerSourceDocxOverrides(@TempDir Path tempDir) throws IOException {
+        Path globalRef = tempDir.resolve("global-reference.docx");
+        Path localRef = tempDir.resolve("local-reference.docx");
+        Files.writeString(globalRef, "global");
+        Files.writeString(localRef, "local");
+
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            docx:
+              enabled: true
+              reference_doc: ./global-reference.docx
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+                  docx:
+                    enabled: false
+                    master_file: docx/book.adoc
+                    reference_doc: ./local-reference.docx
+                    features:
+                      title_page: true
+                      change_log: true
+            """;
+        Path file = tempDir.resolve("source-docx.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        SourceConfig source = config.content().sources().get(0);
+        assertNotNull(source.docx());
+        assertEquals(Boolean.FALSE, source.docx().enabled());
+        assertEquals("docx/book.adoc", source.docx().masterFile());
+        assertEquals(localRef.toAbsolutePath().normalize().toString(), source.docx().referenceDoc());
+        assertNotNull(source.docx().features());
+        assertEquals(Boolean.TRUE, source.docx().features().titlePage());
+        assertNull(source.docx().features().toc());
+        assertEquals(Boolean.TRUE, source.docx().features().changeLog());
     }
 
     @Test

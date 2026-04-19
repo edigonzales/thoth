@@ -133,6 +133,12 @@ public final class BibliosConfigParser {
             getBoolean(pdfMap, "enabled", false),
             parsePdfAttributes(pdfMap, configPath, "pdf.attributes")
         );
+        Map<String, Object> docxMap = root.containsKey("docx") ? getMap(root, "docx") : Map.of();
+        DocxSection docx = new DocxSection(
+            getBoolean(docxMap, "enabled", false),
+            parseDocxReferenceDoc(docxMap, configPath, "docx.reference_doc"),
+            parseDocxFeatures(docxMap, "docx.features")
+        );
 
         // Parse content section
         Map<String, Object> contentMap = getMap(root, "content");
@@ -163,7 +169,7 @@ public final class BibliosConfigParser {
 
         ContentSection content = new ContentSection(sources);
 
-        return new BibliosConfig(site, output, ui, pdf, content);
+        return new BibliosConfig(site, output, ui, pdf, docx, content);
     }
 
     private String parseSiteLogo(Map<String, Object> siteMap, Path configPath) {
@@ -263,6 +269,7 @@ public final class BibliosConfigParser {
         RenderMode renderMode = parseRenderMode(sourceMap, label);
         SidebarTocNumbersMode sidebarTocNumbers = parseSidebarTocNumbersMode(sourceMap, label);
         SourcePdfSection pdf = parseSourcePdfSection(sourceMap, configPath, label);
+        SourceDocxSection docx = parseSourceDocxSection(sourceMap, configPath, label);
         String masterFile = null;
         Object masterFileValue = sourceMap.get("master_file");
         if (masterFileValue != null) {
@@ -303,7 +310,8 @@ public final class BibliosConfigParser {
             renderMode,
             masterFile,
             sidebarTocNumbers,
-            pdf
+            pdf,
+            docx
         );
     }
 
@@ -352,6 +360,106 @@ public final class BibliosConfigParser {
             enabled,
             masterFile,
             parsePdfAttributes(pdfMap, configPath, label + ".pdf.attributes")
+        );
+    }
+
+    private SourceDocxSection parseSourceDocxSection(Map<String, Object> sourceMap, Path configPath, String label) {
+        if (!sourceMap.containsKey("docx")) {
+            return null;
+        }
+
+        Map<String, Object> docxMap = castMap(sourceMap.get("docx"), label + ".docx");
+        Boolean enabled = parseOptionalBoolean(docxMap, "enabled", label + ".docx.enabled");
+        String masterFile = parseOptionalTrimmedString(docxMap, "master_file", label + ".docx.master_file");
+        String referenceDoc = parseDocxReferenceDoc(docxMap, configPath, label + ".docx.reference_doc");
+        SourceDocxFeaturesSection features = parseSourceDocxFeatures(docxMap, label + ".docx.features");
+
+        return new SourceDocxSection(enabled, masterFile, referenceDoc, features);
+    }
+
+    private Boolean parseOptionalBoolean(Map<String, Object> map, String key, String label) {
+        if (!map.containsKey(key)) {
+            return null;
+        }
+        Object value = map.get(key);
+        if (!(value instanceof Boolean flag)) {
+            throw new ThothBuildException(
+                "Expected boolean for '" + label + "', got: " +
+                    (value == null ? "null" : value.getClass().getSimpleName()),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return flag;
+    }
+
+    private String parseOptionalTrimmedString(Map<String, Object> map, String key, String label) {
+        if (!map.containsKey(key)) {
+            return null;
+        }
+        Object value = map.get(key);
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for '" + label + "', got: " +
+                    (value == null ? "null" : value.getClass().getSimpleName()),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        if (text.isBlank()) {
+            throw new ThothBuildException(
+                "Configuration '" + label + "' must not be blank",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return text.trim();
+    }
+
+    private String parseDocxReferenceDoc(Map<String, Object> map, Path configPath, String label) {
+        String raw = parseOptionalTrimmedString(map, "reference_doc", label);
+        if (raw == null) {
+            return null;
+        }
+        Path resolved = resolveLocalPath(raw, configPath);
+        if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) {
+            throw new ThothBuildException(
+                "Invalid '" + label + "': file not found: " + resolved,
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        String lower = resolved.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+        if (!lower.endsWith(".docx")) {
+            throw new ThothBuildException(
+                "Invalid '" + label + "': expected .docx file, got: " + resolved.getFileName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return resolved.toAbsolutePath().normalize().toString();
+    }
+
+    private DocxFeaturesSection parseDocxFeatures(Map<String, Object> map, String label) {
+        if (!map.containsKey("features")) {
+            return DocxFeaturesSection.defaults();
+        }
+        Map<String, Object> featuresMap = castMap(map.get("features"), label);
+        boolean titlePage = getBoolean(featuresMap, "title_page", false);
+        boolean toc = getBoolean(featuresMap, "toc", true);
+        boolean changeLog = getBoolean(featuresMap, "change_log", false);
+        return new DocxFeaturesSection(titlePage, toc, changeLog);
+    }
+
+    private SourceDocxFeaturesSection parseSourceDocxFeatures(Map<String, Object> map, String label) {
+        if (!map.containsKey("features")) {
+            return null;
+        }
+        Map<String, Object> featuresMap = castMap(map.get("features"), label);
+        return new SourceDocxFeaturesSection(
+            parseOptionalBoolean(featuresMap, "title_page", label + ".title_page"),
+            parseOptionalBoolean(featuresMap, "toc", label + ".toc"),
+            parseOptionalBoolean(featuresMap, "change_log", label + ".change_log")
         );
     }
 

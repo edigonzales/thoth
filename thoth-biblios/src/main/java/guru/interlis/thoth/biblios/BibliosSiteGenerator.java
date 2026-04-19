@@ -84,13 +84,21 @@ public final class BibliosSiteGenerator implements AutoCloseable {
      * Generate the complete site.
      */
     public void generate() throws IOException {
-        generate(true, Set.of());
+        generate(true, Set.of(), false, Set.of());
     }
 
     /**
      * Generate the complete site with optional PDF generation control.
      */
     public void generate(boolean generatePdf, Set<String> selectedPdfVersions) throws IOException {
+        generate(generatePdf, selectedPdfVersions, false, Set.of());
+    }
+
+    /**
+     * Generate the complete site with optional PDF and DOCX generation control.
+     */
+    public void generate(boolean generatePdf, Set<String> selectedPdfVersions,
+                         boolean generateDocx, Set<String> selectedDocxVersions) throws IOException {
         System.out.println("[info] Generating site to: " + outputRoot);
 
         // Clean output if configured
@@ -118,6 +126,9 @@ public final class BibliosSiteGenerator implements AutoCloseable {
 
         if (generatePdf && (isGlobalPdfEnabled() || hasSourceLevelPdfEnablement())) {
             new BibliosPdfGenerator(config, catalog, outputRoot).generate(selectedPdfVersions);
+        }
+        if (generateDocx && (isGlobalDocxEnabled() || hasSourceLevelDocxEnablement())) {
+            new BibliosDocxGenerator(config, catalog, outputRoot).generate(selectedDocxVersions);
         }
 
         System.out.println("[info] Site generation complete.");
@@ -153,6 +164,19 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private boolean hasSourceLevelPdfEnablement() {
         for (var source : config.content().sources()) {
             if (source.pdf() != null && Boolean.TRUE.equals(source.pdf().enabled())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isGlobalDocxEnabled() {
+        return config.docx() != null && config.docx().enabled();
+    }
+
+    private boolean hasSourceLevelDocxEnablement() {
+        for (var source : config.content().sources()) {
+            if (source.docx() != null && Boolean.TRUE.equals(source.docx().enabled())) {
                 return true;
             }
         }

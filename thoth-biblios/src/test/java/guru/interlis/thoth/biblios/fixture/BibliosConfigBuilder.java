@@ -34,6 +34,9 @@ public final class BibliosConfigBuilder {
     private final ArrayList<String> prismCustomComponents = new ArrayList<>();
     private boolean pdfEnabled = false;
     private final LinkedHashMap<String, Object> pdfAttributes = new LinkedHashMap<>();
+    private boolean docxEnabled = false;
+    private String docxReferenceDoc = null;
+    private final LinkedHashMap<String, Object> docxFeatures = new LinkedHashMap<>();
     private final java.util.ArrayList<SourceEntry> sources = new java.util.ArrayList<>();
 
     public BibliosConfigBuilder withSiteTitle(String title) {
@@ -125,6 +128,30 @@ public final class BibliosConfigBuilder {
         this.pdfAttributes.clear();
         if (attributes != null) {
             this.pdfAttributes.putAll(attributes);
+        }
+        return this;
+    }
+
+    public BibliosConfigBuilder withDocxEnabled(boolean enabled) {
+        this.docxEnabled = enabled;
+        return this;
+    }
+
+    public BibliosConfigBuilder withDocxReferenceDoc(String referenceDoc) {
+        this.docxReferenceDoc = referenceDoc;
+        return this;
+    }
+
+    public BibliosConfigBuilder withDocxFeatures(Boolean titlePage, Boolean toc, Boolean changeLog) {
+        this.docxFeatures.clear();
+        if (titlePage != null) {
+            this.docxFeatures.put("title_page", titlePage);
+        }
+        if (toc != null) {
+            this.docxFeatures.put("toc", toc);
+        }
+        if (changeLog != null) {
+            this.docxFeatures.put("change_log", changeLog);
         }
         return this;
     }
@@ -253,6 +280,19 @@ public final class BibliosConfigBuilder {
             }
         }
 
+        StringBuilder docxSection = new StringBuilder();
+        if (docxEnabled || docxReferenceDoc != null || !docxFeatures.isEmpty()) {
+            docxSection.append("docx:\n");
+            docxSection.append("  enabled: %s\n".formatted(docxEnabled));
+            if (docxReferenceDoc != null && !docxReferenceDoc.isBlank()) {
+                docxSection.append("  reference_doc: \"%s\"\n".formatted(escapeYaml(docxReferenceDoc)));
+            }
+            if (!docxFeatures.isEmpty()) {
+                docxSection.append("  features:\n");
+                appendYamlMap(docxSection, 4, docxFeatures);
+            }
+        }
+
         String yaml = """
             site:
               title: %s
@@ -262,10 +302,10 @@ public final class BibliosConfigBuilder {
             output:
               dir: %s
               clean: %s
-            %s%scontent:
+            %s%s%scontent:
               sources:
             %s""".formatted(siteTitle, siteUrl, siteLanguage, siteLogoYaml(), outputDir.toString(), clean,
-                uiSection.toString(), pdfSection.toString(), sourcesYaml.toString().stripTrailing());
+                uiSection.toString(), pdfSection.toString(), docxSection.toString(), sourcesYaml.toString().stripTrailing());
 
         Files.writeString(configFile, yaml);
 

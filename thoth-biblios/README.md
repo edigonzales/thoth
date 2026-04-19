@@ -6,7 +6,7 @@ Multi-repo documentation site generator with versioning support.
 
 **Thoth Biblios** builds a complete documentation portal from multiple Git repositories. Each repository can publish multiple versions (based on Git branches), and Biblios combines them into a unified, searchable site with navigation, breadcrumbs, and version switching.
 
-Think of it as a lightweight, JVM-native alternative to Antora: you point it at Git repos, define your navigation in `nav.yml`, and Biblios generates a full HTML documentation portal plus optional PDF artifacts per component version.
+Think of it as a lightweight, JVM-native alternative to Antora: you point it at Git repos, define your navigation in `nav.yml`, and Biblios generates a full HTML documentation portal plus optional PDF and DOCX artifacts per component version.
 
 ## Quick Start
 
@@ -83,6 +83,16 @@ java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
   --pdf \
   --pdf-version main \
   --pdf-version mydocs/v1.x
+```
+
+Optional: enable DOCX output (requires explicit `--docx-version` filters).
+
+```bash
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
+  --config biblios.yml \
+  --docx \
+  --docx-version main \
+  --docx-version mydocs/v1.x
 ```
 
 3. The site is generated in `build/site/`. Open `build/site/index.html` in your browser.
@@ -222,6 +232,19 @@ Path handling inside `pdf.attributes`:
 - `pdf-themesdir`: accepts a local directory path, resolved relative to `biblios.yml`.
 - `pdf-fontsdir`: accepts either a string or a YAML list. Local directories are resolved relative to `biblios.yml`. `GEM_FONTS_DIR` and `uri:classloader:` entries are preserved.
 
+#### `docx` – DOCX Output Settings
+
+When `docx.enabled: true`, Biblios can write one DOCX per published component version into the corresponding version output directory.  
+DOCX generation is only executed when the CLI build is started with `--docx` and one or more `--docx-version` filters.
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `enabled` | No | Enable DOCX support. Default: `false` |
+| `reference_doc` | No | Path to a `.docx` template with Word styles/page layout. Resolved relative to `biblios.yml`. |
+| `features.title_page` | No | Add generated title page. Default: `false` |
+| `features.toc` | No | Add Word TOC field. Default: `true` |
+| `features.change_log` | No | Add placeholder section for changelog. Default: `false` |
+
 #### `content.sources` – Content Sources
 
 Each entry defines a Git repository as a documentation source.
@@ -242,6 +265,10 @@ Each entry defines a Git repository as a documentation source.
 | `pdf.enabled` | No | Override global PDF enablement for this source only. |
 | `pdf.master_file` | No | Optional PDF-specific master file under `start_path`. Useful for `split` sources that need a dedicated PDF assembly document. |
 | `pdf.attributes` | No | Source-specific PDF attribute overrides merged on top of global `pdf.attributes`. |
+| `docx.enabled` | No | Override global DOCX enablement for this source only. |
+| `docx.master_file` | No | Optional DOCX-specific master file under `start_path`. |
+| `docx.reference_doc` | No | Source-specific `.docx` template override. |
+| `docx.features.*` | No | Source-specific feature overrides (`title_page`, `toc`, `change_log`). |
 
 For `render_mode: single_page`, chapter entries with `[unnumbered]` are hidden from the sidebar TOC by default.  
 If you want an unnumbered chapter to be shown (for example appendices like `Anhang A - ...`), add role `[.appendix]` to that section:

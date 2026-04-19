@@ -9,15 +9,22 @@ import guru.interlis.thoth.biblios.catalog.DocComponent;
 import guru.interlis.thoth.biblios.catalog.ComponentVersion;
 import guru.interlis.thoth.biblios.fixture.TestRepoBuilder;
 import guru.interlis.thoth.biblios.fixture.BibliosConfigBuilder;
+import org.eclipse.jgit.api.Git;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.util.Base64;
 import java.util.Map;
 import java.util.List;
 import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -1067,6 +1074,165 @@ class BibliosIntegrationTest {
 
         assertFalse(Files.exists(outputRoot.resolve("docs-b")));
         assertTrue(Files.exists(outputRoot.resolve("docs-a/main/index.html")));
+    }
+
+    @Test
+    void docxContainsRefSeqAndPageRefFieldsForInternalFigureReferences() throws Exception {
+        Path repoDir = tempDir.resolve("docx-fields-repo");
+        Path workRoot = tempDir.resolve("docx-fields-work");
+        Path outputRoot = tempDir.resolve("docx-fields-output");
+        Path configFile = tempDir.resolve("docx-fields-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+        prepareDocxReferenceFixture(repoDir);
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("DOCX Field Docs")
+            .withOutputDir(outputRoot)
+            .withDocxEnabled(true)
+            .withDocxFeatures(false, true, false)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation", "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate(false, Set.of(), true, Set.of("main"));
+            }
+        }
+
+        Path docxFile = outputRoot.resolve("mydocs/main/mydocs-main.docx");
+        assertTrue(Files.exists(docxFile));
+        String xml = readDocxEntry(docxFile, "word/document.xml");
+
+        assertTrue(xml.contains("SEQ Figure"));
+        assertTrue(xml.contains(" REF "));
+        assertTrue(xml.contains(" PAGEREF "));
+        assertTrue(xml.contains("w:bookmarkStart"));
+        assertTrue(xml.contains("fig_overview"));
+    }
+
+    @Test
+    void docxFailsWhenRenderedHtmlContainsMissingInternalAnchor() throws Exception {
+        Path repoDir = tempDir.resolve("docx-missing-ref-repo");
+        Path workRoot = tempDir.resolve("docx-missing-ref-work");
+        Path outputRoot = tempDir.resolve("docx-missing-ref-output");
+        Path configFile = tempDir.resolve("docx-missing-ref-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+        try (Git git = Git.open(repoDir.toFile())) {
+            Files.writeString(repoDir.resolve("docs/guide.adoc"), """
+                = User Guide
+                :doctype: book
+
+                Broken reference: link:#does_not_exist[Kapitel] auf Seite link:#does_not_exist[dort].
+                """);
+            git.add().addFilepattern("docs/guide.adoc").call();
+            git.commit().setMessage("Add broken internal link for DOCX").call();
+        }
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("DOCX Missing Ref Docs")
+            .withOutputDir(outputRoot)
+            .withDocxEnabled(true)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation", "docs", "main", "main")
+            .writeTo(configFile);
+
+        IOException ex = assertThrows(IOException.class, () -> {
+            try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+                SiteCatalog catalog = builder.build();
+                try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                    generator.generate(false, Set.of(), true, Set.of("main"));
+                }
+            }
+        });
+
+        assertTrue(ex.getMessage().contains("Unresolved"));
+        assertFalse(Files.exists(outputRoot.resolve("mydocs/main/mydocs-main.docx")));
+    }
+
+    @Test
+    void docxFieldGenerationDoesNotRegressHtmlAndPdfOutputs() throws Exception {
+        Path repoDir = tempDir.resolve("docx-no-regression-repo");
+        Path workRoot = tempDir.resolve("docx-no-regression-work");
+        Path outputRoot = tempDir.resolve("docx-no-regression-output");
+        Path configFile = tempDir.resolve("docx-no-regression-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+        prepareDocxReferenceFixture(repoDir);
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("DOCX Regression Docs")
+            .withOutputDir(outputRoot)
+            .withPdfEnabled(true)
+            .withDocxEnabled(true)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation", "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate(true, Set.of("main"), true, Set.of("main"));
+            }
+        }
+
+        assertTrue(Files.exists(outputRoot.resolve("mydocs/main/index.html")));
+        assertTrue(Files.exists(outputRoot.resolve("mydocs/main/mydocs-main.pdf")));
+        assertTrue(Files.exists(outputRoot.resolve("mydocs/main/mydocs-main.docx")));
+    }
+
+    private void prepareDocxReferenceFixture(Path repoDir) throws Exception {
+        byte[] onePixelPng = Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sN3cJQAAAAASUVORK5CYII="
+        );
+        Files.createDirectories(repoDir.resolve("docs/images"));
+        Files.write(repoDir.resolve("docs/images/overview.png"), onePixelPng);
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Files.writeString(repoDir.resolve("docs/guide.adoc"), """
+                = User Guide
+                :doctype: book
+
+                Siehe link:#fig-overview[Abbildung].
+                Siehe auf Seite link:#fig-overview[dieser Abbildung].
+
+                [#fig-overview]
+                .System overview
+                image::images/overview.png[]
+                """);
+
+            Files.writeString(repoDir.resolve("docs/nav.yml"), """
+                items:
+                  - title: Welcome
+                    page: index.adoc
+                  - title: User Guide
+                    page: guide.adoc
+                """);
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Add DOCX reference fixture").call();
+        }
+    }
+
+    private String readDocxEntry(Path docxFile, String entryName) throws IOException {
+        try (ZipFile zip = new ZipFile(docxFile.toFile())) {
+            ZipEntry entry = zip.getEntry(entryName);
+            assertNotNull(entry, "Missing DOCX entry: " + entryName);
+            try (InputStream in = zip.getInputStream(entry)) {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        }
     }
 
     private void deleteRecursively(Path root) throws Exception {
