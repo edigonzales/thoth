@@ -431,6 +431,18 @@ class BibliosE2ETest {
         assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock td.icon .title {");
         assertions.assertFileContains("site-assets/styles.css", "content: attr(title);");
         assertions.assertFileContains("site-assets/styles.css", "font-family: var(--font-chapter-headings);");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content span.small {");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .paragraph.small > p {");
+        assertions.assertFileContains("site-assets/styles.css", "font-size: 0.85rem;");
+        assertions.assertFileContains("site-assets/styles.css", "line-height: 1.4;");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.tip {");
+        assertions.assertFileContains("site-assets/styles.css", "#FFF7D6");
+        assertions.assertFileContains("site-assets/styles.css", "#F2D27A");
+        assertions.assertFileContains("site-assets/styles.css", "#9A6700");
+        assertions.assertFileContains("site-assets/styles.css", "background-color: #F4B400");
+        assertions.assertFileContains("site-assets/styles.css", "class='bi bi-lightbulb'");
+        assertions.assertFileContains("site-assets/styles.css", "M2 6a6 6 0 1 1 10.174 4.31");
+        assertions.assertFileContains("site-assets/styles.css", "M7 14.5h2v.5a1 1 0 0 1-2 0z");
     }
 
     /**

@@ -297,6 +297,22 @@ class AsciidoctorRendererTest {
     }
 
     @Test
+    void rendersParagraphRoleSmallMarkup() {
+        String content = """
+            = Small Paragraph
+
+            [.small]
+            This paragraph should render with the small role.
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            assertTrue(html.contains("This paragraph should render with the small role."));
+            assertTrue(html.matches("(?s).*class=\"[^\"]*paragraph[^\"]*small[^\"]*\".*"));
+        }
+    }
+
+    @Test
     void marksStandaloneMarkerParagraphBeforeListingBlock() {
         String content = """
             = Marker
