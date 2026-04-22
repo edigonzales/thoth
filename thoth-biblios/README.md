@@ -454,6 +454,7 @@ If `display_version` is not specified, the branch name is used as-is.
 
 Biblios provides a client-side search experience with:
 - Header search field on all pages
+- Scope toggle in the header (`global` or `active docs version`)
 - Dedicated search page at `/search/`
 - Global `search-index.json` covering all sources and versions
 - Lunr-based ranking in the browser
@@ -467,8 +468,23 @@ Each entry in the search index contains:
 - `kind` – Entry type (`chapter` or `page`)
 - `title` – Chapter title (or page title for fallback entries)
 - `pageTitle` – Parent page title
+- `sectionPath` – Hierarchical section path (for example `Einleitung > Status`)
+- `sectionLevel` – Section depth (`1..4`, or `0` for page fallback entries)
 - `route` – URL path to the chapter/page (chapter entries include `#anchor`)
 - `content` – Indexed plain text for that chapter/page
+
+Section entries are indexed up to `sect4`. Deeper sections are ignored for search indexing.
+
+### Search Scope Parameters
+
+The search UI uses query parameters:
+- `q` – Search query
+- `scope` – `global` (default) or `active`
+- `component` – Required when `scope=active`
+- `version` – Required when `scope=active`
+
+When `scope=active`, search is restricted to the exact `component + version` combination.
+If `scope=active` is provided without both `component` and `version`, Biblios falls back to `scope=global`.
 
 ### Search Index Location
 

@@ -29,6 +29,7 @@ import java.util.regex.Matcher;
  * Generates the HTML site from a SiteCatalog.
  */
 public final class BibliosSiteGenerator implements AutoCloseable {
+    private static final int SEARCH_MAX_SECTION_LEVEL = 4;
     private static final java.util.regex.Pattern IMG_SRC_PATTERN =
         java.util.regex.Pattern.compile("<img\\b[^>]*\\bsrc\\s*=\\s*(['\"])(.*?)\\1", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final List<String> PRISM_BUNDLED_ASSETS = List.of(
@@ -495,6 +496,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
                 .append("\"kind\":\"").append(escapeJson(entry.kind())).append("\",")
                 .append("\"title\":\"").append(escapeJson(entry.title())).append("\",")
                 .append("\"pageTitle\":\"").append(escapeJson(entry.pageTitle())).append("\",")
+                .append("\"sectionPath\":\"").append(escapeJson(entry.sectionPath())).append("\",")
+                .append("\"sectionLevel\":").append(entry.sectionLevel()).append(",")
                 .append("\"route\":\"").append(escapeJson(entry.route())).append("\",")
                 .append("\"content\":\"").append(escapeJson(entry.content())).append("\"")
                 .append("}");
@@ -517,8 +520,9 @@ public final class BibliosSiteGenerator implements AutoCloseable {
 
         Document document = Jsoup.parseBodyFragment(page.html() != null ? page.html() : "");
         Element body = document.body();
-        for (Element chapter : topLevelChapterSections(body)) {
-            Element heading = chapter.selectFirst("h1, h2, h3, h4, h5, h6");
+        for (Element chapter : searchableSections(body)) {
+            int level = sectionLevel(chapter);
+            Element heading = sectionHeading(chapter);
             String chapterId = normalizeChapterId(chapter.id());
             if (chapterId.isBlank() && heading != null) {
                 chapterId = normalizeChapterId(heading.id());
@@ -530,7 +534,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
             if (chapterTitle.isBlank()) {
                 chapterTitle = pageTitle;
             }
-            String chapterContent = normalizeWhitespace(chapter.text());
+            String chapterPath = sectionPath(chapter, pageTitle);
+            String chapterContent = sectionOwnContent(chapter, level);
             if (chapterContent.isBlank()) {
                 continue;
             }
@@ -541,6 +546,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
                 "chapter",
                 chapterTitle,
                 pageTitle,
+                chapterPath,
+                level,
                 page.route() + "#" + chapterId,
                 chapterContent
             ));
@@ -558,6 +565,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
             "page",
             pageTitle,
             pageTitle,
+            pageTitle,
+            0,
             page.route(),
             pageContent
         ));
@@ -571,43 +580,69 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         return value.replaceAll("\\s+", " ").trim();
     }
 
-    private List<Element> topLevelChapterSections(Element body) {
-        List<Element> sections = body.select("div[class~=\\bsect[1-6]\\b]");
-        if (sections.isEmpty()) {
+    private List<Element> searchableSections(Element body) {
+        if (body == null) {
             return List.of();
         }
-
-        int topLevel = Integer.MAX_VALUE;
-        for (Element section : sections) {
-            int level = sectionLevel(section);
-            if (level > 0 && level < topLevel) {
-                topLevel = level;
-            }
-        }
-        if (topLevel == Integer.MAX_VALUE) {
-            return List.of();
-        }
-
         List<Element> result = new ArrayList<>();
-        for (Element section : sections) {
-            if (sectionLevel(section) != topLevel) {
-                continue;
+        for (Element section : body.select("div[class~=\\bsect[1-6]\\b]")) {
+            int level = sectionLevel(section);
+            if (level > 0 && level <= SEARCH_MAX_SECTION_LEVEL) {
+                result.add(section);
             }
-            if (hasAncestorSectionLevel(section, topLevel)) {
-                continue;
-            }
-            result.add(section);
         }
         return result;
     }
 
-    private boolean hasAncestorSectionLevel(Element section, int level) {
-        for (Element parent = section.parent(); parent != null; parent = parent.parent()) {
-            if (sectionLevel(parent) == level) {
-                return true;
+    private Element sectionHeading(Element section) {
+        if (section == null) {
+            return null;
+        }
+        Element direct = section.selectFirst("> h1, > h2, > h3, > h4, > h5, > h6");
+        if (direct != null) {
+            return direct;
+        }
+        return section.selectFirst("h1, h2, h3, h4, h5, h6");
+    }
+
+    private String sectionPath(Element section, String pageTitle) {
+        if (section == null) {
+            return pageTitle;
+        }
+        List<String> path = new ArrayList<>();
+        List<Element> chain = new ArrayList<>();
+        for (Element current = section; current != null; current = current.parent()) {
+            int level = sectionLevel(current);
+            if (level > 0 && level <= SEARCH_MAX_SECTION_LEVEL) {
+                chain.add(current);
             }
         }
-        return false;
+        Collections.reverse(chain);
+        for (Element current : chain) {
+            Element heading = sectionHeading(current);
+            String headingTitle = normalizeWhitespace(heading != null ? heading.text() : "");
+            if (!headingTitle.isBlank()) {
+                path.add(headingTitle);
+            }
+        }
+        if (path.isEmpty()) {
+            return pageTitle;
+        }
+        return String.join(" > ", path);
+    }
+
+    private String sectionOwnContent(Element section, int sectionLevel) {
+        if (section == null) {
+            return "";
+        }
+        Element clone = section.clone();
+        for (Element nested : clone.select("div[class~=\\bsect[1-6]\\b]")) {
+            int nestedLevel = sectionLevel(nested);
+            if (nestedLevel > sectionLevel) {
+                nested.remove();
+            }
+        }
+        return normalizeWhitespace(clone.text());
     }
 
     private int sectionLevel(Element element) {
@@ -764,6 +799,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         String kind,
         String title,
         String pageTitle,
+        String sectionPath,
+        int sectionLevel,
         String route,
         String content
     ) {

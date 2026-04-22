@@ -1,5 +1,7 @@
 (() => {
   const SEARCH_INDEX_URL = "/search-index.json";
+  const SEARCH_SCOPE_GLOBAL = "global";
+  const SEARCH_SCOPE_ACTIVE = "active";
   const DESKTOP_BREADCRUMB_BREAKPOINT = 768;
   const SINGLE_PAGE_BREADCRUMB_DEPTH = 3;
   const HIGHLIGHT_EXCLUDED_TAGS = new Set([
@@ -16,18 +18,6 @@
     "MARK"
   ]);
 
-  function parseQuery() {
-    const params = new URLSearchParams(window.location.search);
-    return (params.get("q") || "").trim();
-  }
-
-  function ensureSearchInputSync(query) {
-    const input = document.getElementById("search-input");
-    if (input) {
-      input.value = query;
-    }
-  }
-
   function normalizeMode(rawMode) {
     return rawMode === "english_default" ? "english_default" : "multilingual_safe";
   }
@@ -37,6 +27,101 @@
       ? document.body.dataset.searchLanguageMode
       : "";
     return normalizeMode((fromBody || "").trim());
+  }
+
+  function normalizeSearchScope(rawScope) {
+    return rawScope === SEARCH_SCOPE_ACTIVE ? SEARCH_SCOPE_ACTIVE : SEARCH_SCOPE_GLOBAL;
+  }
+
+  function readCurrentDocContext() {
+    if (!document.body || !document.body.dataset) {
+      return { component: "", version: "" };
+    }
+    return {
+      component: (document.body.dataset.currentComponentId || "").trim(),
+      version: (document.body.dataset.currentVersion || "").trim()
+    };
+  }
+
+  function parseSearchState() {
+    const params = new URLSearchParams(window.location.search);
+    const query = (params.get("q") || "").trim();
+    const scope = normalizeSearchScope((params.get("scope") || "").trim());
+    const component = (params.get("component") || "").trim();
+    const version = (params.get("version") || "").trim();
+
+    if (scope === SEARCH_SCOPE_ACTIVE && (!component || !version)) {
+      return {
+        query,
+        scope: SEARCH_SCOPE_GLOBAL,
+        component: "",
+        version: ""
+      };
+    }
+
+    return { query, scope, component, version };
+  }
+
+  function resolveScopeContext(searchState, currentContext) {
+    if (currentContext.component && currentContext.version) {
+      return currentContext;
+    }
+    if (searchState.component && searchState.version) {
+      return {
+        component: searchState.component,
+        version: searchState.version
+      };
+    }
+    return { component: "", version: "" };
+  }
+
+  function syncSearchFormState(searchState) {
+    const queryInput = document.getElementById("search-input");
+    if (queryInput) {
+      queryInput.value = searchState.query;
+    }
+
+    const scopeInput = document.getElementById("search-scope-input");
+    const componentInput = document.getElementById("search-component-input");
+    const versionInput = document.getElementById("search-version-input");
+    const scopeCheckbox = document.getElementById("search-scope-active");
+    const form = scopeInput ? scopeInput.form : null;
+
+    if (!scopeInput || !componentInput || !versionInput || !scopeCheckbox) {
+      return;
+    }
+
+    const currentContext = readCurrentDocContext();
+    const scopeContext = resolveScopeContext(searchState, currentContext);
+    const hasScopeContext = !!(scopeContext.component && scopeContext.version);
+    scopeCheckbox.disabled = !hasScopeContext;
+
+    if (hasScopeContext &&
+        searchState.scope === SEARCH_SCOPE_ACTIVE &&
+        searchState.component === scopeContext.component &&
+        searchState.version === scopeContext.version) {
+      scopeCheckbox.checked = true;
+    } else {
+      scopeCheckbox.checked = false;
+    }
+
+    const applyScope = () => {
+      if (!scopeCheckbox.disabled && scopeCheckbox.checked) {
+        scopeInput.value = SEARCH_SCOPE_ACTIVE;
+        componentInput.value = scopeContext.component;
+        versionInput.value = scopeContext.version;
+      } else {
+        scopeInput.value = SEARCH_SCOPE_GLOBAL;
+        componentInput.value = "";
+        versionInput.value = "";
+      }
+    };
+
+    applyScope();
+    scopeCheckbox.addEventListener("change", applyScope);
+    if (form) {
+      form.addEventListener("submit", applyScope);
+    }
   }
 
   function renderMessage(container, message) {
@@ -111,7 +196,7 @@
     }
   }
 
-  function buildResultHref(route, query) {
+  function buildResultHref(route, searchState) {
     const safeRoute = route || "";
     if (!safeRoute) {
       return "#";
@@ -121,12 +206,23 @@
     const baseRoute = hashIndex >= 0 ? safeRoute.slice(0, hashIndex) : safeRoute;
     const hashPart = hashIndex >= 0 ? safeRoute.slice(hashIndex) : "";
 
-    if (!query) {
+    const params = [];
+    if (searchState.query) {
+      params.push("q=" + encodeURIComponent(searchState.query));
+    }
+    const scope = normalizeSearchScope((searchState.scope || "").trim());
+    params.push("scope=" + encodeURIComponent(scope));
+    if (scope === SEARCH_SCOPE_ACTIVE && searchState.component && searchState.version) {
+      params.push("component=" + encodeURIComponent(searchState.component));
+      params.push("version=" + encodeURIComponent(searchState.version));
+    }
+
+    if (params.length === 0) {
       return safeRoute;
     }
 
     const joiner = baseRoute.includes("?") ? "&" : "?";
-    return baseRoute + joiner + "q=" + encodeURIComponent(query) + hashPart;
+    return baseRoute + joiner + params.join("&") + hashPart;
   }
 
   function findFirstTokenIndex(content, tokens) {
@@ -169,17 +265,15 @@
   }
 
   function describeResultContext(doc) {
-    const kind = (doc.kind || "").toLowerCase();
+    const sectionPath = (doc.sectionPath || "").trim();
     const pageTitle = (doc.pageTitle || "").trim();
-
-    if (kind === "chapter") {
-      return pageTitle ? "Chapter in " + pageTitle : "Chapter";
+    if (sectionPath) {
+      return sectionPath;
     }
-
-    return pageTitle ? "Page: " + pageTitle : "Page";
+    return pageTitle || "Page";
   }
 
-  function createResultElement(doc, query, queryTokens, queryRegex) {
+  function createResultElement(doc, searchState, queryTokens, queryRegex) {
     const article = document.createElement("article");
     article.className = "search-result";
 
@@ -187,7 +281,7 @@
     heading.className = "search-result-title";
 
     const link = document.createElement("a");
-    link.href = buildResultHref(doc.route, query);
+    link.href = buildResultHref(doc.route, searchState);
     link.textContent = doc.title || doc.route || "Untitled";
     heading.appendChild(link);
 
@@ -215,8 +309,9 @@
     return article;
   }
 
-  function renderResults(container, query, results) {
+  function renderResults(container, searchState, results) {
     container.innerHTML = "";
+    const query = searchState.query;
 
     if (results.length === 0) {
       renderMessage(container, 'No results for "' + query + '".');
@@ -229,17 +324,47 @@
     const list = document.createElement("div");
     list.className = "search-results-list";
     for (const doc of results) {
-      list.appendChild(createResultElement(doc, query, queryTokens, queryRegex));
+      list.appendChild(createResultElement(doc, searchState, queryTokens, queryRegex));
     }
     container.appendChild(list);
   }
 
+  function dedupeResultsByRoute(results) {
+    const deduped = [];
+    const seen = new Set();
+    for (const result of results) {
+      const route = (result && result.route ? result.route : "").trim();
+      if (!route || seen.has(route)) {
+        continue;
+      }
+      seen.add(route);
+      deduped.push(result);
+    }
+    return deduped;
+  }
+
+  function filterDocumentsByScope(documents, searchState) {
+    if (searchState.scope !== SEARCH_SCOPE_ACTIVE) {
+      return documents;
+    }
+    if (!searchState.component || !searchState.version) {
+      return documents;
+    }
+    return documents.filter((doc) => {
+      const component = (doc.component || "").trim();
+      const version = (doc.version || "").trim();
+      return component === searchState.component && version === searchState.version;
+    });
+  }
+
   function fallbackSearch(query, documents) {
     const normalized = query.toLowerCase();
-    return documents.filter((doc) => {
+    const matches = documents.filter((doc) => {
       const blob = [
         doc.title || "",
         doc.pageTitle || "",
+        doc.sectionPath || "",
+        String(doc.sectionLevel || ""),
         doc.kind || "",
         doc.component || "",
         doc.displayVersion || "",
@@ -249,6 +374,7 @@
       ].join(" ").toLowerCase();
       return blob.includes(normalized);
     });
+    return dedupeResultsByRoute(matches);
   }
 
   function removePipelinesForMultilingualSafe(indexBuilder) {
@@ -292,6 +418,8 @@
         _ref: ref,
         title: doc.title || "",
         pageTitle: doc.pageTitle || "",
+        sectionPath: doc.sectionPath || "",
+        sectionLevel: String(doc.sectionLevel || ""),
         kind: doc.kind || "",
         component: doc.component || "",
         displayVersion: doc.displayVersion || doc.version || "",
@@ -304,7 +432,9 @@
     const index = window.lunr(function () {
       this.ref("_ref");
       this.field("title", { boost: 8 });
+      this.field("sectionPath", { boost: 6 });
       this.field("pageTitle", { boost: 4 });
+      this.field("sectionLevel");
       this.field("kind", { boost: 2 });
       this.field("component", { boost: 2 });
       this.field("displayVersion", { boost: 2 });
@@ -320,22 +450,23 @@
     });
 
     const results = trySearch(index, query);
-    return results.map((entry) => docsByRef.get(entry.ref)).filter(Boolean);
+    const mapped = results.map((entry) => docsByRef.get(entry.ref)).filter(Boolean);
+    return dedupeResultsByRoute(mapped);
   }
 
-  function initSearchPage() {
+  function initSearchPage(searchState) {
     const resultsContainer = document.getElementById("search-results");
     if (!resultsContainer) {
       return;
     }
 
-    const query = parseQuery();
-    ensureSearchInputSync(query);
+    const query = searchState.query;
 
     const queryLabel = document.getElementById("search-query");
     if (queryLabel) {
+      const scoped = searchState.scope === SEARCH_SCOPE_ACTIVE;
       queryLabel.textContent = query
-        ? 'Results for "' + query + '"'
+        ? ('Results for "' + query + '"' + (scoped ? " (active docs version)." : "."))
         : "Enter a search term in the header search field.";
     }
 
@@ -355,21 +486,22 @@
         if (!Array.isArray(documents)) {
           throw new Error("Invalid search index format");
         }
+        const scopedDocuments = filterDocumentsByScope(documents, searchState);
 
         const mode = readSearchLanguageMode();
         let results;
 
         if (window.lunr && typeof window.lunr === "function") {
           try {
-            results = lunrSearch(query, documents, mode);
+            results = lunrSearch(query, scopedDocuments, mode);
           } catch (error) {
-            results = fallbackSearch(query, documents);
+            results = fallbackSearch(query, scopedDocuments);
           }
         } else {
-          results = fallbackSearch(query, documents);
+          results = fallbackSearch(query, scopedDocuments);
         }
 
-        renderResults(resultsContainer, query, results);
+        renderResults(resultsContainer, searchState, dedupeResultsByRoute(results));
       })
       .catch(() => {
         renderMessage(resultsContainer, "Search index could not be loaded.");
@@ -812,14 +944,14 @@
   }
 
   function init() {
-    const query = parseQuery();
-    ensureSearchInputSync(query);
+    const searchState = parseSearchState();
+    syncSearchFormState(searchState);
     syncStickyOffsets();
     window.addEventListener("resize", syncStickyOffsets);
     window.addEventListener("hashchange", syncStickyOffsets);
-    initSearchPage();
+    initSearchPage(searchState);
     initSinglePageChapterUi();
-    initDocumentHighlights(query);
+    initDocumentHighlights(searchState.query);
     syncStickyOffsets();
   }
 

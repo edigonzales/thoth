@@ -596,6 +596,41 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Create a single-page fixture with section nesting up to sect5.
+     */
+    public TestRepoBuilder withSinglePageDocsUpToSect5() throws Exception {
+        Files.createDirectories(repoDir);
+
+        try (Git git = Git.init().setDirectory(repoDir.toFile()).setInitialBranch(initialBranch).call()) {
+            configureUser(git);
+
+            Path docsDir = repoDir.resolve("docs");
+            Files.createDirectories(docsDir);
+
+            Files.writeString(docsDir.resolve("master.adoc"), """
+                = Reference Manual
+
+                == Level One
+
+                === Level Two
+
+                ==== Level Three
+
+                ===== Level Four
+
+                ====== Level Five
+
+                Nested depth content.
+                """);
+
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Initial single-page depth fixture").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Create a second branch with different content.
      */
     public TestRepoBuilder withSecondBranch(String branchName) throws Exception {

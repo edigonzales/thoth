@@ -188,7 +188,7 @@ a:hover { text-decoration: underline; }
     color: var(--color-text);
 }
 
-.search-form input {
+.search-form input[type="search"] {
     background: var(--color-bg);
     border: 1px solid var(--color-border);
     color: var(--color-header-text);
@@ -198,13 +198,32 @@ a:hover { text-decoration: underline; }
     min-width: 220px;
 }
 
-.search-form input::placeholder {
+.search-form input[type="search"]::placeholder {
     color: var(--ng-400);
 }
 
-.search-form input:focus {
+.search-form input[type="search"]:focus {
     outline: 2px solid rgba(3, 102, 214, 0.35);
     outline-offset: 2px;
+}
+
+.search-scope-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    color: var(--color-header-text);
+}
+
+.search-scope-toggle input[type="checkbox"] {
+    width: auto;
+    min-width: 0;
+    margin: 0;
+}
+
+.search-scope-toggle.is-disabled {
+    opacity: 0.6;
 }
 
 /* Layout */
@@ -1132,7 +1151,7 @@ mark.search-highlight {
         width: 100%;
         margin-left: 0;
     }
-    .search-form input {
+    .search-form input[type="search"] {
         width: 100%;
         min-width: 0;
     }

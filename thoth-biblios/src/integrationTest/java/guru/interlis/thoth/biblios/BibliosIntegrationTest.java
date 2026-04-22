@@ -124,6 +124,11 @@ class BibliosIntegrationTest {
         assertTrue(homePage.contains("class=\"brand-logo\""));
         assertTrue(homePage.contains("src=\"/site-assets/site-logo.svg\""));
         assertTrue(homePage.contains("action=\"/search/\""));
+        assertTrue(homePage.contains("id=\"search-scope-active\""));
+        assertTrue(homePage.contains("id=\"search-scope-input\""));
+        assertTrue(homePage.contains("name=\"scope\""));
+        assertTrue(homePage.contains("name=\"component\""));
+        assertTrue(homePage.contains("name=\"version\""));
         assertTrue(homePage.contains("class=\"component-card-default-link\""));
         assertTrue(homePage.contains("href=\"/mydocs/main/\""));
         assertTrue(homePage.contains("href=\"/mydocs/main/\" class=\"version-tag\""));
@@ -133,10 +138,14 @@ class BibliosIntegrationTest {
         String searchPage = Files.readString(outputRoot.resolve("search/index.html"));
         assertTrue(searchPage.contains("id=\"search-results\""));
         assertTrue(searchPage.contains("data-search-language-mode=\"multilingual_safe\""));
+        assertTrue(searchPage.contains("id=\"search-scope-active\""));
+        assertTrue(searchPage.contains("id=\"search-scope-input\""));
 
         String indexPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
         assertTrue(indexPage.contains("Welcome"));
         assertFalse(indexPage.contains("class=\"nav-toggle\""));
+        assertTrue(indexPage.contains("data-current-component-id=\"mydocs\""));
+        assertTrue(indexPage.contains("data-current-version=\"main\""));
 
         String styles = Files.readString(outputRoot.resolve("site-assets/styles.css"));
         assertTrue(styles.contains(".content {"));
@@ -148,6 +157,9 @@ class BibliosIntegrationTest {
         assertTrue(searchIndex.contains("mydocs"));
         assertTrue(searchIndex.contains("\"kind\":\"chapter\""));
         assertTrue(searchIndex.contains("\"pageTitle\":\"Welcome\""));
+        assertTrue(searchIndex.contains("\"sectionPath\":\""));
+        assertTrue(searchIndex.contains("Getting Started"));
+        assertTrue(searchIndex.contains("\"sectionLevel\":1"));
         assertTrue(searchIndex.contains("\"route\":\"/mydocs/main/#"));
     }
 
@@ -893,9 +905,19 @@ class BibliosIntegrationTest {
         assertTrue(searchJs.contains("bindCollapsibleToggles"));
         assertTrue(searchJs.contains("buildResultHref"));
         assertTrue(searchJs.contains("initDocumentHighlights"));
+        assertTrue(searchJs.contains("parseSearchState"));
+        assertTrue(searchJs.contains("syncSearchFormState"));
+        assertTrue(searchJs.contains("filterDocumentsByScope"));
+        assertTrue(searchJs.contains("sectionPath"));
+        assertTrue(searchJs.contains("sectionLevel"));
+        assertTrue(searchJs.contains("dedupeResultsByRoute"));
 
         String searchIndex = Files.readString(outputRoot.resolve("search-index.json"));
         assertTrue(searchIndex.contains("\"kind\":\"chapter\""));
+        assertTrue(searchIndex.contains("\"sectionPath\":\""));
+        assertTrue(searchIndex.contains("Status"));
+        assertTrue(searchIndex.contains("\"sectionLevel\":2"));
+        assertTrue(searchIndex.contains("#_status"));
         assertTrue(searchIndex.contains("\"route\":\"/mydocs/main/#"));
     }
 
@@ -942,7 +964,50 @@ class BibliosIntegrationTest {
         String searchIndex = Files.readString(outputRoot.resolve("search-index.json"));
         assertTrue(searchIndex.contains("\"kind\":\"page\""));
         assertTrue(searchIndex.contains("\"pageTitle\":\"Welcome\""));
+        assertTrue(searchIndex.contains("\"sectionPath\":\"Welcome\""));
+        assertTrue(searchIndex.contains("\"sectionLevel\":0"));
         assertTrue(searchIndex.contains("\"route\":\"/mydocs/main/\""));
+    }
+
+    @Test
+    void searchIndexLimitsSectionDepthToSect4() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-depth-repo");
+        Path workRoot = tempDir.resolve("work-single-depth");
+        Path outputRoot = tempDir.resolve("output-single-depth");
+        Path configFile = tempDir.resolve("single-page-depth-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withSinglePageDocsUpToSect5();
+
+        new BibliosConfigBuilder()
+            .withSiteTitle("Single Page Depth Integration")
+            .withOutputDir(outputRoot)
+            .withSidebarTocDepth(6)
+            .withContentToc("off")
+            .withSinglePageSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "main")
+            .writeTo(configFile);
+
+        BibliosConfigParser parser = new BibliosConfigParser();
+        BibliosConfig config = parser.parse(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        String searchIndex = Files.readString(outputRoot.resolve("search-index.json"));
+        assertTrue(searchIndex.contains("\"sectionPath\":\""));
+        assertTrue(searchIndex.contains("Level Four"));
+        assertTrue(searchIndex.contains("\"sectionLevel\":4"));
+        assertTrue(searchIndex.contains("#_level_four"));
+        assertFalse(searchIndex.contains("\"sectionLevel\":5"));
+        assertFalse(searchIndex.contains("#_level_five"));
     }
 
     @Test

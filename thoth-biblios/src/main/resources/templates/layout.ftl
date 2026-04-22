@@ -54,7 +54,7 @@
     </#if>
     </#if>
 </head>
-<body data-search-language-mode="${searchLanguageMode}" data-single-page-mode="${singlePageMode?string('true', 'false')}" data-initial-chapter-id="${initialChapterId}">
+<body data-search-language-mode="${searchLanguageMode}" data-single-page-mode="${singlePageMode?string('true', 'false')}" data-initial-chapter-id="${initialChapterId}" data-current-component-id="${(currentComponentId)!""}" data-current-version="${(currentVersionStr)!""}">
     <header class="site-header">
         <div class="header-content">
             <a href="${basePath}/" class="site-title">
@@ -91,9 +91,19 @@
                     </select>
                 </nav>
             </#if>
+            <#assign currentSearchComponent = (currentComponentId)!"" >
+            <#assign currentSearchVersion = (currentVersionStr)!"" >
+            <#assign hasActiveSearchContext = currentSearchComponent?has_content && currentSearchVersion?has_content>
             <form class="search-form" action="${basePath}/search/" method="get" role="search">
                 <label for="search-input">Search:</label>
                 <input id="search-input" type="search" name="q" value="${searchQuery}" placeholder="Search documentation">
+                <input id="search-scope-input" type="hidden" name="scope" value="global">
+                <input id="search-component-input" type="hidden" name="component" value="${currentSearchComponent}">
+                <input id="search-version-input" type="hidden" name="version" value="${currentSearchVersion}">
+                <label for="search-scope-active" class="search-scope-toggle<#if !hasActiveSearchContext> is-disabled</#if>">
+                    <input id="search-scope-active" type="checkbox"<#if !hasActiveSearchContext> disabled</#if>>
+                    <span>Only active docs version</span>
+                </label>
             </form>
         </div>
     </header>
