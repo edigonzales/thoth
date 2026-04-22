@@ -507,6 +507,9 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("site-assets/source-sans-3.css")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/notoserif.css")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/open-sans.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/literata.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/atkinson-hyperlegible-next.css")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/ibm-plex-sans.css")));
 
         assertFalse(Files.exists(outputRoot.resolve("site-assets/frutiger-light.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/frutiger-serif.css")));
@@ -515,7 +518,6 @@ class BibliosIntegrationTest {
         assertFalse(Files.exists(outputRoot.resolve("site-assets/zurich-condensed.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/notosans.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/inter.css")));
-        assertFalse(Files.exists(outputRoot.resolve("site-assets/literata.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/inter-tight.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/geist.css")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/familjen-grotesk.css")));
@@ -534,12 +536,17 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSerif/NotoSerif-Italic-Variable.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/OpenSans/OpenSans-Variable.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/OpenSans/OpenSans-Italic-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Literata/Literata-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Literata/Literata-Italic-Variable.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext[wght].woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-Italic[wght].woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/IBMPlexSansVariable/IBM Plex Sans Var-Roman.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/IBMPlexSansVariable/IBM Plex Sans Var-Italic.woff2")));
 
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/Zurich")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/Zurich_Condensed")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/NotoSans")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/Inter")));
-        assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/Literata")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/InterTight")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/Geist")));
         assertFalse(Files.exists(outputRoot.resolve("site-assets/fonts/FamiljenGrotesk")));
@@ -574,8 +581,32 @@ class BibliosIntegrationTest {
         assertTrue(openSansCss.contains("./fonts/OpenSans/OpenSans-Variable.woff2"));
         assertTrue(openSansCss.contains("./fonts/OpenSans/OpenSans-Italic-Variable.woff2"));
 
+        String literataCss = Files.readString(outputRoot.resolve("site-assets/literata.css"));
+        assertTrue(literataCss.contains("font-family: \"Literata\";"));
+        assertTrue(literataCss.contains("font-weight: 200 900;"));
+        assertTrue(literataCss.contains("font-style: normal;"));
+        assertTrue(literataCss.contains("font-style: italic;"));
+        assertTrue(literataCss.contains("./fonts/Literata/Literata-Variable.woff2"));
+        assertTrue(literataCss.contains("./fonts/Literata/Literata-Italic-Variable.woff2"));
+
+        String atkinsonCss = Files.readString(outputRoot.resolve("site-assets/atkinson-hyperlegible-next.css"));
+        assertTrue(atkinsonCss.contains("font-family: \"Atkinson Hyperlegible Next\";"));
+        assertTrue(atkinsonCss.contains("font-weight: 200 800;"));
+        assertTrue(atkinsonCss.contains("font-style: normal;"));
+        assertTrue(atkinsonCss.contains("font-style: italic;"));
+        assertTrue(atkinsonCss.contains("./fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext[wght].woff2"));
+        assertTrue(atkinsonCss.contains("./fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-Italic[wght].woff2"));
+
+        String ibmPlexSansCss = Files.readString(outputRoot.resolve("site-assets/ibm-plex-sans.css"));
+        assertTrue(ibmPlexSansCss.contains("font-family: \"IBM Plex Sans\";"));
+        assertTrue(ibmPlexSansCss.contains("font-weight: 100 700;"));
+        assertTrue(ibmPlexSansCss.contains("font-style: normal;"));
+        assertTrue(ibmPlexSansCss.contains("font-style: italic;"));
+        assertTrue(ibmPlexSansCss.contains("./fonts/IBMPlexSansVariable/IBM Plex Sans Var-Roman.woff2"));
+        assertTrue(ibmPlexSansCss.contains("./fonts/IBMPlexSansVariable/IBM Plex Sans Var-Italic.woff2"));
+
         String stylesCss = Files.readString(outputRoot.resolve("site-assets/styles.css"));
-        assertTrue(stylesCss.contains("--font-body: \"Noto Serif\""));
+        assertTrue(stylesCss.contains("--font-body: \"Literata\""));
         assertTrue(stylesCss.contains("--font-sidebar-toc: \"Open Sans\""));
         assertTrue(stylesCss.contains("--font-chapter-headings: \"Open Sans\""));
         assertTrue(stylesCss.contains("--font-navbar: \"Open Sans\""));
@@ -594,6 +625,9 @@ class BibliosIntegrationTest {
         assertTrue(indexPage.contains("/site-assets/source-sans-3.css"));
         assertTrue(indexPage.contains("/site-assets/notoserif.css"));
         assertTrue(indexPage.contains("/site-assets/open-sans.css"));
+        assertTrue(indexPage.contains("/site-assets/literata.css"));
+        assertTrue(indexPage.contains("/site-assets/atkinson-hyperlegible-next.css"));
+        assertTrue(indexPage.contains("/site-assets/ibm-plex-sans.css"));
         assertFalse(indexPage.contains("/site-assets/zurich.css"));
         assertFalse(indexPage.contains("/site-assets/notosans.css"));
         assertFalse(indexPage.contains("/site-assets/texgyreheroes.css"));

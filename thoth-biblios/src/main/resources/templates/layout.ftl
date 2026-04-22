@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="${basePath}/site-assets/source-sans-3.css">
     <link rel="stylesheet" href="${basePath}/site-assets/notoserif.css">
     <link rel="stylesheet" href="${basePath}/site-assets/open-sans.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/literata.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/atkinson-hyperlegible-next.css">
+    <link rel="stylesheet" href="${basePath}/site-assets/ibm-plex-sans.css">
     <link rel="stylesheet" href="${basePath}/site-assets/styles.css">
     <#if syntaxHighlightingEnabled>
     <link rel="stylesheet" href="${basePath}/site-assets/prism/prism.css">
@@ -22,6 +25,7 @@
     <script src="${basePath}/site-assets/search.js" defer></script>
     <#if syntaxHighlightingEnabled>
     <script src="${basePath}/site-assets/prism/prism.js" defer></script>
+    <script src="${basePath}/site-assets/prism-conum-bridge.js" defer></script>
     <script src="${basePath}/site-assets/prism/components/prism-markup.min.js" defer></script>
     <script src="${basePath}/site-assets/prism/components/prism-clike.min.js" defer></script>
     <script src="${basePath}/site-assets/prism/components/prism-javascript.min.js" defer></script>

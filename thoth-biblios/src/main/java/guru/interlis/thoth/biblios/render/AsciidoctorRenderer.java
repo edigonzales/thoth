@@ -9,7 +9,9 @@ import org.asciidoctor.ast.Document;
 import org.asciidoctor.ast.Section;
 import org.asciidoctor.ast.StructuralNode;
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Node;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.TextNode;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,6 +22,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Renders AsciiDoc content to HTML using AsciidoctorJ.
@@ -29,6 +33,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
 
     private static final String DEFAULT_LANGUAGE = "en";
     private static final Set<String> STANDALONE_MARKERS = Set.of("*", "§", "※", "✱", "✶", "✳");
+    private static final Pattern NUMERIC_CONUM_PATTERN = Pattern.compile("<(\\d+)>");
     private final Asciidoctor asciidoctor;
 
     public AsciidoctorRenderer() {
@@ -234,6 +239,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         markStandaloneMarkersBeforeListings(document);
         for (Element code : document.select("pre > code")) {
             Element pre = code.parent();
+            replaceNumericCalloutsWithConums(code);
             String language = detectLanguage(code, pre);
             if (language == null) {
                 continue;
@@ -247,6 +253,64 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             }
         }
         return document.body().html();
+    }
+
+    private boolean replaceNumericCalloutsWithConums(Element code) {
+        if (code == null) {
+            return false;
+        }
+        return replaceNumericCalloutsRecursive(code);
+    }
+
+    private boolean replaceNumericCalloutsRecursive(Node node) {
+        if (node instanceof TextNode textNode) {
+            return replaceNumericCalloutsInTextNode(textNode);
+        }
+
+        boolean replaced = false;
+        List<Node> children = new ArrayList<>(node.childNodes());
+        for (Node child : children) {
+            replaced |= replaceNumericCalloutsRecursive(child);
+        }
+        return replaced;
+    }
+
+    private boolean replaceNumericCalloutsInTextNode(TextNode textNode) {
+        String text = textNode.getWholeText();
+        Matcher matcher = NUMERIC_CONUM_PATTERN.matcher(text);
+        if (!matcher.find()) {
+            return false;
+        }
+
+        List<Node> replacements = new ArrayList<>();
+        int cursor = 0;
+        do {
+            if (matcher.start() > cursor) {
+                replacements.add(new TextNode(text.substring(cursor, matcher.start())));
+            }
+
+            String calloutValue = matcher.group(1);
+            Element conum = new Element("i").addClass("conum");
+            conum.attr("data-value", calloutValue);
+            conum.attr("aria-hidden", "true");
+            replacements.add(conum);
+
+            Element fallback = new Element("b");
+            fallback.text("(" + calloutValue + ")");
+            replacements.add(fallback);
+
+            cursor = matcher.end();
+        } while (matcher.find());
+
+        if (cursor < text.length()) {
+            replacements.add(new TextNode(text.substring(cursor)));
+        }
+
+        for (Node replacement : replacements) {
+            textNode.before(replacement);
+        }
+        textNode.remove();
+        return true;
     }
 
     private void markStandaloneMarkersBeforeListings(org.jsoup.nodes.Document document) {

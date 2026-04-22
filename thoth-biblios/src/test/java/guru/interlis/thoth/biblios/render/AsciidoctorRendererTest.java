@@ -2,6 +2,8 @@ package guru.interlis.thoth.biblios.render;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -96,6 +98,32 @@ class AsciidoctorRendererTest {
             assertNotNull(html);
             assertTrue(html.contains("language-markup"));
             assertTrue(html.contains("language-interlis"));
+        }
+    }
+
+    @Test
+    void rendersNumericConumsInsideSourceListings() {
+        String content = """
+            = Listing Callout
+
+            [source,interlis]
+            ----
+            ClassDef = 'CLASS' Class-Name
+                     [ 'EXTENDS' ClassRef ] '=' <1>
+            ----
+
+            <1> ClassOrStructureRef.
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content);
+            assertNotNull(html);
+
+            org.jsoup.nodes.Document document = Jsoup.parseBodyFragment(html);
+            Element listing = document.selectFirst(".listingblock");
+            assertNotNull(listing);
+            assertNotNull(listing.selectFirst("i.conum[data-value=1]"));
+            assertNotNull(listing.selectFirst("pre > code.language-interlis"), listing.outerHtml());
         }
     }
 

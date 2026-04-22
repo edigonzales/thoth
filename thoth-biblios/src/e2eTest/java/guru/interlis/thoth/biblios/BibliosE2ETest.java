@@ -8,6 +8,7 @@ import guru.interlis.thoth.biblios.fixture.BibliosConfigBuilder;
 import guru.interlis.thoth.biblios.fixture.SiteAssertions;
 import guru.interlis.thoth.biblios.fixture.TestRepoBuilder;
 import guru.interlis.thoth.core.DevServer;
+import org.jsoup.Jsoup;
 import org.eclipse.jgit.api.Git;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -575,6 +576,48 @@ class BibliosE2ETest {
         assertions.assertFileContains("site-assets/styles.css", "content: attr(data-value);");
         assertions.assertFileContains("site-assets/styles.css", ".doc-content i.conum + b {");
         assertions.assertFileContains("site-assets/styles.css", ".doc-content .colist > table td:first-child {");
+    }
+
+    /**
+     * E2E-10b: Source listing callouts render marker circles inside listing block.
+     */
+    @Test
+    void sourceListingCalloutsAreRenderedInsideListingBlock() throws Exception {
+        Path repoDir = tempDir.resolve("source-listing-callout-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withSourceListingCalloutInGuide();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Source Listing Callout Docs")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        Path guidePage = outputRoot.resolve("mydocs/main/guide/index.html");
+        String html = Files.readString(guidePage);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"colist");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "prism-conum-bridge.js");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content i.conum::before {");
+        assertions.assertFileContains("site-assets/styles.css", "content: attr(data-value);");
+
+        org.jsoup.nodes.Document document = Jsoup.parse(html);
+        org.jsoup.nodes.Element listingBlock = document.selectFirst(".doc-content .listingblock");
+        assertNotNull(listingBlock, "Expected listingblock on generated page.");
+        assertNotNull(
+            listingBlock.selectFirst("i.conum[data-value=1]"),
+            "Expected numeric conum marker inside listingblock."
+        );
+        assertNotNull(
+            listingBlock.selectFirst("pre > code.language-interlis"),
+            "Expected Prism language class to remain on source listing."
+        );
     }
 
     /**
