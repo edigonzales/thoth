@@ -32,6 +32,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private static final java.util.regex.Pattern IMG_SRC_PATTERN =
         java.util.regex.Pattern.compile("<img\\b[^>]*\\bsrc\\s*=\\s*(['\"])(.*?)\\1", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final List<String> PRISM_BUNDLED_ASSETS = List.of(
+        "prism-conum-bridge.js",
         "prism/prism.css",
         "prism/prism.js",
         "prism/components/prism-markup.min.js",
@@ -631,6 +632,9 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "source-sans-3.css");
         copyAsset(assetsDest, "notoserif.css");
         copyAsset(assetsDest, "open-sans.css");
+        copyAsset(assetsDest, "literata.css");
+        copyAsset(assetsDest, "atkinson-hyperlegible-next.css");
+        copyAsset(assetsDest, "ibm-plex-sans.css");
         copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Regular.woff2");
         copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Bold.woff2");
         copyAsset(assetsDest, "fonts/JetBrainsMono/JetBrainsMono-Italic.woff2");
@@ -642,6 +646,12 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "fonts/NotoSerif/NotoSerif-Italic-Variable.woff2");
         copyAsset(assetsDest, "fonts/OpenSans/OpenSans-Variable.woff2");
         copyAsset(assetsDest, "fonts/OpenSans/OpenSans-Italic-Variable.woff2");
+        copyAsset(assetsDest, "fonts/Literata/Literata-Variable.woff2");
+        copyAsset(assetsDest, "fonts/Literata/Literata-Italic-Variable.woff2");
+        copyAsset(assetsDest, "fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext[wght].woff2");
+        copyAsset(assetsDest, "fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-Italic[wght].woff2");
+        copyAsset(assetsDest, "fonts/IBMPlexSansVariable/IBM Plex Sans Var-Roman.woff2");
+        copyAsset(assetsDest, "fonts/IBMPlexSansVariable/IBM Plex Sans Var-Italic.woff2");
         copyAsset(assetsDest, "styles.css");
         copyAsset(assetsDest, "lunr.min.js");
         copyAsset(assetsDest, "search.js");
