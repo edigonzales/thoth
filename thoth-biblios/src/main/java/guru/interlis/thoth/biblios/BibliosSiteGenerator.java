@@ -9,6 +9,9 @@ import guru.interlis.thoth.biblios.catalog.*;
 import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.RenderMode;
 import guru.interlis.thoth.biblios.config.VersionSwitchMode;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -468,30 +471,154 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     }
 
     private void generateSearchIndex() throws IOException {
-        // Simple JSON search index
-        StringBuilder json = new StringBuilder("[\n");
-        boolean first = true;
-
+        List<SearchIndexEntry> entries = new ArrayList<>();
         for (DocComponent component : catalog.components()) {
             for (ComponentVersion version : component.versions()) {
                 for (DocPage page : version.pages()) {
-                    if (!first) json.append(",\n");
-                    first = false;
-                    json.append("  {")
-                        .append("\"component\":\"").append(escapeJson(component.id())).append("\",")
-                        .append("\"version\":\"").append(escapeJson(version.version())).append("\",")
-                        .append("\"displayVersion\":\"").append(escapeJson(version.displayVersion())).append("\",")
-                        .append("\"title\":\"").append(escapeJson(page.title())).append("\",")
-                        .append("\"route\":\"").append(escapeJson(page.route())).append("\",")
-                        .append("\"content\":\"").append(escapeJson(page.html().replaceAll("<[^>]+>", " "))).append("\"")
-                        .append("}");
+                    entries.addAll(buildSearchIndexEntries(component, version, page));
                 }
             }
+        }
+
+        StringBuilder json = new StringBuilder("[\n");
+        boolean first = true;
+        for (SearchIndexEntry entry : entries) {
+            if (!first) {
+                json.append(",\n");
+            }
+            first = false;
+            json.append("  {")
+                .append("\"component\":\"").append(escapeJson(entry.component())).append("\",")
+                .append("\"version\":\"").append(escapeJson(entry.version())).append("\",")
+                .append("\"displayVersion\":\"").append(escapeJson(entry.displayVersion())).append("\",")
+                .append("\"kind\":\"").append(escapeJson(entry.kind())).append("\",")
+                .append("\"title\":\"").append(escapeJson(entry.title())).append("\",")
+                .append("\"pageTitle\":\"").append(escapeJson(entry.pageTitle())).append("\",")
+                .append("\"route\":\"").append(escapeJson(entry.route())).append("\",")
+                .append("\"content\":\"").append(escapeJson(entry.content())).append("\"")
+                .append("}");
         }
 
         json.append("\n]");
 
         writeOutput(Path.of("search-index.json"), json.toString());
+    }
+
+    private List<SearchIndexEntry> buildSearchIndexEntries(DocComponent component, ComponentVersion version, DocPage page) {
+        List<SearchIndexEntry> entries = new ArrayList<>();
+        String pageTitle = normalizeWhitespace(page.title());
+        if (pageTitle.isBlank()) {
+            pageTitle = normalizeWhitespace(page.navTitle());
+        }
+        if (pageTitle.isBlank()) {
+            pageTitle = normalizeWhitespace(page.route());
+        }
+
+        Document document = Jsoup.parseBodyFragment(page.html() != null ? page.html() : "");
+        Element body = document.body();
+        for (Element chapter : topLevelChapterSections(body)) {
+            Element heading = chapter.selectFirst("h1, h2, h3, h4, h5, h6");
+            String chapterId = normalizeChapterId(chapter.id());
+            if (chapterId.isBlank() && heading != null) {
+                chapterId = normalizeChapterId(heading.id());
+            }
+            if (chapterId.isBlank()) {
+                continue;
+            }
+            String chapterTitle = normalizeWhitespace(heading != null ? heading.text() : "");
+            if (chapterTitle.isBlank()) {
+                chapterTitle = pageTitle;
+            }
+            String chapterContent = normalizeWhitespace(chapter.text());
+            if (chapterContent.isBlank()) {
+                continue;
+            }
+            entries.add(new SearchIndexEntry(
+                component.id(),
+                version.version(),
+                version.displayVersion(),
+                "chapter",
+                chapterTitle,
+                pageTitle,
+                page.route() + "#" + chapterId,
+                chapterContent
+            ));
+        }
+
+        if (!entries.isEmpty()) {
+            return entries;
+        }
+
+        String pageContent = normalizeWhitespace(body != null ? body.text() : "");
+        entries.add(new SearchIndexEntry(
+            component.id(),
+            version.version(),
+            version.displayVersion(),
+            "page",
+            pageTitle,
+            pageTitle,
+            page.route(),
+            pageContent
+        ));
+        return entries;
+    }
+
+    private String normalizeWhitespace(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replaceAll("\\s+", " ").trim();
+    }
+
+    private List<Element> topLevelChapterSections(Element body) {
+        List<Element> sections = body.select("div[class~=\\bsect[1-6]\\b]");
+        if (sections.isEmpty()) {
+            return List.of();
+        }
+
+        int topLevel = Integer.MAX_VALUE;
+        for (Element section : sections) {
+            int level = sectionLevel(section);
+            if (level > 0 && level < topLevel) {
+                topLevel = level;
+            }
+        }
+        if (topLevel == Integer.MAX_VALUE) {
+            return List.of();
+        }
+
+        List<Element> result = new ArrayList<>();
+        for (Element section : sections) {
+            if (sectionLevel(section) != topLevel) {
+                continue;
+            }
+            if (hasAncestorSectionLevel(section, topLevel)) {
+                continue;
+            }
+            result.add(section);
+        }
+        return result;
+    }
+
+    private boolean hasAncestorSectionLevel(Element section, int level) {
+        for (Element parent = section.parent(); parent != null; parent = parent.parent()) {
+            if (sectionLevel(parent) == level) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int sectionLevel(Element element) {
+        if (element == null) {
+            return -1;
+        }
+        for (String className : element.classNames()) {
+            if (className != null && className.matches("sect[1-6]")) {
+                return className.charAt(4) - '0';
+            }
+        }
+        return -1;
     }
 
     private void copyAssets() throws IOException {
@@ -618,6 +745,18 @@ public final class BibliosSiteGenerator implements AutoCloseable {
             return "";
         }
         return fileName.substring(lastDot);
+    }
+
+    private record SearchIndexEntry(
+        String component,
+        String version,
+        String displayVersion,
+        String kind,
+        String title,
+        String pageTitle,
+        String route,
+        String content
+    ) {
     }
 
     private String uiSearchLanguageMode() {

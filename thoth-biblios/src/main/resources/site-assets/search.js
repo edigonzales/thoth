@@ -2,6 +2,19 @@
   const SEARCH_INDEX_URL = "/search-index.json";
   const DESKTOP_BREADCRUMB_BREAKPOINT = 768;
   const SINGLE_PAGE_BREADCRUMB_DEPTH = 3;
+  const HIGHLIGHT_EXCLUDED_TAGS = new Set([
+    "SCRIPT",
+    "STYLE",
+    "PRE",
+    "CODE",
+    "NOSCRIPT",
+    "TEXTAREA",
+    "INPUT",
+    "SELECT",
+    "OPTION",
+    "BUTTON",
+    "MARK"
+  ]);
 
   function parseQuery() {
     const params = new URLSearchParams(window.location.search);
@@ -34,22 +47,117 @@
     container.appendChild(p);
   }
 
-  function createSnippet(doc, query) {
+  function tokenizeQuery(query) {
+    const seen = new Set();
+    const tokens = [];
+    for (const rawToken of (query || "").split(/\s+/)) {
+      const token = rawToken.trim();
+      if (!token) {
+        continue;
+      }
+      const normalized = token.toLowerCase();
+      if (seen.has(normalized)) {
+        continue;
+      }
+      seen.add(normalized);
+      tokens.push(token);
+    }
+    return tokens.sort((a, b) => b.length - a.length);
+  }
+
+  function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function buildTokenRegex(tokens) {
+    if (!tokens || tokens.length === 0) {
+      return null;
+    }
+    const escaped = tokens.map((token) => escapeRegExp(token)).filter(Boolean);
+    if (escaped.length === 0) {
+      return null;
+    }
+    return new RegExp("(" + escaped.join("|") + ")", "gi");
+  }
+
+  function appendHighlightedText(container, text, regex, className) {
+    if (!text) {
+      return;
+    }
+    regex.lastIndex = 0;
+    let lastIndex = 0;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+
+      if (start > lastIndex) {
+        container.appendChild(document.createTextNode(text.slice(lastIndex, start)));
+      }
+
+      const mark = document.createElement("mark");
+      mark.className = className;
+      mark.textContent = text.slice(start, end);
+      container.appendChild(mark);
+
+      lastIndex = end;
+      if (regex.lastIndex === start) {
+        regex.lastIndex += 1;
+      }
+    }
+
+    if (lastIndex < text.length) {
+      container.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+  }
+
+  function buildResultHref(route, query) {
+    const safeRoute = route || "";
+    if (!safeRoute) {
+      return "#";
+    }
+
+    const hashIndex = safeRoute.indexOf("#");
+    const baseRoute = hashIndex >= 0 ? safeRoute.slice(0, hashIndex) : safeRoute;
+    const hashPart = hashIndex >= 0 ? safeRoute.slice(hashIndex) : "";
+
+    if (!query) {
+      return safeRoute;
+    }
+
+    const joiner = baseRoute.includes("?") ? "&" : "?";
+    return baseRoute + joiner + "q=" + encodeURIComponent(query) + hashPart;
+  }
+
+  function findFirstTokenIndex(content, tokens) {
+    const normalized = content.toLowerCase();
+    let index = -1;
+    for (const token of tokens) {
+      const next = normalized.indexOf(token.toLowerCase());
+      if (next < 0) {
+        continue;
+      }
+      if (index < 0 || next < index) {
+        index = next;
+      }
+    }
+    return index;
+  }
+
+  function createSnippet(doc, tokens) {
     const content = (doc.content || "").replace(/\s+/g, " ").trim();
     if (!content) {
       return "";
     }
 
-    const normalizedContent = content.toLowerCase();
-    const normalizedQuery = query.toLowerCase();
-    const hitAt = normalizedContent.indexOf(normalizedQuery);
-
+    const hitAt = findFirstTokenIndex(content, tokens);
     if (hitAt < 0) {
       return content.length > 220 ? content.slice(0, 220) + "..." : content;
     }
 
+    const longestTokenLength = tokens.length > 0 ? tokens[0].length : 0;
     const start = Math.max(0, hitAt - 80);
-    const end = Math.min(content.length, hitAt + query.length + 120);
+    const end = Math.min(content.length, hitAt + longestTokenLength + 120);
     let snippet = content.slice(start, end);
     if (start > 0) {
       snippet = "..." + snippet;
@@ -60,7 +168,18 @@
     return snippet;
   }
 
-  function createResultElement(doc, query) {
+  function describeResultContext(doc) {
+    const kind = (doc.kind || "").toLowerCase();
+    const pageTitle = (doc.pageTitle || "").trim();
+
+    if (kind === "chapter") {
+      return pageTitle ? "Chapter in " + pageTitle : "Chapter";
+    }
+
+    return pageTitle ? "Page: " + pageTitle : "Page";
+  }
+
+  function createResultElement(doc, query, queryTokens, queryRegex) {
     const article = document.createElement("article");
     article.className = "search-result";
 
@@ -68,7 +187,7 @@
     heading.className = "search-result-title";
 
     const link = document.createElement("a");
-    link.href = doc.route;
+    link.href = buildResultHref(doc.route, query);
     link.textContent = doc.title || doc.route || "Untitled";
     heading.appendChild(link);
 
@@ -76,12 +195,16 @@
     meta.className = "search-result-meta";
     const component = doc.component || "unknown";
     const displayVersion = doc.displayVersion || doc.version || "unknown";
-    meta.textContent = component + " · " + displayVersion + " · " + (doc.route || "");
+    meta.textContent = component + " · " + displayVersion + " · " + describeResultContext(doc);
 
-    const snippet = createSnippet(doc, query);
+    const snippet = createSnippet(doc, queryTokens);
     const teaser = document.createElement("p");
     teaser.className = "search-result-snippet";
-    teaser.textContent = snippet;
+    if (snippet && queryRegex) {
+      appendHighlightedText(teaser, snippet, queryRegex, "search-highlight");
+    } else {
+      teaser.textContent = snippet;
+    }
 
     article.appendChild(heading);
     article.appendChild(meta);
@@ -100,10 +223,13 @@
       return;
     }
 
+    const queryTokens = tokenizeQuery(query);
+    const queryRegex = buildTokenRegex(queryTokens);
+
     const list = document.createElement("div");
     list.className = "search-results-list";
     for (const doc of results) {
-      list.appendChild(createResultElement(doc, query));
+      list.appendChild(createResultElement(doc, query, queryTokens, queryRegex));
     }
     container.appendChild(list);
   }
@@ -113,6 +239,8 @@
     return documents.filter((doc) => {
       const blob = [
         doc.title || "",
+        doc.pageTitle || "",
+        doc.kind || "",
         doc.component || "",
         doc.displayVersion || "",
         doc.version || "",
@@ -163,6 +291,8 @@
       const enriched = {
         _ref: ref,
         title: doc.title || "",
+        pageTitle: doc.pageTitle || "",
+        kind: doc.kind || "",
         component: doc.component || "",
         displayVersion: doc.displayVersion || doc.version || "",
         content: doc.content || ""
@@ -174,6 +304,8 @@
     const index = window.lunr(function () {
       this.ref("_ref");
       this.field("title", { boost: 8 });
+      this.field("pageTitle", { boost: 4 });
+      this.field("kind", { boost: 2 });
       this.field("component", { boost: 2 });
       this.field("displayVersion", { boost: 2 });
       this.field("content", { boost: 1 });
@@ -242,6 +374,72 @@
       .catch(() => {
         renderMessage(resultsContainer, "Search index could not be loaded.");
       });
+  }
+
+  function shouldSkipHighlightNode(textNode) {
+    if (!textNode || !textNode.parentElement) {
+      return true;
+    }
+
+    let current = textNode.parentElement;
+    while (current) {
+      if (HIGHLIGHT_EXCLUDED_TAGS.has(current.tagName)) {
+        return true;
+      }
+      if (current.tagName === "A" && current.classList.contains("anchor")) {
+        return true;
+      }
+      current = current.parentElement;
+    }
+
+    return false;
+  }
+
+  function initDocumentHighlights(query) {
+    const root = document.querySelector(".doc-content");
+    if (!root || !query) {
+      return;
+    }
+
+    const tokens = tokenizeQuery(query);
+    const regex = buildTokenRegex(tokens);
+    if (!regex) {
+      return;
+    }
+
+    const walker = document.createTreeWalker(
+      root,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode(node) {
+          if (!node || !node.nodeValue || !node.nodeValue.trim()) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          if (shouldSkipHighlightNode(node)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+
+    const textNodes = [];
+    let next;
+    while ((next = walker.nextNode())) {
+      textNodes.push(next);
+    }
+
+    for (const textNode of textNodes) {
+      const text = textNode.nodeValue;
+      regex.lastIndex = 0;
+      if (!regex.test(text)) {
+        continue;
+      }
+
+      const fragment = document.createDocumentFragment();
+      appendHighlightedText(fragment, text, regex, "search-highlight");
+      textNode.parentNode.replaceChild(fragment, textNode);
+    }
   }
 
   function decodeHashChapterId() {
@@ -621,6 +819,7 @@
     window.addEventListener("hashchange", syncStickyOffsets);
     initSearchPage();
     initSinglePageChapterUi();
+    initDocumentHighlights(query);
     syncStickyOffsets();
   }
 

@@ -146,7 +146,9 @@ class BibliosIntegrationTest {
 
         String searchIndex = Files.readString(outputRoot.resolve("search-index.json"));
         assertTrue(searchIndex.contains("mydocs"));
-        assertTrue(searchIndex.contains("Welcome"));
+        assertTrue(searchIndex.contains("\"kind\":\"chapter\""));
+        assertTrue(searchIndex.contains("\"pageTitle\":\"Welcome\""));
+        assertTrue(searchIndex.contains("\"route\":\"/mydocs/main/#"));
     }
 
     @Test
@@ -855,6 +857,58 @@ class BibliosIntegrationTest {
         String searchJs = Files.readString(outputRoot.resolve("site-assets/search.js"));
         assertTrue(searchJs.contains("setBranchExpanded"));
         assertTrue(searchJs.contains("bindCollapsibleToggles"));
+        assertTrue(searchJs.contains("buildResultHref"));
+        assertTrue(searchJs.contains("initDocumentHighlights"));
+
+        String searchIndex = Files.readString(outputRoot.resolve("search-index.json"));
+        assertTrue(searchIndex.contains("\"kind\":\"chapter\""));
+        assertTrue(searchIndex.contains("\"route\":\"/mydocs/main/#"));
+    }
+
+    @Test
+    void splitModeSearchFallsBackToPageEntryWhenNoSect1ChaptersExist() throws Exception {
+        Path repoDir = tempDir.resolve("split-fallback-repo");
+        Path workRoot = tempDir.resolve("split-fallback-work");
+        Path outputRoot = tempDir.resolve("split-fallback-output");
+        Path configFile = tempDir.resolve("split-fallback-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+        Files.writeString(repoDir.resolve("docs/index.adoc"), """
+            = Welcome
+            :doctype: book
+
+            Landing page without section headings.
+            """);
+        try (Git git = Git.open(repoDir.toFile())) {
+            git.add().addFilepattern("docs/index.adoc").call();
+            git.commit().setMessage("Remove sect1 chapter from index page").call();
+        }
+
+        new BibliosConfigBuilder()
+            .withSiteTitle("Split Fallback Integration")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        BibliosConfigParser parser = new BibliosConfigParser();
+        BibliosConfig config = parser.parse(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        String searchIndex = Files.readString(outputRoot.resolve("search-index.json"));
+        assertTrue(searchIndex.contains("\"kind\":\"page\""));
+        assertTrue(searchIndex.contains("\"pageTitle\":\"Welcome\""));
+        assertTrue(searchIndex.contains("\"route\":\"/mydocs/main/\""));
     }
 
     @Test

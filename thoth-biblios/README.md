@@ -464,9 +464,11 @@ Each entry in the search index contains:
 - `component` – Source ID
 - `version` – Branch/version name
 - `displayVersion` – Human-readable version label
-- `title` – Page title
-- `route` – URL path to the page
-- `content` – Page content (HTML with tags stripped)
+- `kind` – Entry type (`chapter` or `page`)
+- `title` – Chapter title (or page title for fallback entries)
+- `pageTitle` – Parent page title
+- `route` – URL path to the chapter/page (chapter entries include `#anchor`)
+- `content` – Indexed plain text for that chapter/page
 
 ### Search Index Location
 

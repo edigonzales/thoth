@@ -1080,6 +1080,17 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     font-size: 0.95rem;
 }
 
+mark.search-highlight {
+    background: #ffe58f;
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 0.08em;
+}
+
+.search-result-snippet mark.search-highlight {
+    background: #ffd86b;
+}
+
 /* Footer */
 .site-footer {
     font-family: var(--font-navbar);
