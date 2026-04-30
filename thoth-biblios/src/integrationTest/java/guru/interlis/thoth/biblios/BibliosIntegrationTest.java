@@ -621,13 +621,13 @@ class BibliosIntegrationTest {
         assertTrue(ibmPlexSansCss.contains("./fonts/IBMPlexSansVariable/IBM Plex Sans Var-Italic.woff2"));
 
         String stylesCss = Files.readString(outputRoot.resolve("site-assets/styles.css"));
-        assertTrue(stylesCss.contains("--font-body: \"Literata\""));
-        assertTrue(stylesCss.contains("--font-sidebar-toc: \"Open Sans\""));
-        assertTrue(stylesCss.contains("--font-chapter-headings: \"Open Sans\""));
-        assertTrue(stylesCss.contains("--font-navbar: \"Open Sans\""));
-        assertTrue(stylesCss.contains("--font-index-page: \"Open Sans\""));
-        assertTrue(stylesCss.contains("--font-breadcrumb: \"Open Sans\""));
-        assertTrue(stylesCss.contains("--font-conum: \"Open Sans\""));
+        assertTrue(stylesCss.contains("--font-body: \"Noto Serif\""));
+        assertTrue(stylesCss.contains("--font-sidebar-toc: \"Atkinson Hyperlegible Next\""));
+        assertTrue(stylesCss.contains("--font-chapter-headings: \"Atkinson Hyperlegible Next\""));
+        assertTrue(stylesCss.contains("--font-navbar: \"Atkinson Hyperlegible Next\""));
+        assertTrue(stylesCss.contains("--font-index-page: \"Atkinson Hyperlegible Next\""));
+        assertTrue(stylesCss.contains("--font-breadcrumb: \"Atkinson Hyperlegible Next\""));
+        assertTrue(stylesCss.contains("--font-conum: \"Atkinson Hyperlegible Next\""));
         assertTrue(stylesCss.contains("font-family: \"JetBrains Mono\", \"SFMono-Regular\", Menlo, Consolas, \"Liberation Mono\", monospace;"));
         assertFalse(stylesCss.contains("TeX Gyre Heros"));
 
