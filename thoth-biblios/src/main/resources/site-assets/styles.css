@@ -22,7 +22,7 @@
     --color-sidebarblock-border: var(--ng-100);
     --color-active: #0366d6;
     --color-breadcrumb: var(--ng-400);
-    --max-width: 1400px;
+    --max-width: 1700px;
     --sidebar-width: 320px;
     --site-header-height: 60px;
     --breadcrumb-height: 0px;
@@ -636,7 +636,7 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     display: inline-block;
     font-size: 0.85em;
     line-height: inherit;
-    vertical-align: baseline;
+    vertical-align: top;
 }
 
 .doc-content h1:hover > a.anchor,

@@ -683,8 +683,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "fonts/OpenSans/OpenSans-Italic-Variable.woff2");
         copyAsset(assetsDest, "fonts/Literata/Literata-Variable.woff2");
         copyAsset(assetsDest, "fonts/Literata/Literata-Italic-Variable.woff2");
-        copyAsset(assetsDest, "fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext[wght].woff2");
-        copyAsset(assetsDest, "fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-Italic[wght].woff2");
+        copyAsset(assetsDest, "fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-wght.woff2");
+        copyAsset(assetsDest, "fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-Italic-wght.woff2");
         copyAsset(assetsDest, "fonts/IBMPlexSansVariable/IBM Plex Sans Var-Roman.woff2");
         copyAsset(assetsDest, "fonts/IBMPlexSansVariable/IBM Plex Sans Var-Italic.woff2");
         copyAsset(assetsDest, "styles.css");

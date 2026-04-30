@@ -553,8 +553,8 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/OpenSans/OpenSans-Italic-Variable.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Literata/Literata-Variable.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/Literata/Literata-Italic-Variable.woff2")));
-        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext[wght].woff2")));
-        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-Italic[wght].woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-wght.woff2")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-Italic-wght.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/IBMPlexSansVariable/IBM Plex Sans Var-Roman.woff2")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/fonts/IBMPlexSansVariable/IBM Plex Sans Var-Italic.woff2")));
 
@@ -609,8 +609,8 @@ class BibliosIntegrationTest {
         assertTrue(atkinsonCss.contains("font-weight: 200 800;"));
         assertTrue(atkinsonCss.contains("font-style: normal;"));
         assertTrue(atkinsonCss.contains("font-style: italic;"));
-        assertTrue(atkinsonCss.contains("./fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext[wght].woff2"));
-        assertTrue(atkinsonCss.contains("./fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-Italic[wght].woff2"));
+        assertTrue(atkinsonCss.contains("./fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-wght.woff2"));
+        assertTrue(atkinsonCss.contains("./fonts/AtkinsonHyperlegibleNext/AtkinsonHyperlegibleNext-Italic-wght.woff2"));
 
         String ibmPlexSansCss = Files.readString(outputRoot.resolve("site-assets/ibm-plex-sans.css"));
         assertTrue(ibmPlexSansCss.contains("font-family: \"IBM Plex Sans\";"));
