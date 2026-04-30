@@ -149,6 +149,7 @@ class BibliosIntegrationTest {
 
         String styles = Files.readString(outputRoot.resolve("site-assets/styles.css"));
         assertTrue(styles.contains(".content {"));
+        assertTrue(styles.contains(".doc-content .imageblock > .title,\n.doc-content .listingblock > .title {"));
         assertTrue(styles.contains(".doc-content .imageblock > .content {\n    padding: 0;"));
         assertTrue(styles.contains(".doc-content .imageblock img {\n    display: block;\n    max-width: 100%;\n    height: auto;"));
         assertTrue(styles.contains(".doc-content .listingblock > .content {\n    padding: 0;"));

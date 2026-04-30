@@ -487,7 +487,8 @@ class BibliosE2ETest {
         assertions.assertFileContains("site-assets/styles.css", ".doc-content table.tableblock > caption.title {");
         assertions.assertFileContains("site-assets/styles.css", "font-style: italic;");
         assertions.assertFileContains("site-assets/styles.css", "font-size: 0.9rem;");
-        assertions.assertFileContains("site-assets/styles.css", ".doc-content .imageblock > .title {");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .imageblock > .title,");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .listingblock > .title {");
         assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.note {");
     }
 

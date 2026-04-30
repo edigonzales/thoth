@@ -749,7 +749,8 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
     margin: var(--space-5) 0;
 }
 
-.doc-content .imageblock > .title {
+.doc-content .imageblock > .title,
+.doc-content .listingblock > .title {
     margin-bottom: 0.5rem;
     font-style: italic;
     font-size: var(--fs-small);
