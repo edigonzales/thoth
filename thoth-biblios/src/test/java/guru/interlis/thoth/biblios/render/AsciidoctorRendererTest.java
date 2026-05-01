@@ -158,6 +158,33 @@ class AsciidoctorRendererTest {
     }
 
     @Test
+    void writesPdfDocumentWithSemanticAttributes(@TempDir Path tempDir) throws Exception {
+        Path adoc = tempDir.resolve("test.adoc");
+        Path pdf = tempDir.resolve("test.pdf");
+        Files.writeString(adoc, """
+            = PDF Test
+            :doctype: book
+
+            == Introduction
+
+            Hello PDF.
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            renderer.writePdf(adoc, pdf, Map.of(
+                "toc", true,
+                "sectnums", true,
+                "chapter-signifier", false
+            ), "en");
+        }
+
+        assertTrue(Files.exists(pdf));
+        byte[] prefix = Files.readAllBytes(pdf);
+        assertTrue(prefix.length > 5);
+        assertEquals("%PDF-", new String(prefix, 0, 5));
+    }
+
+    @Test
     void extractsHeadingsFromRenderedDocument(@TempDir Path tempDir) throws Exception {
         Path adoc = tempDir.resolve("master.adoc");
         Files.writeString(adoc, """

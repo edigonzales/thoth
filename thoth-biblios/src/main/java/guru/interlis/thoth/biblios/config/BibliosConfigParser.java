@@ -15,12 +15,26 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Parses biblios.yml into a BibliosConfig object.
  * Uses SnakeYAML Engine for YAML parsing.
  */
 public final class BibliosConfigParser {
+    private static final Set<String> PDF_BOOLEAN_PRESENCE_ATTRIBUTES = Set.of(
+        "toc",
+        "sectnums",
+        "title-page"
+    );
+    private static final Set<String> PDF_FALSE_UNSET_ATTRIBUTES = Set.of(
+        "chapter-signifier",
+        "chapter-refsig",
+        "section-refsig",
+        "appendix-refsig",
+        "part-signifier",
+        "part-refsig"
+    );
 
     private final Load yaml;
 
@@ -788,7 +802,7 @@ public final class BibliosConfigParser {
             case "pdf-theme" -> normalizePdfTheme(value, configPath, label);
             case "pdf-themesdir" -> normalizePdfDirectoryValue(value, configPath, label);
             case "pdf-fontsdir" -> normalizePdfFontsDir(value, configPath, label);
-            default -> normalizeGenericPdfAttributeValue(value, label);
+            default -> normalizeGenericPdfAttributeValue(key, value, label);
         };
     }
 
@@ -872,7 +886,7 @@ public final class BibliosConfigParser {
         return String.join(";", resolvedTokens);
     }
 
-    private Object normalizeGenericPdfAttributeValue(Object value, String label) {
+    private Object normalizeGenericPdfAttributeValue(String key, Object value, String label) {
         if (value == null) {
             throw new ThothBuildException(
                 "Configuration '" + label + "' must not be null",
@@ -890,8 +904,24 @@ public final class BibliosConfigParser {
             }
             return text.trim();
         }
-        if (value instanceof Number || value instanceof Boolean) {
+        if (value instanceof Number) {
             return value;
+        }
+        if (value instanceof Boolean bool) {
+            if (PDF_BOOLEAN_PRESENCE_ATTRIBUTES.contains(key)) {
+                return bool;
+            }
+            if (!bool && PDF_FALSE_UNSET_ATTRIBUTES.contains(key)) {
+                return Boolean.FALSE;
+            }
+            if (bool && PDF_FALSE_UNSET_ATTRIBUTES.contains(key)) {
+                throw new ThothBuildException(
+                    "Expected string for '" + label + "', got: Boolean",
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            return bool;
         }
         if (value instanceof List<?> rawList) {
             List<String> items = new ArrayList<>();

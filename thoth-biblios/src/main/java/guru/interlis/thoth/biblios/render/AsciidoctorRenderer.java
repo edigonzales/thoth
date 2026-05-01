@@ -33,6 +33,19 @@ public final class AsciidoctorRenderer implements AutoCloseable {
 
     private static final String DEFAULT_LANGUAGE = "en";
     private static final Set<String> STANDALONE_MARKERS = Set.of("*", "§", "※", "✱", "✶", "✳");
+    private static final Set<String> PDF_BOOLEAN_PRESENCE_ATTRIBUTES = Set.of(
+        "toc",
+        "sectnums",
+        "title-page"
+    );
+    private static final Set<String> PDF_FALSE_UNSET_ATTRIBUTES = Set.of(
+        "chapter-signifier",
+        "chapter-refsig",
+        "section-refsig",
+        "appendix-refsig",
+        "part-signifier",
+        "part-refsig"
+    );
     private static final Pattern NUMERIC_CONUM_PATTERN = Pattern.compile("<(\\d+)>");
     private final Asciidoctor asciidoctor;
 
@@ -194,7 +207,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             mergedAttributes.putAll(pdfAttributes);
         }
         for (Map.Entry<String, Object> entry : mergedAttributes.entrySet()) {
-            attributes.attribute(entry.getKey(), entry.getValue());
+            applyPdfAttribute(attributes, entry.getKey(), entry.getValue());
         }
 
         return org.asciidoctor.Options.builder()
@@ -204,6 +217,18 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             .baseDir(sourcePath.getParent().toFile())
             .attributes(attributes.build())
             .build();
+    }
+
+    private void applyPdfAttribute(AttributesBuilder attributes, String key, Object value) {
+        if (value instanceof Boolean bool && PDF_BOOLEAN_PRESENCE_ATTRIBUTES.contains(key)) {
+            attributes.attribute(bool ? key : key + "!", "");
+            return;
+        }
+        if (value instanceof Boolean bool && !bool && PDF_FALSE_UNSET_ATTRIBUTES.contains(key)) {
+            attributes.attribute(key + "!", "");
+            return;
+        }
+        attributes.attribute(key, value);
     }
 
     private AttributesBuilder baseHtmlAttributes(String language) {

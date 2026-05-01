@@ -844,6 +844,65 @@ class BibliosConfigParserTest {
     }
 
     @Test
+    void parsesAsciidoctorSemanticPdfAttributes(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            pdf:
+              enabled: true
+              attributes:
+                toc: true
+                sectnums: true
+                chapter-signifier: false
+                compress: true
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("pdf-semantic.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(Boolean.TRUE, config.pdf().attributes().get("toc"));
+        assertEquals(Boolean.TRUE, config.pdf().attributes().get("sectnums"));
+        assertEquals(Boolean.FALSE, config.pdf().attributes().get("chapter-signifier"));
+        assertEquals(Boolean.TRUE, config.pdf().attributes().get("compress"));
+    }
+
+    @Test
+    void rejectsBlankChapterSignifierPdfAttribute(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            pdf:
+              enabled: true
+              attributes:
+                chapter-signifier: ""
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("pdf-invalid-chapter-signifier.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("pdf.attributes.chapter-signifier"));
+        assertTrue(ex.getMessage().contains("must not be blank"));
+    }
+
+    @Test
     void parsesGlobalDocxSection(@TempDir Path tempDir) throws IOException {
         Path ref = tempDir.resolve("reference.docx");
         Files.writeString(ref, "fake");

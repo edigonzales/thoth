@@ -273,6 +273,51 @@ class BibliosIntegrationTest {
     }
 
     @Test
+    void fullBuildPipelineGeneratesPdfArtifactsWithSemanticAttributes() throws Exception {
+        Path repoDir = tempDir.resolve("pdf-semantic-repo");
+        Path workRoot = tempDir.resolve("pdf-semantic-work");
+        Path outputRoot = tempDir.resolve("pdf-semantic-output");
+        Path configFile = tempDir.resolve("pdf-semantic-biblios.yml");
+        Path themeDir = tempDir.resolve("themes");
+        Path themeFile = themeDir.resolve("pdf-theme.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+        Files.createDirectories(themeDir);
+        Files.writeString(themeFile, "extends: default\n");
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("PDF Semantic Docs")
+            .withOutputDir(outputRoot)
+            .withPdfEnabled(true)
+            .withPdfAttributes(Map.of(
+                "pdf-theme", "./themes/pdf-theme.yml",
+                "toc", true,
+                "sectnums", true,
+                "chapter-signifier", false
+            ))
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        Path pdfFile = outputRoot.resolve("mydocs/main/mydocs-main.pdf");
+        assertTrue(Files.exists(pdfFile));
+        byte[] bytes = Files.readAllBytes(pdfFile);
+        assertTrue(bytes.length > 5);
+        assertEquals("%PDF-", new String(bytes, 0, 5));
+    }
+
+    @Test
     void generateHonorsPdfToggleAndVersionFilter() throws Exception {
         Path repoDir = tempDir.resolve("pdf-filter-repo");
         Path workRoot = tempDir.resolve("pdf-filter-work");

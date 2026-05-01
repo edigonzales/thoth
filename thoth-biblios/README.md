@@ -231,6 +231,21 @@ Path handling inside `pdf.attributes`:
 - `pdf-theme`: accepts built-in theme names such as `default` or a local `.yml`/`.yaml` file path. Local paths are resolved relative to `biblios.yml`.
 - `pdf-themesdir`: accepts a local directory path, resolved relative to `biblios.yml`.
 - `pdf-fontsdir`: accepts either a string or a YAML list. Local directories are resolved relative to `biblios.yml`. `GEM_FONTS_DIR` and `uri:classloader:` entries are preserved.
+- Presence attributes such as `toc`, `sectnums`, and `title-page` can be expressed as YAML booleans. `true` sets the attribute, `false` unsets it.
+- Selected text attributes such as `chapter-signifier` also support `false` to explicitly unset the attribute (equivalent to `chapter-signifier!` in AsciiDoc).
+- Empty strings such as `toc: ""` or `chapter-signifier: ""` are not valid in `biblios.yml`; use boolean semantics instead.
+
+Example:
+
+```yaml
+pdf:
+  enabled: true
+  attributes:
+    pdf-theme: ./themes/default-theme.yml
+    toc: true
+    sectnums: true
+    chapter-signifier: false
+```
 
 #### `docx` – DOCX Output Settings
 
