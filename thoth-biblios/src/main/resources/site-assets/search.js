@@ -1,5 +1,4 @@
 (() => {
-  const SEARCH_INDEX_URL = "/search-index.json";
   const SEARCH_SCOPE_GLOBAL = "global";
   const SEARCH_SCOPE_ACTIVE = "active";
   const DESKTOP_BREADCRUMB_BREAKPOINT = 768;
@@ -27,6 +26,28 @@
       ? document.body.dataset.searchLanguageMode
       : "";
     return normalizeMode((fromBody || "").trim());
+  }
+
+  function readSiteRootHref() {
+    const fromBody = document.body && document.body.dataset
+      ? document.body.dataset.siteRootHref
+      : "";
+    const normalized = (fromBody || "").trim();
+    return normalized || "./";
+  }
+
+  function readSearchIndexUrl() {
+    const fromBody = document.body && document.body.dataset
+      ? document.body.dataset.searchIndexUrl
+      : "";
+    const normalized = (fromBody || "").trim();
+    return normalized || "search-index.json";
+  }
+
+  function readInlineSearchIndex() {
+    return Array.isArray(window.__BIBLIOS_SEARCH_INDEX__)
+      ? window.__BIBLIOS_SEARCH_INDEX__
+      : null;
   }
 
   function normalizeSearchScope(rawScope) {
@@ -205,6 +226,7 @@
     const hashIndex = safeRoute.indexOf("#");
     const baseRoute = hashIndex >= 0 ? safeRoute.slice(0, hashIndex) : safeRoute;
     const hashPart = hashIndex >= 0 ? safeRoute.slice(hashIndex) : "";
+    const resolvedBaseRoute = resolveRouteHref(baseRoute);
 
     const params = [];
     if (searchState.query) {
@@ -218,11 +240,26 @@
     }
 
     if (params.length === 0) {
-      return safeRoute;
+      return resolvedBaseRoute + hashPart;
     }
 
-    const joiner = baseRoute.includes("?") ? "&" : "?";
-    return baseRoute + joiner + params.join("&") + hashPart;
+    const joiner = resolvedBaseRoute.includes("?") ? "&" : "?";
+    return resolvedBaseRoute + joiner + params.join("&") + hashPart;
+  }
+
+  function resolveRouteHref(route) {
+    const safeRoute = (route || "").trim();
+    if (!safeRoute || safeRoute === "#") {
+      return safeRoute || "#";
+    }
+    if (!safeRoute.startsWith("/")) {
+      return safeRoute;
+    }
+    const siteRootHref = readSiteRootHref();
+    if (safeRoute === "/") {
+      return siteRootHref;
+    }
+    return siteRootHref + safeRoute.replace(/^\/+/, "");
   }
 
   function findFirstTokenIndex(content, tokens) {
@@ -475,37 +512,45 @@
       return;
     }
 
-    fetch(SEARCH_INDEX_URL)
+    const inlineDocuments = readInlineSearchIndex();
+    if (inlineDocuments) {
+      renderSearchDocuments(resultsContainer, searchState, inlineDocuments);
+      return;
+    }
+
+    fetch(readSearchIndexUrl())
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to load search index");
         }
         return response.json();
       })
-      .then((documents) => {
-        if (!Array.isArray(documents)) {
-          throw new Error("Invalid search index format");
-        }
-        const scopedDocuments = filterDocumentsByScope(documents, searchState);
-
-        const mode = readSearchLanguageMode();
-        let results;
-
-        if (window.lunr && typeof window.lunr === "function") {
-          try {
-            results = lunrSearch(query, scopedDocuments, mode);
-          } catch (error) {
-            results = fallbackSearch(query, scopedDocuments);
-          }
-        } else {
-          results = fallbackSearch(query, scopedDocuments);
-        }
-
-        renderResults(resultsContainer, searchState, dedupeResultsByRoute(results));
-      })
+      .then((documents) => renderSearchDocuments(resultsContainer, searchState, documents))
       .catch(() => {
         renderMessage(resultsContainer, "Search index could not be loaded.");
       });
+  }
+
+  function renderSearchDocuments(resultsContainer, searchState, documents) {
+    if (!Array.isArray(documents)) {
+      throw new Error("Invalid search index format");
+    }
+
+    const scopedDocuments = filterDocumentsByScope(documents, searchState);
+    const mode = readSearchLanguageMode();
+    let results;
+
+    if (window.lunr && typeof window.lunr === "function") {
+      try {
+        results = lunrSearch(searchState.query, scopedDocuments, mode);
+      } catch (error) {
+        results = fallbackSearch(searchState.query, scopedDocuments);
+      }
+    } else {
+      results = fallbackSearch(searchState.query, scopedDocuments);
+    }
+
+    renderResults(resultsContainer, searchState, dedupeResultsByRoute(results));
   }
 
   function shouldSkipHighlightNode(textNode) {

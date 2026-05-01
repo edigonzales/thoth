@@ -1,6 +1,6 @@
 <#-- index.ftl - Global start page -->
 <#import "layout.ftl" as layout>
-<@layout.layout siteTitle=siteTitle siteLogo=(siteLogo)!"" basePath=(basePath)!"" locale=(locale)!"en"
+<@layout.layout siteTitle=siteTitle siteLogo=(siteLogo)!"" basePath=(basePath)!"." siteRootHref=(siteRootHref)!"./" searchPageHref=(searchPageHref)!"./search/" searchIndexUrl=(searchIndexUrl)!"./search-index.json" locale=(locale)!"en"
     docSwitcher=(catalog.components)![] currentComponentId=""
     searchLanguageMode=(searchLanguageMode)!"multilingual_safe"
     syntaxHighlightingEnabled=(syntaxHighlightingEnabled)!true

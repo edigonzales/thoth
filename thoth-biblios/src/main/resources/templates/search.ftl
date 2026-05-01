@@ -1,6 +1,6 @@
 <#-- search.ftl - Dedicated search page -->
 <#import "layout.ftl" as layout>
-<@layout.layout siteTitle=siteTitle siteLogo=(siteLogo)!"" pageTitle="Search" basePath=(basePath)!"" locale=(locale)!"en"
+<@layout.layout siteTitle=siteTitle siteLogo=(siteLogo)!"" pageTitle="Search" basePath=(basePath)!"." siteRootHref=(siteRootHref)!"./" searchPageHref=(searchPageHref)!"./search/" searchIndexUrl=(searchIndexUrl)!"./search-index.json" searchIndexScriptHref=(searchIndexScriptHref)!"" locale=(locale)!"en"
     docSwitcher=(docSwitcher)![] currentComponentId=""
     searchLanguageMode=(searchLanguageMode)!"multilingual_safe"
     syntaxHighlightingEnabled=(syntaxHighlightingEnabled)!true

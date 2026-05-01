@@ -112,6 +112,47 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Create a basic split-docs repo with internal cross references that should be rewritten by Biblios.
+     */
+    public TestRepoBuilder withBasicDocsAndCrossReferences() throws Exception {
+        withBasicDocs();
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Path docsDir = repoDir.resolve("docs");
+
+            Files.writeString(docsDir.resolve("index.adoc"), """
+                = Welcome
+                :doctype: book
+
+                xref:guide.adoc[Guide via xref]
+
+                link:guide.html[Guide via html]
+
+                link:/docs/main/guide/[Guide via absolute route]
+
+                xref:guide.adoc#configuration[Guide section]
+                """);
+
+            Files.writeString(docsDir.resolve("guide.adoc"), """
+                = User Guide
+                :doctype: book
+
+                xref:config.adoc[Config sibling]
+
+                [#configuration]
+                == Configuration
+
+                Configure the software to your needs.
+                """);
+
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Add cross reference fixture").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Extend the basic docs fixture with a NOTE admonition in guide.adoc.
      */
     public TestRepoBuilder withNoteAdmonitionInGuide() throws Exception {

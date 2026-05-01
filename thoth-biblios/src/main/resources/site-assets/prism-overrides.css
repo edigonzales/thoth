@@ -75,8 +75,8 @@ div.code-toolbar > .toolbar .toolbar-item > button.copy-to-clipboard-button::bef
     display: inline-block;
     flex: 0 0 auto;
     background-color: rgba(0, 0, 0, 0.72);
-    -webkit-mask-image: url("/site-assets/icons/bootstrap-copy.svg");
-    mask-image: url("/site-assets/icons/bootstrap-copy.svg");
+    -webkit-mask-image: url("icons/bootstrap-copy.svg");
+    mask-image: url("icons/bootstrap-copy.svg");
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
@@ -92,11 +92,11 @@ div.code-toolbar > .toolbar .toolbar-item > button.copy-to-clipboard-button:focu
 }
 
 div.code-toolbar > .toolbar .toolbar-item > button.copy-to-clipboard-button[data-copy-state="copy-success"]::before {
-    -webkit-mask-image: url("/site-assets/icons/bootstrap-check.svg");
-    mask-image: url("/site-assets/icons/bootstrap-check.svg");
+    -webkit-mask-image: url("icons/bootstrap-check.svg");
+    mask-image: url("icons/bootstrap-check.svg");
 }
 
 div.code-toolbar > .toolbar .toolbar-item > button.copy-to-clipboard-button[data-copy-state="copy-error"]::before {
-    -webkit-mask-image: url("/site-assets/icons/bootstrap-copy.svg");
-    mask-image: url("/site-assets/icons/bootstrap-copy.svg");
+    -webkit-mask-image: url("icons/bootstrap-copy.svg");
+    mask-image: url("icons/bootstrap-copy.svg");
 }

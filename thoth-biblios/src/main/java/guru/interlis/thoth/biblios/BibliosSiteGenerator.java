@@ -189,34 +189,23 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     }
 
     private void generateHomePage() throws IOException {
-        Map<String, Object> model = new HashMap<>();
-        model.put("siteTitle", config.site().title());
-        model.put("siteLogo", siteLogo);
+        Path outputFile = Path.of("index.html");
+        Map<String, Object> model = createCommonModel(outputFile);
         model.put("siteDescription", config.site().url());
-        model.put("basePath", "");
         model.put("catalog", catalogToModel());
-        model.put("locale", config.site().defaultLanguage());
-        model.put("searchLanguageMode", uiSearchLanguageMode());
-        model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
-        model.put("prismCustomComponentUrls", uiPrismCustomComponentUrls());
 
         String html = renderTemplate("index.ftl", model);
-        writeOutput(Path.of("index.html"), html);
+        writeOutput(outputFile, html);
     }
 
     private void generateSearchPage() throws IOException {
-        Map<String, Object> model = new HashMap<>();
-        model.put("siteTitle", config.site().title());
-        model.put("siteLogo", siteLogo);
-        model.put("basePath", "");
-        model.put("locale", config.site().defaultLanguage());
+        Path outputFile = Path.of("search/index.html");
+        Map<String, Object> model = createCommonModel(outputFile);
         model.put("docSwitcher", buildDocSwitcher());
-        model.put("searchLanguageMode", uiSearchLanguageMode());
-        model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
-        model.put("prismCustomComponentUrls", uiPrismCustomComponentUrls());
+        model.put("searchIndexScriptHref", routeHref(basePathForOutput(outputFile), "/search-index.js"));
 
         String html = renderTemplate("search.ftl", model);
-        writeOutput(Path.of("search/index.html"), html);
+        writeOutput(outputFile, html);
     }
 
     private void generateComponentPages(DocComponent component) throws IOException {
@@ -232,16 +221,13 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private void generateComponentLandingPage(DocComponent component) throws IOException {
         Path componentRoot = outputRoot.resolve(component.id());
         Files.createDirectories(componentRoot);
+        Path outputFile = Path.of(component.id(), "index.html");
         ComponentVersion defaultVersion = component.getVersion(component.defaultVersion());
         if (defaultVersion == null && !component.versions().isEmpty()) {
             defaultVersion = component.versions().get(0);
         }
 
-        Map<String, Object> model = new HashMap<>();
-        model.put("siteTitle", config.site().title());
-        model.put("siteLogo", siteLogo);
-        model.put("basePath", "");
-        model.put("locale", config.site().defaultLanguage());
+        Map<String, Object> model = createCommonModel(outputFile);
         model.put("component", componentToModel(component));
         model.put("currentVersion", defaultVersion != null ? versionToModel(defaultVersion) : Map.of());
         model.put("currentComponentId", component.id());
@@ -249,12 +235,9 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("navigation", null);
         model.put("docSwitcher", buildDocSwitcher());
         model.put("versionSwitcher", buildVersionSwitcher(component));
-        model.put("searchLanguageMode", uiSearchLanguageMode());
-        model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
-        model.put("prismCustomComponentUrls", uiPrismCustomComponentUrls());
 
         String html = renderTemplate("component.ftl", model);
-        writeOutput(componentRoot.resolve("index.html"), html);
+        writeOutput(outputFile, html);
     }
 
     private void generateVersionPages(DocComponent component, ComponentVersion version) throws IOException {
@@ -274,15 +257,12 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private void generateContentPage(DocComponent component, ComponentVersion version, DocPage page, Path versionRoot) throws IOException {
         Path pageDir = resolvePageOutputDir(component, version, page, versionRoot);
         Files.createDirectories(pageDir);
+        Path outputFile = outputRoot.relativize(pageDir.resolve("index.html"));
 
         boolean singlePageMode = version.renderMode() == RenderMode.SINGLE_PAGE;
 
-        Map<String, Object> model = new HashMap<>();
-        model.put("siteTitle", config.site().title());
-        model.put("siteLogo", siteLogo);
-        model.put("basePath", "");
-        model.put("locale", config.site().defaultLanguage());
-        model.put("page", pageToModel(page));
+        Map<String, Object> model = createCommonModel(outputFile);
+        model.put("page", pageToModel(page, rewriteContentLinks(page, version, outputFile)));
         model.put("currentComponentId", component.id());
         model.put("currentVersionStr", version.version());
         model.put("currentVersion", versionToModel(version));
@@ -303,9 +283,6 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("sourceUrl", page.sourceUrl());
         model.put("showEditLink", config.ui() != null && config.ui().showEditLink());
         model.put("showSourceLink", config.ui() != null && config.ui().showSourceLink());
-        model.put("searchLanguageMode", uiSearchLanguageMode());
-        model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
-        model.put("prismCustomComponentUrls", uiPrismCustomComponentUrls());
 
         if (page.prev() != null) {
             model.put("prevPage", pageToModel(page.prev()));
@@ -315,7 +292,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         }
 
         String html = renderTemplate("page.ftl", model);
-        writeOutput(pageDir.resolve("index.html"), html);
+        writeOutput(outputFile, html);
     }
 
     private void copyReferencedContentAssets(DocComponent component, ComponentVersion version, Path versionRoot) throws IOException {
@@ -472,6 +449,218 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         return true;
     }
 
+    private String rewriteContentLinks(DocPage page, ComponentVersion version, Path currentOutputFile) {
+        if (page == null || page.html() == null || page.html().isBlank()) {
+            return page != null ? page.html() : "";
+        }
+
+        Document document = Jsoup.parseBodyFragment(page.html());
+        Map<String, DocPage> pagesBySourcePath = new HashMap<>();
+        for (DocPage candidate : version.pages()) {
+            pagesBySourcePath.put(candidate.sourcePath(), candidate);
+        }
+
+        boolean changed = false;
+        for (Element anchor : document.select("a[href]")) {
+            String href = anchor.attr("href").trim();
+            String rewritten = rewriteContentHref(href, page, version, pagesBySourcePath, currentOutputFile);
+            if (!href.equals(rewritten)) {
+                anchor.attr("href", rewritten);
+                changed = true;
+            }
+        }
+
+        return changed ? document.body().html() : page.html();
+    }
+
+    private String rewriteContentHref(String href, DocPage currentPage, ComponentVersion version,
+                                      Map<String, DocPage> pagesBySourcePath, Path currentOutputFile) {
+        if (href == null || href.isBlank() || href.startsWith("#") || isExternalHref(href)) {
+            return href;
+        }
+
+        HrefParts parts = splitHref(href);
+        if (parts.path().isBlank()) {
+            return href;
+        }
+
+        if (parts.path().startsWith("/")) {
+            if (!isManagedAbsolutePath(parts.path())) {
+                return href;
+            }
+            return relativeManagedHref(currentOutputFile, parts.path()) + parts.suffix();
+        }
+
+        String targetRoute = resolveRelativeContentRoute(currentPage, version, pagesBySourcePath, parts.path());
+        if (targetRoute == null) {
+            return href;
+        }
+        return relativeManagedHref(currentOutputFile, targetRoute) + parts.suffix();
+    }
+
+    private String resolveRelativeContentRoute(DocPage currentPage, ComponentVersion version,
+                                               Map<String, DocPage> pagesBySourcePath, String rawPath) {
+        String normalizedRawPath = rawPath.replace('\\', '/');
+        boolean directoryLike = normalizedRawPath.endsWith("/");
+
+        final Path relativeTargetPath;
+        try {
+            relativeTargetPath = Path.of(normalizedRawPath).normalize();
+        } catch (Exception ignored) {
+            return null;
+        }
+        if (relativeTargetPath.isAbsolute()) {
+            return null;
+        }
+
+        Path currentSourcePath = Path.of(currentPage.sourcePath().replace('\\', '/'));
+        Path currentSourceDir = currentSourcePath.getParent() != null ? currentSourcePath.getParent() : Path.of("");
+        Path resolvedTargetPath = currentSourceDir.resolve(relativeTargetPath).normalize();
+        if (resolvedTargetPath.toString().startsWith("..")) {
+            return null;
+        }
+
+        for (String candidateSourcePath : candidateSourcePaths(resolvedTargetPath, directoryLike)) {
+            DocPage targetPage = pagesBySourcePath.get(candidateSourcePath);
+            if (targetPage != null) {
+                return targetPage.route();
+            }
+        }
+
+        if (directoryLike || rawPath.indexOf('.') < 0) {
+            String startPageFileName = Path.of(version.startPage()).getFileName() != null
+                ? Path.of(version.startPage()).getFileName().toString()
+                : version.startPage();
+            String directoryPath = normalizeSourcePath(resolvedTargetPath);
+            String candidateStartPage = directoryPath.isBlank()
+                ? startPageFileName
+                : directoryPath + "/" + startPageFileName;
+            DocPage startPage = pagesBySourcePath.get(candidateStartPage);
+            if (startPage != null) {
+                return startPage.route();
+            }
+        }
+
+        return null;
+    }
+
+    private List<String> candidateSourcePaths(Path resolvedTargetPath, boolean directoryLike) {
+        LinkedHashSet<String> candidates = new LinkedHashSet<>();
+        String normalizedPath = normalizeSourcePath(resolvedTargetPath);
+        if (normalizedPath.isBlank()) {
+            candidates.add("index.adoc");
+            return List.copyOf(candidates);
+        }
+
+        if (directoryLike) {
+            candidates.add(normalizedPath + "/index.adoc");
+            return List.copyOf(candidates);
+        }
+
+        String lowerPath = normalizedPath.toLowerCase(Locale.ROOT);
+        if (lowerPath.endsWith(".adoc")) {
+            candidates.add(normalizedPath);
+        } else if (lowerPath.endsWith(".html")) {
+            candidates.add(normalizedPath.substring(0, normalizedPath.length() - 5) + ".adoc");
+        } else if (lowerPath.endsWith(".htm")) {
+            candidates.add(normalizedPath.substring(0, normalizedPath.length() - 4) + ".adoc");
+        } else if (!resolvedTargetPath.getFileName().toString().contains(".")) {
+            candidates.add(normalizedPath + ".adoc");
+            candidates.add(normalizedPath + "/index.adoc");
+        }
+        return List.copyOf(candidates);
+    }
+
+    private String normalizeSourcePath(Path path) {
+        if (path == null) {
+            return "";
+        }
+        String normalized = path.normalize().toString().replace('\\', '/');
+        return ".".equals(normalized) ? "" : normalized;
+    }
+
+    private String relativeManagedHref(Path currentOutputFile, String managedTargetPath) {
+        Path currentDir = currentOutputFile != null && currentOutputFile.getParent() != null
+            ? currentOutputFile.getParent()
+            : Path.of("");
+        Path targetPath = outputPathForManagedTarget(managedTargetPath);
+        Path relativePath = currentDir.relativize(targetPath);
+        String normalizedRelativePath = normalizeSourcePath(relativePath);
+        if (isManagedFilePath(managedTargetPath)) {
+            return normalizedRelativePath.isBlank() ? "." : normalizedRelativePath;
+        }
+        return normalizedRelativePath.isBlank() ? "./" : normalizedRelativePath + "/";
+    }
+
+    private Path outputPathForManagedTarget(String managedTargetPath) {
+        if (managedTargetPath == null || managedTargetPath.isBlank() || "/".equals(managedTargetPath)) {
+            return Path.of("");
+        }
+        if ("/search-index.json".equals(managedTargetPath)) {
+            return Path.of("search-index.json");
+        }
+        if ("/search-index.js".equals(managedTargetPath)) {
+            return Path.of("search-index.js");
+        }
+        String normalized = managedTargetPath.startsWith("/") ? managedTargetPath.substring(1) : managedTargetPath;
+        if (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        if (normalized.isBlank()) {
+            return Path.of("");
+        }
+        return Path.of(normalized);
+    }
+
+    private boolean isManagedFilePath(String managedTargetPath) {
+        return "/search-index.json".equals(managedTargetPath) || "/search-index.js".equals(managedTargetPath);
+    }
+
+    private boolean isManagedAbsolutePath(String path) {
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        if ("/".equals(path) || "/search/".equals(path) || "/search-index.json".equals(path) || "/search-index.js".equals(path)) {
+            return true;
+        }
+        for (DocComponent component : catalog.components()) {
+            String prefix = "/" + component.id() + "/";
+            if (path.equals("/" + component.id() + "/") || path.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isExternalHref(String href) {
+        String normalized = href.trim().toLowerCase(Locale.ROOT);
+        return normalized.startsWith("http://")
+            || normalized.startsWith("https://")
+            || normalized.startsWith("mailto:")
+            || normalized.startsWith("data:")
+            || normalized.startsWith("javascript:")
+            || normalized.startsWith("tel:")
+            || normalized.startsWith("file:")
+            || normalized.startsWith("//");
+    }
+
+    private HrefParts splitHref(String href) {
+        int queryIndex = href.indexOf('?');
+        int hashIndex = href.indexOf('#');
+        int suffixIndex = -1;
+        if (queryIndex >= 0 && hashIndex >= 0) {
+            suffixIndex = Math.min(queryIndex, hashIndex);
+        } else if (queryIndex >= 0) {
+            suffixIndex = queryIndex;
+        } else if (hashIndex >= 0) {
+            suffixIndex = hashIndex;
+        }
+        if (suffixIndex < 0) {
+            return new HrefParts(href, "");
+        }
+        return new HrefParts(href.substring(0, suffixIndex), href.substring(suffixIndex));
+    }
+
     private void generateSearchIndex() throws IOException {
         List<SearchIndexEntry> entries = new ArrayList<>();
         for (DocComponent component : catalog.components()) {
@@ -482,6 +671,12 @@ public final class BibliosSiteGenerator implements AutoCloseable {
             }
         }
 
+        String json = buildSearchIndexJson(entries);
+        writeOutput(Path.of("search-index.json"), json);
+        writeOutput(Path.of("search-index.js"), "window.__BIBLIOS_SEARCH_INDEX__ = " + json + ";\n");
+    }
+
+    private String buildSearchIndexJson(List<SearchIndexEntry> entries) {
         StringBuilder json = new StringBuilder("[\n");
         boolean first = true;
         for (SearchIndexEntry entry : entries) {
@@ -504,8 +699,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         }
 
         json.append("\n]");
-
-        writeOutput(Path.of("search-index.json"), json.toString());
+        return json.toString();
     }
 
     private List<SearchIndexEntry> buildSearchIndexEntries(DocComponent component, ComponentVersion version, DocPage page) {
@@ -698,6 +892,69 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         siteLogo = copyConfiguredLogoAsset(assetsDest);
     }
 
+    private Map<String, Object> createCommonModel(Path outputFile) {
+        String basePath = basePathForOutput(outputFile);
+        Map<String, Object> model = new HashMap<>();
+        model.put("siteTitle", config.site().title());
+        model.put("siteLogo", resolveMaybeLocalHref(basePath, siteLogo));
+        model.put("basePath", basePath);
+        model.put("siteRootHref", siteRootHref(basePath));
+        model.put("searchPageHref", routeHref(basePath, "/search/"));
+        model.put("searchIndexUrl", routeHref(basePath, "/search-index.json"));
+        model.put("locale", config.site().defaultLanguage());
+        model.put("searchLanguageMode", uiSearchLanguageMode());
+        model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
+        model.put("prismCustomComponentUrls", uiPrismCustomComponentHrefs(basePath));
+        return model;
+    }
+
+    private String basePathForOutput(Path outputFile) {
+        Path parent = outputFile != null ? outputFile.getParent() : null;
+        if (parent == null || parent.getNameCount() == 0) {
+            return ".";
+        }
+        return String.join("/", Collections.nCopies(parent.getNameCount(), ".."));
+    }
+
+    private String siteRootHref(String basePath) {
+        return basePath + "/";
+    }
+
+    private String routeHref(String basePath, String route) {
+        String normalizedRoute = route == null || route.isBlank() ? "/" : route;
+        if (!normalizedRoute.startsWith("/")) {
+            normalizedRoute = "/" + normalizedRoute;
+        }
+        if ("/".equals(normalizedRoute)) {
+            return siteRootHref(basePath);
+        }
+        return basePath + normalizedRoute;
+    }
+
+    private String assetHref(String basePath, String assetPath) {
+        String normalizedAssetPath = assetPath == null ? "" : assetPath.trim();
+        if (normalizedAssetPath.isEmpty()) {
+            return siteRootHref(basePath);
+        }
+        if (normalizedAssetPath.startsWith("/")) {
+            normalizedAssetPath = normalizedAssetPath.substring(1);
+        }
+        return routeHref(basePath, "/" + normalizedAssetPath);
+    }
+
+    private String resolveMaybeLocalHref(String basePath, String href) {
+        if (href == null || href.isBlank()) {
+            return href;
+        }
+        if (isExternalHref(href) || href.startsWith("#")) {
+            return href;
+        }
+        if (href.startsWith("/")) {
+            return routeHref(basePath, href);
+        }
+        return href;
+    }
+
     private void copyAsset(Path assetsDest, String relativePath) throws IOException {
         try (InputStream stream = getClass().getResourceAsStream("/site-assets/" + relativePath)) {
             if (stream == null) {
@@ -806,6 +1063,9 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     ) {
     }
 
+    private record HrefParts(String path, String suffix) {
+    }
+
     private String uiSearchLanguageMode() {
         if (config.ui() == null || config.ui().searchLanguageMode() == null) {
             return "multilingual_safe";
@@ -820,7 +1080,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         return config.ui().syntaxHighlightingMode().isEnabled();
     }
 
-    private List<String> uiPrismCustomComponentUrls() {
+    private List<String> uiPrismCustomComponentHrefs(String basePath) {
         if (!uiSyntaxHighlightingEnabled() || config.ui() == null || config.ui().prismCustomComponents().isEmpty()) {
             return List.of();
         }
@@ -828,7 +1088,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         for (String rawPath : config.ui().prismCustomComponents()) {
             Path source = Path.of(rawPath);
             String fileName = source.getFileName().toString();
-            urls.add("/site-assets/prism/custom/" + fileName);
+            urls.add(assetHref(basePath, "site-assets/prism/custom/" + fileName));
         }
         return List.copyOf(urls);
     }
@@ -898,6 +1158,10 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     }
 
     private Map<String, Object> pageToModel(DocPage page) {
+        return pageToModel(page, page.html());
+    }
+
+    private Map<String, Object> pageToModel(DocPage page, String html) {
         Map<String, Object> model = new HashMap<>();
         model.put("componentId", page.componentId());
         model.put("version", page.version());
@@ -906,7 +1170,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("title", page.title());
         model.put("navTitle", page.navTitle());
         model.put("route", page.route());
-        model.put("html", page.html());
+        model.put("html", html != null ? html : "");
         return model;
     }
 

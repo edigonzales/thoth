@@ -1,6 +1,6 @@
 <#-- page.ftl - Documentation content page -->
 <#import "layout.ftl" as layout>
-<@layout.layout siteTitle=siteTitle siteLogo=(siteLogo)!"" basePath=(basePath)!"" locale=(locale)!"en"
+<@layout.layout siteTitle=siteTitle siteLogo=(siteLogo)!"" basePath=(basePath)!"." siteRootHref=(siteRootHref)!"./" searchPageHref=(searchPageHref)!"./search/" searchIndexUrl=(searchIndexUrl)!"./search-index.json" locale=(locale)!"en"
     docSwitcher=(docSwitcher)![] versionSwitcher=(versionSwitcher)![]
     currentComponentId=currentComponentId currentVersionStr=(currentVersion.version)!"" currentVersion=(currentVersion)!{} currentPagePath=currentPagePath
     navigation=(navigation)!{} breadcrumbs=(breadcrumbs)![]

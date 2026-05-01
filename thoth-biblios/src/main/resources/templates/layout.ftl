@@ -1,4 +1,4 @@
-<#macro layout siteTitle siteLogo="" pageTitle="" basePath="" locale="en" docSwitcher=[] versionSwitcher=[] currentComponentId="" currentVersionStr="" currentVersion={} currentPagePath="" navigation={} breadcrumbs=[] prevPage={} nextPage={} searchQuery="" searchLanguageMode="multilingual_safe" syntaxHighlightingEnabled=true prismCustomComponentUrls=[] singlePageMode=false chapterBreadcrumbEnabled=false initialChapterId="">
+<#macro layout siteTitle siteLogo="" pageTitle="" basePath="." siteRootHref="./" searchPageHref="./search/" searchIndexUrl="./search-index.json" searchIndexScriptHref="" locale="en" docSwitcher=[] versionSwitcher=[] currentComponentId="" currentVersionStr="" currentVersion={} currentPagePath="" navigation={} breadcrumbs=[] prevPage={} nextPage={} searchQuery="" searchLanguageMode="multilingual_safe" syntaxHighlightingEnabled=true prismCustomComponentUrls=[] singlePageMode=false chapterBreadcrumbEnabled=false initialChapterId="">
 <!DOCTYPE html>
 <html lang="${locale}">
 <head>
@@ -22,6 +22,9 @@
     <link rel="stylesheet" href="${basePath}/site-assets/prism/plugins/toolbar/prism-toolbar.min.css">
     </#if>
     <script src="${basePath}/site-assets/lunr.min.js" defer></script>
+    <#if searchIndexScriptHref?has_content>
+    <script src="${searchIndexScriptHref}" defer></script>
+    </#if>
     <script src="${basePath}/site-assets/search.js" defer></script>
     <#if syntaxHighlightingEnabled>
     <script src="${basePath}/site-assets/prism/prism.js" defer></script>
@@ -49,15 +52,15 @@
     <script src="${basePath}/site-assets/prism/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js" defer></script>
     <#if prismCustomComponentUrls?has_content>
         <#list prismCustomComponentUrls as customComponentUrl>
-    <script src="${basePath}${customComponentUrl}" defer></script>
+    <script src="${customComponentUrl}" defer></script>
         </#list>
     </#if>
     </#if>
 </head>
-<body data-search-language-mode="${searchLanguageMode}" data-single-page-mode="${singlePageMode?string('true', 'false')}" data-initial-chapter-id="${initialChapterId}" data-current-component-id="${(currentComponentId)!""}" data-current-version="${(currentVersionStr)!""}">
+<body data-search-language-mode="${searchLanguageMode}" data-single-page-mode="${singlePageMode?string('true', 'false')}" data-initial-chapter-id="${initialChapterId}" data-current-component-id="${(currentComponentId)!""}" data-current-version="${(currentVersionStr)!""}" data-site-root-href="${siteRootHref}" data-search-index-url="${searchIndexUrl}">
     <header class="site-header">
         <div class="header-content">
-            <a href="${basePath}/" class="site-title">
+            <a href="${siteRootHref}" class="site-title">
                 <#if siteLogo?has_content>
                     <img src="${siteLogo}" alt="${siteTitle} logo" class="brand-logo">
                 </#if>
@@ -94,15 +97,15 @@
             <#assign currentSearchComponent = (currentComponentId)!"" >
             <#assign currentSearchVersion = (currentVersionStr)!"" >
             <#assign hasActiveSearchContext = currentSearchComponent?has_content && currentSearchVersion?has_content>
-            <form class="search-form" action="${basePath}/search/" method="get" role="search">
-                <label for="search-input">Search:</label>
+            <form class="search-form" action="${searchPageHref}" method="get" role="search">
+                <!--<label for="search-input">Search:</label>-->
                 <input id="search-input" type="search" name="q" value="${searchQuery}" placeholder="Search documentation">
                 <input id="search-scope-input" type="hidden" name="scope" value="global">
                 <input id="search-component-input" type="hidden" name="component" value="${currentSearchComponent}">
                 <input id="search-version-input" type="hidden" name="version" value="${currentSearchVersion}">
                 <label for="search-scope-active" class="search-scope-toggle<#if !hasActiveSearchContext> is-disabled</#if>">
                     <input id="search-scope-active" type="checkbox"<#if !hasActiveSearchContext> disabled</#if>>
-                    <span>Only active docs version</span>
+                    <span>Active doc</span>
                 </label>
             </form>
         </div>
