@@ -247,6 +247,40 @@ pdf:
     chapter-signifier: false
 ```
 
+Admonitions in PDF can also be customized through `pdf.attributes`. This is useful if you want localized captions such as `Tipp` instead of `Tip`, or if you want a custom PDF theme for admonition styling:
+
+```yaml
+pdf:
+  enabled: true
+  attributes:
+    pdf-theme: ./themes/default-theme.yml
+    tip-caption: TIPP
+    note-caption: Hinweis
+```
+
+Biblios also applies German PDF admonition captions as soft defaults when `site.default_language: de`. These defaults can still be overridden in the document itself or explicitly in `pdf.attributes`.
+
+A ready-made sample theme is available at [examples/themes/admonitions-htmlish-theme.yml](/Users/stefan/sources/thoth/thoth-biblios/examples/themes/admonitions-htmlish-theme.yml). It pushes PDF admonitions closer to the Biblios HTML look by using a card-like block, stronger label typography, and per-type icon colors.
+
+Example:
+
+```yaml
+site:
+  default_language: de
+
+pdf:
+  enabled: true
+  attributes:
+    pdf-theme: ./themes/admonitions-htmlish-theme.yml
+    icons: font
+    icon-set: fas
+    tip-caption: TIPP
+```
+
+If you copy the sample theme into your docs repository, remember that `pdf-theme` is resolved relative to `biblios.yml`.
+
+Current limitation: plain Asciidoctor PDF theming can style labels and icons per admonition type, but not the whole admonition block background/border per type. If you want `NOTE`, `TIP`, and `WARNING` to each get their own full card color in PDF, that requires an extended PDF converter rather than just a theme file.
+
 #### `docx` – DOCX Output Settings
 
 When `docx.enabled: true`, Biblios can write one DOCX per published component version into the corresponding version output directory.  

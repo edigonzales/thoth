@@ -1,0 +1,53 @@
+extends: default
+
+# PDF theme that moves admonitions closer to the HTML look used by Biblios.
+# Limitation: Asciidoctor PDF theming does not support per-type block
+# backgrounds/borders out of the box, so the block "card" style is shared.
+
+admonition:
+  background-color: F9FAFB
+  border-color: D9E2EC
+  border-radius: 10
+  border-width: 0.75
+  column-rule-width: 0
+  padding: [10, 14, 10, 14]
+  label:
+    align: left
+    font-family: Noto Serif
+    font-size: 10
+    font-style: bold
+    min-width: 72
+    padding: [0, 10, 0, 0]
+    text-transform: uppercase
+    vertical-align: top
+    note:
+      font-color: 1E4ED8
+    tip:
+      font-color: 9A6700
+    important:
+      font-color: B42318
+    warning:
+      font-color: B54708
+    caution:
+      font-color: 912018
+  icon:
+    note:
+      name: fas-circle-info
+      size: 18
+      stroke-color: 60A6FA
+    tip:
+      name: fas-lightbulb
+      size: 18
+      stroke-color: F4B400
+    important:
+      name: fas-circle-exclamation
+      size: 18
+      stroke-color: D92D20
+    warning:
+      name: fas-triangle-exclamation
+      size: 18
+      stroke-color: F79009
+    caution:
+      name: fas-fire
+      size: 18
+      stroke-color: B42318

@@ -203,6 +203,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         attributes.attribute("lang", resolvedLanguage);
 
         Map<String, Object> mergedAttributes = new LinkedHashMap<>();
+        mergedAttributes.putAll(defaultPdfAttributesForLanguage(resolvedLanguage));
         if (pdfAttributes != null) {
             mergedAttributes.putAll(pdfAttributes);
         }
@@ -217,6 +218,20 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             .baseDir(sourcePath.getParent().toFile())
             .attributes(attributes.build())
             .build();
+    }
+
+    static Map<String, Object> defaultPdfAttributesForLanguage(String language) {
+        String resolvedLanguage = normalizeLanguage(language).toLowerCase(Locale.ROOT);
+        if ("de".equals(resolvedLanguage)) {
+            Map<String, Object> defaults = new LinkedHashMap<>();
+            defaults.put("note-caption", "Hinweis@");
+            defaults.put("tip-caption", "Tipp@");
+            defaults.put("important-caption", "Wichtig@");
+            defaults.put("warning-caption", "Warnung@");
+            defaults.put("caution-caption", "Vorsicht@");
+            return Map.copyOf(defaults);
+        }
+        return Map.of();
     }
 
     private void applyPdfAttribute(AttributesBuilder attributes, String key, Object value) {

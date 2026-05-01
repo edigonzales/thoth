@@ -185,6 +185,22 @@ class AsciidoctorRendererTest {
     }
 
     @Test
+    void providesGermanPdfAdmonitionCaptionsAsSoftDefaults() {
+        Map<String, Object> defaults = AsciidoctorRenderer.defaultPdfAttributesForLanguage("de");
+
+        assertEquals("Hinweis@", defaults.get("note-caption"));
+        assertEquals("Tipp@", defaults.get("tip-caption"));
+        assertEquals("Wichtig@", defaults.get("important-caption"));
+        assertEquals("Warnung@", defaults.get("warning-caption"));
+        assertEquals("Vorsicht@", defaults.get("caution-caption"));
+    }
+
+    @Test
+    void providesNoLocalizedPdfAdmonitionCaptionsForEnglish() {
+        assertTrue(AsciidoctorRenderer.defaultPdfAttributesForLanguage("en").isEmpty());
+    }
+
+    @Test
     void extractsHeadingsFromRenderedDocument(@TempDir Path tempDir) throws Exception {
         Path adoc = tempDir.resolve("master.adoc");
         Files.writeString(adoc, """
