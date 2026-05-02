@@ -280,6 +280,7 @@ public final class BibliosConfigParser {
         String startPath = (String) sourceMap.get("start_path");
         String defaultVersion = (String) sourceMap.get("default_version");
         String startPage = (String) sourceMap.get("start_page");
+        Object revnumber = parseSourceRevnumber(sourceMap, label);
         RenderMode renderMode = parseRenderMode(sourceMap, label);
         SidebarTocNumbersMode sidebarTocNumbers = parseSidebarTocNumbersMode(sourceMap, label);
         SourcePdfSection pdf = parseSourcePdfSection(sourceMap, configPath, label);
@@ -323,9 +324,26 @@ public final class BibliosConfigParser {
             startPage,
             renderMode,
             masterFile,
+            revnumber,
             sidebarTocNumbers,
             pdf,
             docx
+        );
+    }
+
+    private Object parseSourceRevnumber(Map<String, Object> sourceMap, String label) {
+        if (!sourceMap.containsKey("revnumber")) {
+            return null;
+        }
+        Object value = sourceMap.get("revnumber");
+        if (value instanceof Boolean || value instanceof String) {
+            return value;
+        }
+        throw new ThothBuildException(
+            "Expected boolean or string for '" + label + ".revnumber', got: " +
+                (value == null ? "null" : value.getClass().getSimpleName()),
+            ThothBuildException.ErrorSeverity.FATAL,
+            "config"
         );
     }
 

@@ -16,7 +16,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Builds a SiteCatalog from configuration.
@@ -221,9 +223,11 @@ public final class CatalogBuilder implements AutoCloseable {
 
         AsciidoctorRenderer.RenderedDocument rendered;
         try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            Map<String, Object> renderAttributes = resolveRenderAttributes(source, branch);
             rendered = renderer.renderDocument(
                 masterPath,
-                AsciidoctorRenderer.RenderOptions.singlePage(contentToc, headingDepth, renderLanguage)
+                AsciidoctorRenderer.RenderOptions.singlePage(contentToc, headingDepth, renderLanguage),
+                renderAttributes
             );
         }
 
@@ -293,6 +297,7 @@ public final class CatalogBuilder implements AutoCloseable {
         try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
             boolean contentToc = ui != null && ui.contentToc().isEnabled();
             String renderLanguage = config.site().defaultLanguage();
+            Map<String, Object> renderAttributes = resolveRenderAttributes(source, branch);
             for (String pagePath : pagePaths) {
                 Path filePath = docRoot.resolve(pagePath);
                 if (!Files.exists(filePath)) {
@@ -313,7 +318,8 @@ public final class CatalogBuilder implements AutoCloseable {
                 try {
                     AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
                         filePath,
-                        AsciidoctorRenderer.RenderOptions.split(contentToc, renderLanguage)
+                        AsciidoctorRenderer.RenderOptions.split(contentToc, renderLanguage),
+                        renderAttributes
                     );
                     imagesDir = rendered.imagesDir();
                     baseDir = rendered.baseDir();
@@ -479,6 +485,29 @@ public final class CatalogBuilder implements AutoCloseable {
 
     private String pagePathToId(String pagePath) {
         return pagePath.replace('/', '-').replace(".adoc", "");
+    }
+
+    private Map<String, Object> resolveRenderAttributes(SourceConfig source, BranchConfig branch) {
+        Object revnumberConfig = source.revnumber();
+        if (revnumberConfig == null || Boolean.FALSE.equals(revnumberConfig)) {
+            return Map.of();
+        }
+
+        if (Boolean.TRUE.equals(revnumberConfig)) {
+            return Map.of("revnumber", branch.displayVersion());
+        }
+
+        if (revnumberConfig instanceof String text) {
+            String trimmed = text.trim();
+            if (trimmed.isEmpty()) {
+                return Map.of();
+            }
+            return Map.of("revnumber", trimmed);
+        }
+
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("revnumber", revnumberConfig);
+        return Map.copyOf(attributes);
     }
 
     private String extractTitle(Path filePath, String htmlContent) {

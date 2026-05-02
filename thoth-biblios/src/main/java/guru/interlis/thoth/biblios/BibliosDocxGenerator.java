@@ -106,6 +106,7 @@ public final class BibliosDocxGenerator {
                                      SourceConfig source,
                                      EffectiveDocxConfig effective,
                                      AsciidoctorRenderer renderer) throws IOException {
+        Map<String, Object> sourceRenderAttributes = resolveSourceRenderAttributes(source, version);
         Path versionRoot = outputRoot.resolve(component.id()).resolve(version.version());
         Files.createDirectories(versionRoot);
         Path outputFile = versionRoot.resolve(docxFileName(component, version));
@@ -126,7 +127,8 @@ public final class BibliosDocxGenerator {
             validateCrossReferences(version);
             AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
                 renderSource,
-                AsciidoctorRenderer.RenderOptions.split(false, config.site().defaultLanguage())
+                AsciidoctorRenderer.RenderOptions.split(false, config.site().defaultLanguage()),
+                sourceRenderAttributes
             );
             DocxComposer composer = new DocxComposer(
                 effective.referenceDoc() != null ? Path.of(effective.referenceDoc()) : null,
@@ -192,6 +194,24 @@ public final class BibliosDocxGenerator {
             normalized = normalized.substring(1);
         }
         return normalized.trim();
+    }
+
+    private Map<String, Object> resolveSourceRenderAttributes(SourceConfig source, ComponentVersion version) {
+        Object revnumber = source.revnumber();
+        if (revnumber == null || Boolean.FALSE.equals(revnumber)) {
+            return Map.of();
+        }
+        if (Boolean.TRUE.equals(revnumber)) {
+            return Map.of("revnumber", version.displayVersion());
+        }
+        if (revnumber instanceof String text) {
+            String trimmed = text.trim();
+            if (trimmed.isBlank()) {
+                return Map.of();
+            }
+            return Map.of("revnumber", trimmed);
+        }
+        return Map.of("revnumber", revnumber);
     }
 
     private Path resolveExplicitMaster(ComponentVersion version, SourceConfig source, String explicitMasterFile) throws IOException {

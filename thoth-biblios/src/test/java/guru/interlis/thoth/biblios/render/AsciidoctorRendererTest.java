@@ -32,6 +32,46 @@ class AsciidoctorRendererTest {
     }
 
     @Test
+    void renderDocumentAppliesAdditionalRevnumberAttribute(@TempDir Path tempDir) throws Exception {
+        Path adoc = tempDir.resolve("test.adoc");
+        Files.writeString(adoc, """
+            = Versioned
+
+            Version: {revnumber}
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
+                adoc,
+                AsciidoctorRenderer.RenderOptions.split(false, "en"),
+                Map.of("revnumber", "Latest")
+            );
+            assertTrue(rendered.html().contains("Version: Latest"));
+        }
+    }
+
+    @Test
+    void renderDocumentAdditionalRevnumberOverridesDocumentAttribute(@TempDir Path tempDir) throws Exception {
+        Path adoc = tempDir.resolve("test.adoc");
+        Files.writeString(adoc, """
+            = Versioned
+            :revnumber: from-document
+
+            Version: {revnumber}
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
+                adoc,
+                AsciidoctorRenderer.RenderOptions.split(false, "en"),
+                Map.of("revnumber", "from-config")
+            );
+            assertTrue(rendered.html().contains("Version: from-config"));
+            assertFalse(rendered.html().contains("Version: from-document"));
+        }
+    }
+
+    @Test
     void rendersSectionsAndLists(@TempDir Path tempDir) throws Exception {
         String content = """
             = User Guide
@@ -186,7 +226,7 @@ class AsciidoctorRendererTest {
 
     @Test
     void providesGermanPdfAdmonitionCaptionsAsSoftDefaults() {
-        Map<String, Object> defaults = AsciidoctorRenderer.defaultPdfAttributesForLanguage("de");
+        Map<String, Object> defaults = AsciidoctorRenderer.defaultLocalizedAttributesForLanguage("de");
 
         assertEquals("Hinweis@", defaults.get("note-caption"));
         assertEquals("Tipp@", defaults.get("tip-caption"));
@@ -197,7 +237,7 @@ class AsciidoctorRendererTest {
 
     @Test
     void providesNoLocalizedPdfAdmonitionCaptionsForEnglish() {
-        assertTrue(AsciidoctorRenderer.defaultPdfAttributesForLanguage("en").isEmpty());
+        assertTrue(AsciidoctorRenderer.defaultLocalizedAttributesForLanguage("en").isEmpty());
     }
 
     @Test
@@ -326,7 +366,24 @@ class AsciidoctorRendererTest {
             String htmlDe = renderer.renderString(content, "de");
 
             assertEquals("Note", extractNoteCaption(htmlEn));
-            assertEquals("Note", extractNoteCaption(htmlDe));
+            assertEquals("Hinweis", extractNoteCaption(htmlDe));
+        }
+    }
+
+    @Test
+    void appliesGermanLocalizedAdmonitionDefaultsToHtmlRendering() {
+        String content = """
+            = Hinweise
+
+            [TIP]
+            ====
+            Sprachtest.
+            ====
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            String html = renderer.renderString(content, "de");
+            assertEquals("Tipp", extractAdmonitionCaption(html, "tip"));
         }
     }
 
@@ -534,8 +591,13 @@ class AsciidoctorRendererTest {
     }
 
     private String extractNoteCaption(String html) {
+        return extractAdmonitionCaption(html, "note");
+    }
+
+    private String extractAdmonitionCaption(String html, String type) {
+        String normalizedType = type == null ? "note" : type.trim().toLowerCase(Locale.ROOT);
         Pattern iconTitleAttribute = Pattern.compile(
-            "(?is)<td\\s+class=\"icon\"[^>]*>.*?<i[^>]*\\btitle=\"([^\"]+?)\"[^>]*>"
+            "(?is)<div\\s+class=\"admonitionblock\\s+" + Pattern.quote(normalizedType) + "\"[^>]*>.*?<td\\s+class=\"icon\"[^>]*>.*?<i[^>]*\\btitle=\"([^\"]+?)\"[^>]*>"
         );
         Matcher iconTitleMatcher = iconTitleAttribute.matcher(html);
         if (iconTitleMatcher.find()) {
@@ -543,7 +605,7 @@ class AsciidoctorRendererTest {
         }
 
         Pattern titleInIconCell = Pattern.compile(
-            "(?is)<td\\s+class=\"icon\"[^>]*>\\s*<div\\s+class=\"title\">\\s*([^<]+?)\\s*</div>"
+            "(?is)<div\\s+class=\"admonitionblock\\s+" + Pattern.quote(normalizedType) + "\"[^>]*>.*?<td\\s+class=\"icon\"[^>]*>\\s*<div\\s+class=\"title\">\\s*([^<]+?)\\s*</div>"
         );
         Matcher iconCellMatcher = titleInIconCell.matcher(html);
         if (iconCellMatcher.find()) {
@@ -551,10 +613,10 @@ class AsciidoctorRendererTest {
         }
 
         Pattern titleInBlock = Pattern.compile(
-            "(?is)<div\\s+class=\"admonitionblock\\s+note\"[^>]*>.*?<div\\s+class=\"title\">\\s*([^<]+?)\\s*</div>"
+            "(?is)<div\\s+class=\"admonitionblock\\s+" + Pattern.quote(normalizedType) + "\"[^>]*>.*?<div\\s+class=\"title\">\\s*([^<]+?)\\s*</div>"
         );
         Matcher blockMatcher = titleInBlock.matcher(html);
-        assertTrue(blockMatcher.find(), "Expected NOTE caption in admonition block.");
+        assertTrue(blockMatcher.find(), "Expected caption in admonition block for type: " + normalizedType);
         return blockMatcher.group(1).trim();
     }
 }

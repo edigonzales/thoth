@@ -65,6 +65,7 @@ class BibliosConfigParserTest {
         assertEquals(RenderMode.SPLIT, alpha.renderMode());
         assertNull(alpha.masterFile());
         assertEquals(SidebarTocNumbersMode.OFF, alpha.sidebarTocNumbers());
+        assertNull(alpha.revnumber());
         assertEquals(2, alpha.branches().size());
         assertEquals("main", alpha.branches().get(0).name());
         assertEquals("Latest", alpha.branches().get(0).displayVersion());
@@ -81,6 +82,7 @@ class BibliosConfigParserTest {
         assertEquals("Current", beta.branches().get(0).displayVersion());
         assertEquals(RenderMode.SPLIT, beta.renderMode());
         assertEquals(SidebarTocNumbersMode.OFF, beta.sidebarTocNumbers());
+        assertNull(beta.revnumber());
         assertNull(beta.pdf());
     }
 
@@ -764,6 +766,68 @@ class BibliosConfigParserTest {
 
         BibliosConfig config = parser.parse(file);
         assertEquals(SidebarTocNumbersMode.ON, config.content().sources().get(0).sidebarTocNumbers());
+    }
+
+    @Test
+    void parsesSourceRevnumberBooleanAndString(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: alpha
+                  display_name: Alpha
+                  url: https://example.git
+                  revnumber: true
+                  branches:
+                    - name: main
+                - id: beta
+                  display_name: Beta
+                  url: https://example.git
+                  revnumber: "2026.05 LTS"
+                  branches:
+                    - name: main
+                - id: gamma
+                  display_name: Gamma
+                  url: https://example.git
+                  revnumber: false
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("source-revnumber.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(Boolean.TRUE, config.content().sources().get(0).revnumber());
+        assertEquals("2026.05 LTS", config.content().sources().get(1).revnumber());
+        assertEquals(Boolean.FALSE, config.content().sources().get(2).revnumber());
+    }
+
+    @Test
+    void rejectsInvalidSourceRevnumberType(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: alpha
+                  display_name: Alpha
+                  url: https://example.git
+                  revnumber:
+                    value: invalid
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("source-revnumber-invalid.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("revnumber"));
+        assertTrue(ex.getMessage().contains("boolean or string"));
     }
 
     @Test

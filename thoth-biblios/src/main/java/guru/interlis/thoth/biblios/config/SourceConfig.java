@@ -17,6 +17,7 @@ public final class SourceConfig {
     private final String startPage;
     private final RenderMode renderMode;
     private final String masterFile;
+    private final Object revnumber;
     private final SidebarTocNumbersMode sidebarTocNumbers;
     private final SourcePdfSection pdf;
     private final SourceDocxSection docx;
@@ -24,34 +25,34 @@ public final class SourceConfig {
     public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage) {
         this(id, displayName, url, branches, startPath, defaultVersion, navigation, startPage,
-            RenderMode.SPLIT, null, SidebarTocNumbersMode.OFF);
+            RenderMode.SPLIT, null, null, SidebarTocNumbersMode.OFF);
     }
 
     public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage,
                         RenderMode renderMode, String masterFile) {
         this(id, displayName, url, branches, startPath, defaultVersion, navigation, startPage,
-            renderMode, masterFile, SidebarTocNumbersMode.OFF);
+            renderMode, masterFile, null, SidebarTocNumbersMode.OFF);
     }
 
     public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage,
-                        RenderMode renderMode, String masterFile, SidebarTocNumbersMode sidebarTocNumbers) {
+                        RenderMode renderMode, String masterFile, Object revnumber, SidebarTocNumbersMode sidebarTocNumbers) {
         this(id, displayName, url, branches, startPath, defaultVersion, navigation, startPage,
-            renderMode, masterFile, sidebarTocNumbers, null);
+            renderMode, masterFile, revnumber, sidebarTocNumbers, null);
     }
 
     public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage,
-                        RenderMode renderMode, String masterFile, SidebarTocNumbersMode sidebarTocNumbers,
+                        RenderMode renderMode, String masterFile, Object revnumber, SidebarTocNumbersMode sidebarTocNumbers,
                         SourcePdfSection pdf) {
         this(id, displayName, url, branches, startPath, defaultVersion, navigation, startPage,
-            renderMode, masterFile, sidebarTocNumbers, pdf, null);
+            renderMode, masterFile, revnumber, sidebarTocNumbers, pdf, null);
     }
 
     public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage,
-                        RenderMode renderMode, String masterFile, SidebarTocNumbersMode sidebarTocNumbers,
+                        RenderMode renderMode, String masterFile, Object revnumber, SidebarTocNumbersMode sidebarTocNumbers,
                         SourcePdfSection pdf, SourceDocxSection docx) {
         this.id = Objects.requireNonNull(id, "source.id is required");
         this.displayName = Objects.requireNonNull(displayName, "source.display_name is required");
@@ -67,6 +68,7 @@ public final class SourceConfig {
         this.startPage = startPage != null ? startPage : "index.adoc";
         this.renderMode = renderMode != null ? renderMode : RenderMode.SPLIT;
         this.masterFile = masterFile != null && !masterFile.isBlank() ? masterFile.trim() : null;
+        this.revnumber = revnumber;
         this.sidebarTocNumbers = sidebarTocNumbers != null ? sidebarTocNumbers : SidebarTocNumbersMode.OFF;
         this.pdf = pdf;
         this.docx = docx;
@@ -114,6 +116,10 @@ public final class SourceConfig {
 
     public String masterFile() {
         return masterFile;
+    }
+
+    public Object revnumber() {
+        return revnumber;
     }
 
     public SidebarTocNumbersMode sidebarTocNumbers() {

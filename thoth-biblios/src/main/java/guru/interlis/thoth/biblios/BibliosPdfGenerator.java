@@ -73,13 +73,14 @@ public final class BibliosPdfGenerator {
                                     SourceConfig source,
                                     EffectivePdfConfig effective,
                                     AsciidoctorRenderer renderer) throws IOException {
+        Map<String, Object> sourceRenderAttributes = resolveSourceRenderAttributes(source, version);
         Path versionRoot = outputRoot.resolve(component.id()).resolve(version.version());
         Files.createDirectories(versionRoot);
 
         Path outputFile = versionRoot.resolve(pdfFileName(component, version));
         Path explicitMaster = resolveExplicitMaster(version, source, effective.masterFile());
         if (explicitMaster != null) {
-            renderer.writePdf(explicitMaster, outputFile, effective.attributes(), config.site().defaultLanguage());
+            renderer.writePdf(explicitMaster, outputFile, effective.attributes(), config.site().defaultLanguage(), sourceRenderAttributes);
             System.out.println("[pdf] " + component.id() + "/" + version.version() + " -> " + outputRoot.relativize(outputFile));
             return;
         }
@@ -91,7 +92,7 @@ public final class BibliosPdfGenerator {
 
         Path temporaryMaster = createAggregateMaster(component, version);
         try {
-            renderer.writePdf(temporaryMaster, outputFile, effective.attributes(), config.site().defaultLanguage());
+            renderer.writePdf(temporaryMaster, outputFile, effective.attributes(), config.site().defaultLanguage(), sourceRenderAttributes);
             System.out.println("[pdf] " + component.id() + "/" + version.version() + " -> " + outputRoot.relativize(outputFile));
         } finally {
             Files.deleteIfExists(temporaryMaster);
@@ -195,6 +196,24 @@ public final class BibliosPdfGenerator {
 
     private String pdfFileName(DocComponent component, ComponentVersion version) {
         return component.id() + "-" + version.version() + ".pdf";
+    }
+
+    private Map<String, Object> resolveSourceRenderAttributes(SourceConfig source, ComponentVersion version) {
+        Object revnumber = source.revnumber();
+        if (revnumber == null || Boolean.FALSE.equals(revnumber)) {
+            return Map.of();
+        }
+        if (Boolean.TRUE.equals(revnumber)) {
+            return Map.of("revnumber", version.displayVersion());
+        }
+        if (revnumber instanceof String text) {
+            String trimmed = text.trim();
+            if (trimmed.isBlank()) {
+                return Map.of();
+            }
+            return Map.of("revnumber", trimmed);
+        }
+        return Map.of("revnumber", revnumber);
     }
 
     private Set<String> normalizeFilters(Set<String> selectedVersions) {

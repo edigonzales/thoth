@@ -308,6 +308,7 @@ Each entry defines a Git repository as a documentation source.
 | `default_version` | Yes | Which version to show when navigating to `/<id>/` without explicit version |
 | `navigation.file` | Yes | Navigation file name relative to `start_path`. Must be `nav.yml` in MVP |
 | `start_page` | No | Start page filename relative to `start_path`. Default: `index.adoc` |
+| `revnumber` | No | Controls Asciidoctor `revnumber` attribute. `true` uses `branches[].display_version`, string uses explicit value, `false`/unset sets nothing. |
 | `render_mode` | No | Rendering mode. Allowed values: `split`, `single_page`. Default: `split` |
 | `master_file` | Conditionally | Required when `render_mode: single_page`. Path to the AsciiDoc master file under `start_path` |
 | `sidebar_toc_numbers` | No | Show chapter numbers in the sidebar TOC. Allowed values: `off`, `on`. Default: `off` |
@@ -498,6 +499,47 @@ branches:
 In the UI, users see "Latest", "Version 1.x (Legacy)", and "2.0 Stable" instead of `main`, `v1.x`, and `v2.0`.
 
 If `display_version` is not specified, the branch name is used as-is.
+
+## `revnumber`
+
+`content.sources[].revnumber` sets the Asciidoctor `revnumber` attribute for all rendered outputs (HTML, PDF, DOCX) of that source.
+
+### Behavior
+
+- `true` → use the current branch `display_version`
+- string → use the given string as-is
+- `false` or not set → do not set `revnumber`
+
+When a document already defines `:revnumber:`, the Biblios config value wins (config override).
+
+### Examples
+
+```yaml
+content:
+  sources:
+    - id: alpha
+      display_name: Alpha Docs
+      url: https://github.com/example/alpha.git
+      revnumber: true
+      branches:
+        - name: main
+          display_version: Latest
+
+    - id: beta
+      display_name: Beta API
+      url: https://github.com/example/beta.git
+      revnumber: "2026.05 LTS"
+      branches:
+        - name: main
+          display_version: Current
+
+    - id: gamma
+      display_name: Gamma
+      url: https://github.com/example/gamma.git
+      revnumber: false
+      branches:
+        - name: main
+```
 
 ## Global Search
 

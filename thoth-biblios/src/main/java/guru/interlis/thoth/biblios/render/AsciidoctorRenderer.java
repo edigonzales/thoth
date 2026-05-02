@@ -65,9 +65,13 @@ public final class AsciidoctorRenderer implements AutoCloseable {
      * Render a file and optionally extract heading structure from the AST.
      */
     public RenderedDocument renderDocument(Path sourcePath, RenderOptions options) throws IOException {
+        return renderDocument(sourcePath, options, Map.of());
+    }
+
+    public RenderedDocument renderDocument(Path sourcePath, RenderOptions options, Map<String, Object> additionalAttributes) throws IOException {
         try {
             RenderOptions resolvedOptions = options != null ? options : RenderOptions.legacyDefaults();
-            Options asciidoctorOptions = buildOptions(sourcePath, resolvedOptions);
+            Options asciidoctorOptions = buildOptions(sourcePath, resolvedOptions, additionalAttributes);
 
             Document document = asciidoctor.loadFile(sourcePath.toFile(), asciidoctorOptions);
             String html = asciidoctor.convertFile(sourcePath.toFile(), asciidoctorOptions, String.class);
@@ -162,16 +166,21 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     }
 
     public void writePdf(Path sourcePath, Path targetPath, Map<String, Object> pdfAttributes, String language) throws IOException {
+        writePdf(sourcePath, targetPath, pdfAttributes, language, Map.of());
+    }
+
+    public void writePdf(Path sourcePath, Path targetPath, Map<String, Object> pdfAttributes, String language,
+                         Map<String, Object> additionalAttributes) throws IOException {
         try {
             Files.createDirectories(targetPath.toAbsolutePath().normalize().getParent());
-            Options options = buildPdfOptions(sourcePath, targetPath, pdfAttributes, language);
+            Options options = buildPdfOptions(sourcePath, targetPath, pdfAttributes, language, additionalAttributes);
             asciidoctor.convertFile(sourcePath.toFile(), options);
         } catch (Exception e) {
             throw new IOException("Failed to render PDF from AsciiDoc file: " + sourcePath, e);
         }
     }
 
-    private Options buildOptions(Path sourcePath, RenderOptions options) {
+    private Options buildOptions(Path sourcePath, RenderOptions options, Map<String, Object> additionalAttributes) {
         AttributesBuilder attributes = baseHtmlAttributes(options.language());
 
         if (options.sectionNumbers()) {
@@ -186,6 +195,11 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         } else {
             attributes.attribute("toc!", "");
         }
+        if (additionalAttributes != null) {
+            for (Map.Entry<String, Object> entry : additionalAttributes.entrySet()) {
+                attributes.attribute(entry.getKey(), entry.getValue());
+            }
+        }
 
         return org.asciidoctor.Options.builder()
             .backend("html5")
@@ -197,15 +211,19 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             .build();
     }
 
-    private Options buildPdfOptions(Path sourcePath, Path targetPath, Map<String, Object> pdfAttributes, String language) {
+    private Options buildPdfOptions(Path sourcePath, Path targetPath, Map<String, Object> pdfAttributes, String language,
+                                    Map<String, Object> additionalAttributes) {
         AttributesBuilder attributes = org.asciidoctor.Attributes.builder();
         String resolvedLanguage = normalizeLanguage(language);
         attributes.attribute("lang", resolvedLanguage);
 
         Map<String, Object> mergedAttributes = new LinkedHashMap<>();
-        mergedAttributes.putAll(defaultPdfAttributesForLanguage(resolvedLanguage));
+        mergedAttributes.putAll(defaultLocalizedAttributesForLanguage(resolvedLanguage));
         if (pdfAttributes != null) {
             mergedAttributes.putAll(pdfAttributes);
+        }
+        if (additionalAttributes != null) {
+            mergedAttributes.putAll(additionalAttributes);
         }
         for (Map.Entry<String, Object> entry : mergedAttributes.entrySet()) {
             applyPdfAttribute(attributes, entry.getKey(), entry.getValue());
@@ -220,7 +238,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             .build();
     }
 
-    static Map<String, Object> defaultPdfAttributesForLanguage(String language) {
+    static Map<String, Object> defaultLocalizedAttributesForLanguage(String language) {
         String resolvedLanguage = normalizeLanguage(language).toLowerCase(Locale.ROOT);
         if ("de".equals(resolvedLanguage)) {
             Map<String, Object> defaults = new LinkedHashMap<>();
@@ -253,6 +271,9 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         attributes.attribute("sectanchors", "");
         String resolvedLanguage = normalizeLanguage(language);
         attributes.attribute("lang", resolvedLanguage);
+        for (Map.Entry<String, Object> entry : defaultLocalizedAttributesForLanguage(resolvedLanguage).entrySet()) {
+            attributes.attribute(entry.getKey(), entry.getValue());
+        }
         return attributes;
     }
 
