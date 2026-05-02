@@ -17,6 +17,10 @@ final class DocxFieldSupport {
         return " REF " + bookmark + " \\h ";
     }
 
+    static String refNumberInstruction(String bookmark) {
+        return " REF " + bookmark + " \\n \\h ";
+    }
+
     static String pageRefInstruction(String bookmark) {
         return " PAGEREF " + bookmark + " \\h ";
     }

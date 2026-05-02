@@ -16,23 +16,41 @@ import org.apache.poi.util.Units;
 import org.apache.poi.xwpf.usermodel.BreakType;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.UnderlinePatterns;
+import org.apache.poi.xwpf.usermodel.XWPFAbstractNum;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFFootnote;
 import org.apache.poi.xwpf.usermodel.XWPFHyperlinkRun;
+import org.apache.poi.xwpf.usermodel.XWPFNumbering;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.apache.poi.xwpf.usermodel.XWPFStyle;
+import org.apache.poi.xwpf.usermodel.XWPFStyles;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBookmark;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTFonts;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTLvl;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTMarkupRange;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
-import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSimpleField;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageMar;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageSz;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTInd;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSpacing;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTStyle;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTAbstractNum;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBody;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSimpleField;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STFldCharType;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STNumberFormat;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STStyleType;
 import org.apache.xmlbeans.impl.xb.xmlschema.SpaceAttribute;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -59,6 +77,15 @@ import java.util.regex.Pattern;
 public final class BibliosDocxGenerator {
     private static final Pattern XREF_PATTERN = Pattern.compile("<<([^,>]+)(?:,[^>]+)?>>");
     private static final Pattern ANCHOR_PATTERN = Pattern.compile("\\[\\[([^\\]]+)]]");
+    private static final Pattern NUMBERED_HEADING_PATTERN = Pattern.compile("^(\\d+(?:\\.\\d+)*)(?:\\.)?\\s+(.+)$");
+    private static final Pattern CHAPTER_REFERENCE_PATTERN = Pattern.compile("^Kapitel\\s+([0-9A-Za-z.]+)(.*)$");
+    private static final Pattern FIGURE_LABEL_PATTERN = Pattern.compile("^(?:Abbildung|Figure)\\s+\\d+[.:]?\\s*", Pattern.CASE_INSENSITIVE);
+    private static final int A4_WIDTH_TWIPS = 11906;
+    private static final int A4_HEIGHT_TWIPS = 16838;
+    private static final int PAGE_MARGIN_TWIPS = 1134;
+    private static final int CONTENT_WIDTH_TWIPS = A4_WIDTH_TWIPS - (2 * PAGE_MARGIN_TWIPS);
+    private static final double CONTENT_WIDTH_POINTS = CONTENT_WIDTH_TWIPS / 20.0;
+    private static final double DEFAULT_IMAGE_DPI = 96.0;
 
     private final BibliosConfig config;
     private final SiteCatalog catalog;
@@ -375,6 +402,9 @@ public final class BibliosDocxGenerator {
         private final Map<String, BigInteger> footnoteIds = new HashMap<>();
         private final Set<String> seenHtmlIds = new LinkedHashSet<>();
         private final Set<String> referencedHtmlIds = new LinkedHashSet<>();
+        private BigInteger headingNumberingId;
+        private BigInteger bulletNumberingId;
+        private BigInteger decimalNumberingId;
         private BigInteger bookmarkId = BigInteger.ONE;
 
         private DocxComposer(Path referenceDoc, DocComponent component, ComponentVersion version, DocxFeaturesSection features, Path docRoot) {
@@ -387,6 +417,7 @@ public final class BibliosDocxGenerator {
 
         private void write(String html, String documentTitle, Path outputFile) throws IOException {
             try (XWPFDocument document = createDocument()) {
+                configureDocumentDefaults(document);
                 if (features.titlePage()) {
                     writeTitlePage(document, documentTitle);
                 }
@@ -417,6 +448,147 @@ public final class BibliosDocxGenerator {
                 }
                 return doc;
             }
+        }
+
+        private void configureDocumentDefaults(XWPFDocument doc) {
+            ensureSectionProperties(doc);
+            ensureStyles(doc);
+            ensureNumbering(doc);
+            doc.enforceUpdateFields();
+        }
+
+        private void ensureSectionProperties(XWPFDocument doc) {
+            CTBody body = doc.getDocument().getBody();
+            if (body == null) {
+                body = doc.getDocument().addNewBody();
+            }
+            CTSectPr section = body.isSetSectPr() ? body.getSectPr() : body.addNewSectPr();
+            CTPageSz pageSize = section.isSetPgSz() ? section.getPgSz() : section.addNewPgSz();
+            pageSize.setW(BigInteger.valueOf(A4_WIDTH_TWIPS));
+            pageSize.setH(BigInteger.valueOf(A4_HEIGHT_TWIPS));
+            CTPageMar margins = section.isSetPgMar() ? section.getPgMar() : section.addNewPgMar();
+            margins.setTop(BigInteger.valueOf(PAGE_MARGIN_TWIPS));
+            margins.setBottom(BigInteger.valueOf(PAGE_MARGIN_TWIPS));
+            margins.setLeft(BigInteger.valueOf(PAGE_MARGIN_TWIPS));
+            margins.setRight(BigInteger.valueOf(PAGE_MARGIN_TWIPS));
+            margins.setHeader(BigInteger.valueOf(720));
+            margins.setFooter(BigInteger.valueOf(720));
+            margins.setGutter(BigInteger.ZERO);
+        }
+
+        private void ensureStyles(XWPFDocument doc) {
+            XWPFStyles styles = doc.getStyles();
+            if (styles == null) {
+                styles = doc.createStyles();
+            }
+            addParagraphStyle(styles, "Normal", "Normal", null, 0, 11, false, false);
+            addParagraphStyle(styles, "Title", "Title", "Normal", 0, 28, true, false);
+            for (int level = 1; level <= 6; level++) {
+                int size = Math.max(11, 18 - (level * 2));
+                addParagraphStyle(styles, "Heading" + level, "Heading " + level, "Normal", level - 1, size, true, false);
+            }
+            addParagraphStyle(styles, "Caption", "Caption", "Normal", 0, 9, false, true);
+            addParagraphStyle(styles, "ListBullet", "List Bullet", "Normal", 0, 11, false, false);
+            addParagraphStyle(styles, "ListNumber", "List Number", "Normal", 0, 11, false, false);
+        }
+
+        private void addParagraphStyle(XWPFStyles styles,
+                                       String styleId,
+                                       String name,
+                                       String basedOn,
+                                       Integer outlineLevel,
+                                       int fontSize,
+                                       boolean bold,
+                                       boolean italic) {
+            if (styles.styleExist(styleId)) {
+                return;
+            }
+            CTStyle ctStyle = CTStyle.Factory.newInstance();
+            ctStyle.setStyleId(styleId);
+            ctStyle.setType(STStyleType.PARAGRAPH);
+            ctStyle.addNewName().setVal(name);
+            if (basedOn != null && !basedOn.isBlank()) {
+                ctStyle.addNewBasedOn().setVal(basedOn);
+            }
+            var pPr = ctStyle.addNewPPr();
+            CTSpacing spacing = pPr.addNewSpacing();
+            spacing.setAfter(BigInteger.valueOf(styleId.startsWith("Heading") ? 120 : 100));
+            if (styleId.startsWith("Heading")) {
+                spacing.setBefore(BigInteger.valueOf(180));
+            }
+            if (outlineLevel != null && styleId.startsWith("Heading")) {
+                pPr.addNewOutlineLvl().setVal(BigInteger.valueOf(outlineLevel));
+            }
+            var rPr = ctStyle.addNewRPr();
+            CTFonts fonts = rPr.addNewRFonts();
+            fonts.setAscii("Arial");
+            fonts.setHAnsi("Arial");
+            rPr.addNewSz().setVal(BigInteger.valueOf(fontSize * 2L));
+            if (bold) {
+                rPr.addNewB();
+            }
+            if (italic) {
+                rPr.addNewI();
+            }
+            styles.addStyle(new XWPFStyle(ctStyle));
+        }
+
+        private void ensureNumbering(XWPFDocument doc) {
+            XWPFNumbering numbering = doc.getNumbering();
+            if (numbering == null) {
+                numbering = doc.createNumbering();
+            }
+            headingNumberingId = createHeadingNumbering(numbering);
+            bulletNumberingId = createSingleLevelNumbering(numbering, BigInteger.valueOf(20), STNumberFormat.BULLET, "\u2022");
+            decimalNumberingId = createSingleLevelNumbering(numbering, BigInteger.valueOf(21), STNumberFormat.DECIMAL, "%1.");
+        }
+
+        private BigInteger createHeadingNumbering(XWPFNumbering numbering) {
+            CTAbstractNum abstractNum = CTAbstractNum.Factory.newInstance();
+            abstractNum.setAbstractNumId(BigInteger.valueOf(10));
+            for (int level = 0; level < 6; level++) {
+                CTLvl lvl = abstractNum.addNewLvl();
+                lvl.setIlvl(BigInteger.valueOf(level));
+                lvl.addNewStart().setVal(BigInteger.ONE);
+                lvl.addNewNumFmt().setVal(STNumberFormat.DECIMAL);
+                lvl.addNewLvlText().setVal(headingLevelText(level));
+                lvl.addNewPStyle().setVal("Heading" + (level + 1));
+                CTInd ind = lvl.addNewPPr().addNewInd();
+                ind.setLeft(BigInteger.valueOf(360L * level));
+                ind.setHanging(BigInteger.ZERO);
+            }
+            BigInteger abstractNumId = numbering.addAbstractNum(new XWPFAbstractNum(abstractNum));
+            return numbering.addNum(abstractNumId);
+        }
+
+        private BigInteger createSingleLevelNumbering(XWPFNumbering numbering,
+                                                      BigInteger abstractId,
+                                                      STNumberFormat.Enum format,
+                                                      String levelText) {
+            CTAbstractNum abstractNum = CTAbstractNum.Factory.newInstance();
+            abstractNum.setAbstractNumId(abstractId);
+            CTLvl lvl = abstractNum.addNewLvl();
+            lvl.setIlvl(BigInteger.ZERO);
+            lvl.addNewStart().setVal(BigInteger.ONE);
+            lvl.addNewNumFmt().setVal(format);
+            lvl.addNewLvlText().setVal(levelText);
+            CTInd ind = lvl.addNewPPr().addNewInd();
+            ind.setLeft(BigInteger.valueOf(720));
+            ind.setHanging(BigInteger.valueOf(360));
+            BigInteger abstractNumId = numbering.addAbstractNum(new XWPFAbstractNum(abstractNum));
+            return numbering.addNum(abstractNumId);
+        }
+
+        private String headingLevelText(int zeroBasedLevel) {
+            StringBuilder text = new StringBuilder();
+            for (int i = 1; i <= zeroBasedLevel + 1; i++) {
+                if (i > 1) {
+                    text.append('.');
+                }
+                text.append('%').append(i);
+            }
+            text.append('.');
+            return text.toString();
         }
 
         private void writeTitlePage(XWPFDocument doc, String title) {
@@ -544,32 +716,59 @@ public final class BibliosDocxGenerator {
 
         private void appendHeading(XWPFDocument doc, Element heading) throws IOException {
             String tag = heading.tagName().toLowerCase(Locale.ROOT);
-            int level = Integer.parseInt(tag.substring(1));
+            int htmlLevel = Integer.parseInt(tag.substring(1));
+            HeadingText headingText = normalizeHeadingText(heading.text(), htmlLevel);
             XWPFParagraph p = doc.createParagraph();
-            p.setStyle("Heading" + level);
-            String text = heading.text();
-            if (text.isBlank()) {
-                text = "Section";
+            p.setStyle("Heading" + headingText.wordLevel());
+            if (headingText.numbered() && headingNumberingId != null) {
+                p.setNumID(headingNumberingId);
+                p.setNumILvl(BigInteger.valueOf(headingText.wordLevel() - 1L));
             }
             String rawTarget = heading.id().isBlank() ? "heading_" + bookmarkId : heading.id();
             String bookmark = registerBookmarkTarget(rawTarget);
-            addBookmark(p, bookmark);
-            p.createRun().setText(text);
+            BigInteger bookmarkStart = openBookmark(p, bookmark);
+            p.createRun().setText(headingText.text());
+            closeBookmark(p, bookmarkStart);
+        }
+
+        private HeadingText normalizeHeadingText(String rawText, int htmlLevel) {
+            String text = rawText != null ? rawText.trim() : "";
+            if (text.isBlank()) {
+                text = "Section";
+            }
+            Matcher numbered = NUMBERED_HEADING_PATTERN.matcher(text);
+            if (numbered.matches()) {
+                String number = numbered.group(1);
+                String title = numbered.group(2).trim();
+                int level = Math.min(6, number.split("\\.").length);
+                return new HeadingText(title.isBlank() ? text : title, level, true);
+            }
+            int wordLevel = Math.max(1, Math.min(6, htmlLevel > 1 ? htmlLevel - 1 : htmlLevel));
+            return new HeadingText(text, wordLevel, false);
         }
 
         private void appendParagraph(XWPFDocument doc, Element paragraph, Map<String, String> footnotes) throws IOException {
             XWPFParagraph p = doc.createParagraph();
+            BigInteger bookmarkStart = null;
             if (paragraph.hasAttr("id")) {
                 String bookmark = registerBookmarkTarget(paragraph.id());
-                addBookmark(p, bookmark);
+                bookmarkStart = openBookmark(p, bookmark);
             }
             appendInlineNodes(doc, p, paragraph.childNodes(), footnotes);
+            if (bookmarkStart != null) {
+                closeBookmark(p, bookmarkStart);
+            }
         }
 
         private void appendList(XWPFDocument doc, Element list, String style, Map<String, String> footnotes) throws IOException {
             for (Element li : list.select("> li")) {
                 XWPFParagraph p = doc.createParagraph();
                 p.setStyle(style);
+                BigInteger numId = "ListNumber".equals(style) ? decimalNumberingId : bulletNumberingId;
+                if (numId != null) {
+                    p.setNumID(numId);
+                    p.setNumILvl(BigInteger.ZERO);
+                }
                 appendInlineNodes(doc, p, li.childNodes(), footnotes);
             }
         }
@@ -605,7 +804,9 @@ public final class BibliosDocxGenerator {
                 XWPFRun run = imageParagraph.createRun();
                 try (InputStream in = Files.newInputStream(imagePath)) {
                     int format = imageFormatFor(imagePath);
-                    run.addPicture(in, format, imagePath.getFileName().toString(), Units.toEMU(480), Units.toEMU(320));
+                    ImageSize imageSize = imageSizeFor(imagePath, image);
+                    run.addPicture(in, format, imagePath.getFileName().toString(),
+                        Units.toEMU(imageSize.widthPoints()), Units.toEMU(imageSize.heightPoints()));
                 } catch (InvalidFormatException e) {
                     imageParagraph.createRun().setText("[Image: " + src + "]");
                 }
@@ -618,15 +819,55 @@ public final class BibliosDocxGenerator {
             String captionText = imageBlock.selectFirst(".title") != null
                 ? imageBlock.selectFirst(".title").text()
                 : image.attr("alt");
-            if (captionText == null || captionText.isBlank()) {
-                captionText = "Abbildung";
-            }
+            captionText = cleanCaptionText(captionText);
             String figureId = imageBlock.id().isBlank() ? "figure_" + bookmarkId : imageBlock.id();
             String bookmark = registerBookmarkTarget(figureId);
-            addBookmark(caption, bookmark);
-            caption.createRun().setText("Figure ");
+            BigInteger bookmarkStart = openBookmark(caption, bookmark);
+            caption.createRun().setText("Abbildung ");
             addSimpleField(caption, DocxFieldSupport.seqInstruction("Figure"), "1");
             caption.createRun().setText(": " + captionText);
+            closeBookmark(caption, bookmarkStart);
+        }
+
+        private String cleanCaptionText(String captionText) {
+            String text = captionText != null ? captionText.trim() : "";
+            text = FIGURE_LABEL_PATTERN.matcher(text).replaceFirst("").trim();
+            return text.isBlank() ? "Abbildung" : text;
+        }
+
+        private ImageSize imageSizeFor(Path imagePath, Element image) throws IOException {
+            BufferedImage bufferedImage = ImageIO.read(imagePath.toFile());
+            if (bufferedImage == null || bufferedImage.getWidth() <= 0 || bufferedImage.getHeight() <= 0) {
+                return new ImageSize(CONTENT_WIDTH_POINTS, CONTENT_WIDTH_POINTS * 0.66);
+            }
+
+            double requestedWidthPoints = parseImageWidthPoints(image);
+            double widthPoints = requestedWidthPoints > 0 ? requestedWidthPoints : CONTENT_WIDTH_POINTS;
+            widthPoints = Math.min(widthPoints, CONTENT_WIDTH_POINTS);
+            double heightPoints = widthPoints * bufferedImage.getHeight() / bufferedImage.getWidth();
+            return new ImageSize(widthPoints, heightPoints);
+        }
+
+        private double parseImageWidthPoints(Element image) {
+            String width = image.attr("width");
+            if (width == null || width.isBlank()) {
+                return -1;
+            }
+            String normalized = width.trim().toLowerCase(Locale.ROOT);
+            try {
+                if (normalized.endsWith("%")) {
+                    double percent = Double.parseDouble(normalized.substring(0, normalized.length() - 1).trim());
+                    return CONTENT_WIDTH_POINTS * percent / 100.0;
+                }
+                if (normalized.endsWith("px")) {
+                    double pixels = Double.parseDouble(normalized.substring(0, normalized.length() - 2).trim());
+                    return pixels * 72.0 / DEFAULT_IMAGE_DPI;
+                }
+                double pixels = Double.parseDouble(normalized);
+                return pixels * 72.0 / DEFAULT_IMAGE_DPI;
+            } catch (NumberFormatException ex) {
+                return -1;
+            }
         }
 
         private Path resolveImagePath(String src) {
@@ -713,7 +954,11 @@ public final class BibliosDocxGenerator {
                     throw new IOException("Unresolved internal DOCX target: " + rawTarget);
                 }
                 String bookmark = registerBookmarkName(rawTarget);
-                addRefField(paragraph, bookmark, text);
+                if (isChapterReferenceText(text)) {
+                    addChapterRefField(paragraph, bookmark, text);
+                } else {
+                    addRefField(paragraph, bookmark, text);
+                }
                 if (shouldAppendPageRef(anchor)) {
                     paragraph.createRun().setText(" (Seite ");
                     addPageRefField(paragraph, bookmark, "?");
@@ -729,6 +974,24 @@ public final class BibliosDocxGenerator {
                 return;
             }
             paragraph.createRun().setText(text);
+        }
+
+        private boolean isChapterReferenceText(String text) {
+            return text != null && CHAPTER_REFERENCE_PATTERN.matcher(text.trim()).matches();
+        }
+
+        private void addChapterRefField(XWPFParagraph paragraph, String bookmark, String displayText) {
+            Matcher matcher = CHAPTER_REFERENCE_PATTERN.matcher(displayText.trim());
+            if (!matcher.matches()) {
+                addRefField(paragraph, bookmark, displayText);
+                return;
+            }
+            paragraph.createRun().setText("Kapitel ");
+            addSimpleField(paragraph, DocxFieldSupport.refNumberInstruction(bookmark), matcher.group(1));
+            String suffix = matcher.group(2);
+            if (suffix != null && !suffix.isBlank()) {
+                paragraph.createRun().setText(suffix);
+            }
         }
 
         private void appendSup(XWPFDocument doc, XWPFParagraph paragraph, Element sup, Map<String, String> footnotes) {
@@ -775,18 +1038,23 @@ public final class BibliosDocxGenerator {
             r.addNewT().setStringValue(fallbackText != null && !fallbackText.isBlank() ? fallbackText : "");
         }
 
-        private void addBookmark(XWPFParagraph paragraph, String bookmarkName) throws IOException {
+        private BigInteger openBookmark(XWPFParagraph paragraph, String bookmarkName) throws IOException {
             if (bookmarkTargets.contains(bookmarkName)) {
                 throw new IOException("Ambiguous bookmark target in DOCX export: " + bookmarkName);
             }
             bookmarkTargets.add(bookmarkName);
+            BigInteger id = bookmarkId;
             CTP ctp = paragraph.getCTP();
             CTBookmark start = ctp.addNewBookmarkStart();
             start.setName(bookmarkName);
-            start.setId(bookmarkId);
-            CTMarkupRange end = ctp.addNewBookmarkEnd();
-            end.setId(bookmarkId);
+            start.setId(id);
             bookmarkId = bookmarkId.add(BigInteger.ONE);
+            return id;
+        }
+
+        private void closeBookmark(XWPFParagraph paragraph, BigInteger id) {
+            CTMarkupRange end = paragraph.getCTP().addNewBookmarkEnd();
+            end.setId(id);
         }
 
         private String registerBookmarkTarget(String rawHtmlId) {
@@ -827,6 +1095,12 @@ public final class BibliosDocxGenerator {
 
             XWPFParagraph placeholder = doc.createParagraph();
             placeholder.createRun().setText("Platzhalter: Inhalt des Änderungsverzeichnisses wird in einer späteren Ausbaustufe befüllt.");
+        }
+
+        private record HeadingText(String text, int wordLevel, boolean numbered) {
+        }
+
+        private record ImageSize(double widthPoints, double heightPoints) {
         }
     }
 }

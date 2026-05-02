@@ -13,16 +13,19 @@ import org.eclipse.jgit.api.Git;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
-import java.util.Base64;
 import java.util.Map;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -122,16 +125,17 @@ class BibliosIntegrationTest {
         assertTrue(homePage.contains("Integration Test Docs"));
         assertTrue(homePage.contains("My Documentation"));
         assertTrue(homePage.contains("class=\"brand-logo\""));
-        assertTrue(homePage.contains("src=\"/site-assets/site-logo.svg\""));
-        assertTrue(homePage.contains("action=\"/search/\""));
+        assertTrue(homePage.contains("src=\"./site-assets/site-logo.svg\""));
+        assertTrue(homePage.contains("action=\"./search/\""));
         assertTrue(homePage.contains("id=\"search-scope-active\""));
         assertTrue(homePage.contains("id=\"search-scope-input\""));
         assertTrue(homePage.contains("name=\"scope\""));
         assertTrue(homePage.contains("name=\"component\""));
         assertTrue(homePage.contains("name=\"version\""));
         assertTrue(homePage.contains("class=\"component-card-default-link\""));
-        assertTrue(homePage.contains("href=\"/mydocs/main/\""));
-        assertTrue(homePage.contains("href=\"/mydocs/main/\" class=\"version-tag\""));
+        assertTrue(homePage.contains("href=\"./mydocs/main/\""));
+        assertTrue(homePage.contains("class=\"version-tag\""));
+        assertTrue(homePage.contains("href=\"./mydocs/main/\""));
         String homeHead = extractHead(homePage);
         assertFalse(homeHead.contains("<div class=\"home\">"));
 
@@ -227,9 +231,9 @@ class BibliosIntegrationTest {
 
         String homePage = Files.readString(outputRoot.resolve("index.html"));
         assertTrue(homePage.contains("class=\"component-card-default-link\""));
-        assertTrue(homePage.contains("href=\"/mydocs/main/\""));
-        assertTrue(homePage.contains("href=\"/mydocs/main/\" class=\"version-tag\""));
-        assertTrue(homePage.contains("href=\"/mydocs/v1.x/\" class=\"version-tag\""));
+        assertTrue(homePage.contains("href=\"./mydocs/main/\""));
+        assertTrue(homePage.contains("class=\"version-tag\""));
+        assertTrue(homePage.contains("href=\"./mydocs/v1.x/\""));
     }
 
     @Test
@@ -1417,12 +1421,32 @@ class BibliosIntegrationTest {
         Path docxFile = outputRoot.resolve("mydocs/main/mydocs-main.docx");
         assertTrue(Files.exists(docxFile));
         String xml = readDocxEntry(docxFile, "word/document.xml");
+        String styles = readDocxEntry(docxFile, "word/styles.xml");
+        String numbering = readDocxEntry(docxFile, "word/numbering.xml");
+        String settings = readDocxEntry(docxFile, "word/settings.xml");
 
         assertTrue(xml.contains("SEQ Figure"));
         assertTrue(xml.contains(" REF "));
+        assertTrue(xml.contains("\\n \\h"));
         assertTrue(xml.contains(" PAGEREF "));
         assertTrue(xml.contains("w:bookmarkStart"));
         assertTrue(xml.contains("fig_overview"));
+        assertTrue(xml.contains("w:sectPr"));
+        assertTrue(xml.contains("w:numPr"));
+        assertTrue(xml.contains("TOC \\o"));
+        assertTrue(xml.contains("\"1-3\""));
+        assertTrue(xml.contains("Abbildung "));
+        assertFalse(xml.contains("Figure 1: Abbildung"));
+        assertFalse(xml.matches("(?s).*<w:bookmarkStart[^>]*w:name=\"fig_overview\"[^>]*/><w:bookmarkEnd.*"));
+        assertTrue(styles.contains("w:styleId=\"Heading1\""));
+        assertTrue(styles.contains("<w:outlineLvl w:val=\"0\""));
+        assertTrue(numbering.contains("%1.%2."));
+        assertTrue(settings.contains("w:updateFields"));
+
+        ImageExtent extent = firstImageExtent(xml);
+        double ratio = (double) extent.cx() / extent.cy();
+        assertEquals(4.0, ratio, 0.02);
+        assertTrue(extent.cx() > 5_000_000);
     }
 
     @Test
@@ -1503,22 +1527,26 @@ class BibliosIntegrationTest {
     }
 
     private void prepareDocxReferenceFixture(Path repoDir) throws Exception {
-        byte[] onePixelPng = Base64.getDecoder().decode(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sN3cJQAAAAASUVORK5CYII="
-        );
         Files.createDirectories(repoDir.resolve("docs/images"));
-        Files.write(repoDir.resolve("docs/images/overview.png"), onePixelPng);
+        BufferedImage overview = new BufferedImage(1600, 400, BufferedImage.TYPE_INT_RGB);
+        ImageIO.write(overview, "png", repoDir.resolve("docs/images/overview.png").toFile());
 
         try (Git git = Git.open(repoDir.toFile())) {
             Files.writeString(repoDir.resolve("docs/guide.adoc"), """
                 = User Guide
                 :doctype: book
 
+                Siehe link:#installation[Kapitel 1, Installation].
                 Siehe link:#fig-overview[Abbildung].
                 Siehe auf Seite link:#fig-overview[dieser Abbildung].
 
+                [#installation]
+                == Installation
+
+                Installationshinweise.
+
                 [#fig-overview]
-                .System overview
+                .Abbildung 7. System overview
                 image::images/overview.png[]
                 """);
 
@@ -1532,6 +1560,16 @@ class BibliosIntegrationTest {
             git.add().addFilepattern("docs/").call();
             git.commit().setMessage("Add DOCX reference fixture").call();
         }
+    }
+
+    private ImageExtent firstImageExtent(String documentXml) {
+        Pattern pattern = Pattern.compile("<wp:extent cx=\"(\\d+)\" cy=\"(\\d+)\"");
+        Matcher matcher = pattern.matcher(documentXml);
+        assertTrue(matcher.find(), "Expected at least one DOCX image extent");
+        return new ImageExtent(Long.parseLong(matcher.group(1)), Long.parseLong(matcher.group(2)));
+    }
+
+    private record ImageExtent(long cx, long cy) {
     }
 
     private String readDocxEntry(Path docxFile, String entryName) throws IOException {
