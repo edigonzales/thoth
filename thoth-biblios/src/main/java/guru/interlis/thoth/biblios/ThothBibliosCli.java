@@ -15,10 +15,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -75,6 +77,28 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
     @Command(name = "build", description = "Builds the documentation site")
     static final class BuildCommand implements Callable<Integer> {
+        private enum BuildFormat {
+            HTML("html"),
+            PDF("pdf"),
+            DOCX("docx");
+
+            private final String cliValue;
+
+            BuildFormat(String cliValue) {
+                this.cliValue = cliValue;
+            }
+
+            static BuildFormat fromCliValue(String value) {
+                for (BuildFormat format : values()) {
+                    if (format.cliValue.equals(value)) {
+                        return format;
+                    }
+                }
+                return null;
+            }
+
+        }
+
         @Option(names = "--config", required = true, description = "Path to bibliios.yml configuration file")
         private Path config;
 
@@ -84,23 +108,24 @@ public final class ThothBibliosCli implements Callable<Integer> {
         @Option(names = "--clean", description = "Delete output directory before build")
         private boolean clean;
 
-        @Option(names = "--pdf", description = "Generate PDF artifacts in addition to HTML output")
-        private boolean pdf;
+        @Option(
+            names = "--format",
+            split = ",",
+            description = "Output format(s): html, pdf, docx. Accepts comma-separated values. Default: html."
+        )
+        private List<String> formats = new ArrayList<>();
 
         @Option(
             names = "--pdf-version",
             split = ",",
-            description = "Limit PDF generation to one or more versions (e.g. main, v1.x, or component/main). Requires --pdf."
+            description = "Limit PDF generation to one or more versions (e.g. main, v1.x, or component/main). Requires --format pdf."
         )
         private List<String> pdfVersions = new ArrayList<>();
-
-        @Option(names = "--docx", description = "Generate DOCX artifacts in addition to HTML output")
-        private boolean docx;
 
         @Option(
             names = "--docx-version",
             split = ",",
-            description = "Limit DOCX generation to one or more versions (e.g. main, v1.x, or component/main). Requires --docx."
+            description = "Limit DOCX generation to one or more versions (e.g. main, v1.x, or component/main). Requires --format docx."
         )
         private List<String> docxVersions = new ArrayList<>();
 
@@ -108,22 +133,29 @@ public final class ThothBibliosCli implements Callable<Integer> {
         public Integer call() throws Exception {
             System.out.println("[info] thoth-biblios build");
             System.out.println("[info] config: " + config);
+            Set<BuildFormat> selectedFormats = selectedFormats();
+            if (selectedFormats == null) {
+                return 2;
+            }
+            boolean generateHtml = selectedFormats.contains(BuildFormat.HTML);
+            boolean generatePdf = selectedFormats.contains(BuildFormat.PDF);
+            boolean generateDocx = selectedFormats.contains(BuildFormat.DOCX);
             if (pdfVersions == null) {
                 pdfVersions = new ArrayList<>();
             }
-            if (!pdf && !pdfVersions.isEmpty()) {
-                System.err.println("[error] --pdf-version requires --pdf.");
+            if (!generatePdf && !pdfVersions.isEmpty()) {
+                System.err.println("[error] --pdf-version requires --format pdf.");
                 return 2;
             }
             if (docxVersions == null) {
                 docxVersions = new ArrayList<>();
             }
-            if (!docx && !docxVersions.isEmpty()) {
-                System.err.println("[error] --docx-version requires --docx.");
+            if (!generateDocx && !docxVersions.isEmpty()) {
+                System.err.println("[error] --docx-version requires --format docx.");
                 return 2;
             }
-            if (docx && docxVersions.isEmpty()) {
-                System.err.println("[error] --docx requires at least one --docx-version.");
+            if (generateDocx && docxVersions.isEmpty()) {
+                System.err.println("[error] --format docx requires at least one --docx-version.");
                 return 2;
             }
 
@@ -147,7 +179,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
                 // Generate site
                 try (BibliosSiteGenerator generator = new BibliosSiteGenerator(bibliosConfig, catalog, outputDir)) {
-                    generator.generate(pdf, selectedPdfVersions(), docx, selectedDocxVersions());
+                    generator.generate(generateHtml, generatePdf, selectedPdfVersions(), generateDocx, selectedDocxVersions());
                 }
             }
 
@@ -159,6 +191,39 @@ public final class ThothBibliosCli implements Callable<Integer> {
             // For simplicity, just note it in output - real impl would override output section
             System.out.println("[info] clean: true");
             return cfg;
+        }
+
+        private Set<BuildFormat> selectedFormats() {
+            if (formats == null || formats.isEmpty()) {
+                return EnumSet.of(BuildFormat.HTML);
+            }
+            Set<BuildFormat> selected = EnumSet.noneOf(BuildFormat.class);
+            List<String> unknown = new ArrayList<>();
+            for (String candidate : formats) {
+                if (candidate == null) {
+                    continue;
+                }
+                String trimmed = candidate.trim().toLowerCase(Locale.ROOT);
+                if (trimmed.isBlank()) {
+                    continue;
+                }
+                BuildFormat format = BuildFormat.fromCliValue(trimmed);
+                if (format == null) {
+                    unknown.add(trimmed);
+                    continue;
+                }
+                selected.add(format);
+            }
+            if (!unknown.isEmpty()) {
+                System.err.println("[error] Unknown format(s): " + String.join(", ", unknown)
+                    + ". Allowed values: html, pdf, docx.");
+                return null;
+            }
+            if (selected.isEmpty()) {
+                System.err.println("[error] --format requires at least one of: html, pdf, docx.");
+                return null;
+            }
+            return Set.copyOf(selected);
         }
 
         private Set<String> selectedPdfVersions() {

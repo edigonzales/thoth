@@ -13,6 +13,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -138,6 +139,7 @@ public final class BibliosConfigParser {
             parseSearchLanguageMode(uiMap),
             parseSidebarTocDepth(uiMap),
             parseContentTocMode(uiMap),
+            parseContentSectionNumbersMode(uiMap),
             parseSyntaxHighlightingMode(uiMap),
             parsePrismCustomComponents(uiMap, configPath)
         );
@@ -145,6 +147,7 @@ public final class BibliosConfigParser {
         Map<String, Object> pdfMap = root.containsKey("pdf") ? getMap(root, "pdf") : Map.of();
         PdfSection pdf = new PdfSection(
             getBoolean(pdfMap, "enabled", false),
+            parsePdfRequires(pdfMap, configPath, "pdf.requires"),
             parsePdfAttributes(pdfMap, configPath, "pdf.attributes")
         );
         Map<String, Object> docxMap = root.containsKey("docx") ? getMap(root, "docx") : Map.of();
@@ -391,6 +394,7 @@ public final class BibliosConfigParser {
         return new SourcePdfSection(
             enabled,
             masterFile,
+            parsePdfRequires(pdfMap, configPath, label + ".pdf.requires"),
             parsePdfAttributes(pdfMap, configPath, label + ".pdf.attributes")
         );
     }
@@ -684,6 +688,29 @@ public final class BibliosConfigParser {
         }
     }
 
+    private ContentSectionNumbersMode parseContentSectionNumbersMode(Map<String, Object> map) {
+        Object value = map.get("content_section_numbers");
+        if (value == null) {
+            return ContentSectionNumbersMode.ON;
+        }
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for 'ui.content_section_numbers', got: " + value.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        try {
+            return ContentSectionNumbersMode.parse(text);
+        } catch (IllegalArgumentException e) {
+            throw new ThothBuildException(
+                e.getMessage(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+    }
+
     private SyntaxHighlightingMode parseSyntaxHighlightingMode(Map<String, Object> map) {
         Object value = map.get("syntax_highlighting");
         if (value == null) {
@@ -813,6 +840,73 @@ public final class BibliosConfigParser {
             resolved.put(key, normalizePdfAttributeValue(key, entry.getValue(), configPath, label + "." + key));
         }
         return Map.copyOf(resolved);
+    }
+
+    private List<String> parsePdfRequires(Map<String, Object> parent, Path configPath, String label) {
+        Object value = parent.get("requires");
+        if (value == null) {
+            return List.of();
+        }
+
+        List<String> resolvedPaths = new ArrayList<>();
+        if (value instanceof String text) {
+            resolvedPaths.add(normalizePdfRequirePath(text, configPath, label));
+        } else if (value instanceof List<?> rawList) {
+            if (rawList.isEmpty()) {
+                throw new ThothBuildException(
+                    "Configuration '" + label + "' must not be empty",
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+            for (int i = 0; i < rawList.size(); i++) {
+                Object item = rawList.get(i);
+                String key = label + "[" + i + "]";
+                if (!(item instanceof String text)) {
+                    throw new ThothBuildException(
+                        "Expected string for '" + key + "', got: " + (item == null ? "null" : item.getClass().getSimpleName()),
+                        ThothBuildException.ErrorSeverity.FATAL,
+                        "config"
+                    );
+                }
+                resolvedPaths.add(normalizePdfRequirePath(text, configPath, key));
+            }
+        } else {
+            throw new ThothBuildException(
+                "Expected string or list for '" + label + "', got: " + value.getClass().getSimpleName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return List.copyOf(resolvedPaths);
+    }
+
+    private String normalizePdfRequirePath(String rawPath, Path configPath, String label) {
+        String trimmed = rawPath.trim();
+        if (trimmed.isEmpty()) {
+            throw new ThothBuildException(
+                "Configuration '" + label + "' must not be blank",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+
+        Path resolved = resolveLocalPath(trimmed, configPath);
+        if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) {
+            throw new ThothBuildException(
+                "Invalid '" + label + "': file not found: " + resolved,
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        if (!resolved.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".rb")) {
+            throw new ThothBuildException(
+                "Invalid '" + label + "': expected a .rb file, got: " + resolved.getFileName(),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return resolved.toAbsolutePath().normalize().toString();
     }
 
     private Object normalizePdfAttributeValue(String key, Object value, Path configPath, String label) {

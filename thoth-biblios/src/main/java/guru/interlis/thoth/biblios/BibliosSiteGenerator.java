@@ -89,14 +89,14 @@ public final class BibliosSiteGenerator implements AutoCloseable {
      * Generate the complete site.
      */
     public void generate() throws IOException {
-        generate(true, Set.of(), false, Set.of());
+        generate(true, true, Set.of(), false, Set.of());
     }
 
     /**
      * Generate the complete site with optional PDF generation control.
      */
     public void generate(boolean generatePdf, Set<String> selectedPdfVersions) throws IOException {
-        generate(generatePdf, selectedPdfVersions, false, Set.of());
+        generate(true, generatePdf, selectedPdfVersions, false, Set.of());
     }
 
     /**
@@ -104,7 +104,18 @@ public final class BibliosSiteGenerator implements AutoCloseable {
      */
     public void generate(boolean generatePdf, Set<String> selectedPdfVersions,
                          boolean generateDocx, Set<String> selectedDocxVersions) throws IOException {
-        System.out.println("[info] Generating site to: " + outputRoot);
+        generate(true, generatePdf, selectedPdfVersions, generateDocx, selectedDocxVersions);
+    }
+
+    /**
+     * Generate selected outputs with independent HTML/PDF/DOCX toggles.
+     */
+    public void generate(boolean generateHtml,
+                         boolean generatePdf,
+                         Set<String> selectedPdfVersions,
+                         boolean generateDocx,
+                         Set<String> selectedDocxVersions) throws IOException {
+        System.out.println("[info] Generating outputs to: " + outputRoot);
 
         // Clean output if configured
         if (config.output().clean() && Files.exists(outputRoot)) {
@@ -112,22 +123,24 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         }
         Files.createDirectories(outputRoot);
 
-        // Copy site assets
-        copyAssets();
+        if (generateHtml) {
+            // Copy site assets
+            copyAssets();
 
-        // Generate global start page
-        generateHomePage();
+            // Generate global start page
+            generateHomePage();
 
-        // Generate search page
-        generateSearchPage();
+            // Generate search page
+            generateSearchPage();
 
-        // Generate component pages
-        for (DocComponent component : catalog.components()) {
-            generateComponentPages(component);
+            // Generate component pages
+            for (DocComponent component : catalog.components()) {
+                generateComponentPages(component);
+            }
+
+            // Generate search index
+            generateSearchIndex();
         }
-
-        // Generate search index
-        generateSearchIndex();
 
         if (generatePdf && (isGlobalPdfEnabled() || hasSourceLevelPdfEnablement())) {
             new BibliosPdfGenerator(config, catalog, outputRoot).generate(selectedPdfVersions);

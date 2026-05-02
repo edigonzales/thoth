@@ -238,6 +238,10 @@ project(':thoth-biblios') {
         toolVersion = '0.8.13'
     }
 
+    tasks.named('test', Test) {
+        maxHeapSize = '1024m'
+    }
+
     tasks.named('integrationTest', Test) {
         maxHeapSize = '1024m'
     }

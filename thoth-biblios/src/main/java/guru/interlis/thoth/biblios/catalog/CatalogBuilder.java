@@ -218,15 +218,16 @@ public final class CatalogBuilder implements AutoCloseable {
         }
 
         boolean contentToc = ui != null && ui.contentToc().isEnabled();
+        boolean sectionNumbers = ui == null || ui.contentSectionNumbers().isEnabled();
         int headingDepth = ui != null ? ui.sidebarTocDepth() : 2;
         String renderLanguage = config.site().defaultLanguage();
 
         AsciidoctorRenderer.RenderedDocument rendered;
-        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer(true)) {
             Map<String, Object> renderAttributes = resolveRenderAttributes(source, branch);
             rendered = renderer.renderDocument(
                 masterPath,
-                AsciidoctorRenderer.RenderOptions.singlePage(contentToc, headingDepth, renderLanguage),
+                AsciidoctorRenderer.RenderOptions.singlePage(sectionNumbers, contentToc, headingDepth, renderLanguage),
                 renderAttributes
             );
         }
@@ -239,7 +240,10 @@ public final class CatalogBuilder implements AutoCloseable {
             ? rendered.title().trim()
             : source.displayName();
 
-        List<NavItem> navigationItems = mapHeadingsToNavItems(rendered.headings(), source.sidebarTocNumbers().isEnabled());
+        List<NavItem> navigationItems = mapHeadingsToNavItems(
+            rendered.headings(),
+            source.sidebarTocNumbers().isEnabled() && sectionNumbers
+        );
         NavTree navigation = new NavTree(navigationItems);
         String initialChapterTitle = firstHeadingTitleFromNav(navigationItems, title);
         List<DocPage.Breadcrumb> breadcrumbs = List.of(
@@ -294,8 +298,9 @@ public final class CatalogBuilder implements AutoCloseable {
         }
 
         // Create renderer for this version
-        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer(true)) {
             boolean contentToc = ui != null && ui.contentToc().isEnabled();
+            boolean sectionNumbers = ui == null || ui.contentSectionNumbers().isEnabled();
             String renderLanguage = config.site().defaultLanguage();
             Map<String, Object> renderAttributes = resolveRenderAttributes(source, branch);
             for (String pagePath : pagePaths) {
@@ -318,7 +323,7 @@ public final class CatalogBuilder implements AutoCloseable {
                 try {
                     AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
                         filePath,
-                        AsciidoctorRenderer.RenderOptions.split(contentToc, renderLanguage),
+                        AsciidoctorRenderer.RenderOptions.split(sectionNumbers, contentToc, renderLanguage),
                         renderAttributes
                     );
                     imagesDir = rendered.imagesDir();

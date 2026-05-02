@@ -72,7 +72,7 @@ Optional: enable PDF output explicitly.
 ```bash
 java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
   --config biblios.yml \
-  --pdf
+  --format pdf
 ```
 
 Optional: restrict PDF generation to selected versions.
@@ -80,7 +80,7 @@ Optional: restrict PDF generation to selected versions.
 ```bash
 java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
   --config biblios.yml \
-  --pdf \
+  --format pdf \
   --pdf-version main \
   --pdf-version mydocs/v1.x
 ```
@@ -90,9 +90,19 @@ Optional: enable DOCX output (requires explicit `--docx-version` filters).
 ```bash
 java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
   --config biblios.yml \
-  --docx \
+  --format docx \
   --docx-version main \
   --docx-version mydocs/v1.x
+```
+
+Optional: generate multiple artifact types without HTML.
+
+```bash
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
+  --config biblios.yml \
+  --format pdf,docx \
+  --pdf-version main \
+  --docx-version main
 ```
 
 3. The site is generated in `build/site/`. Open `build/site/index.html` in your browser.
@@ -143,6 +153,7 @@ ui:
   search_language_mode: multilingual_safe
   sidebar_toc_depth: 2
   content_toc: off
+  content_section_numbers: on
   edit_url_pattern: "https://github.com/org/repo/edit/{branch}/{path}"
   source_url_pattern: "https://github.com/org/repo/blob/{branch}/{path}"
 
@@ -213,17 +224,22 @@ If `site.logo` points to a local file that does not exist, the build fails with 
 | `source_url_pattern` | No | URL pattern for source links. Supports `{repo_url}`, `{branch}`, `{path}` placeholders. |
 | `version_switch_mode` | No | Version switch behavior. `start_page` (default) always jumps to version root. `equivalent_page` tries same source page in target version, otherwise version root. |
 | `search_language_mode` | No | Lunr language/ranking mode. `multilingual_safe` (default) removes stemmer/stop-word filters for mixed-language docs. `english_default` keeps Lunr defaults. |
-| `sidebar_toc_depth` | No | Sidebar heading depth for generated TOC entries. Allowed: `1..6`. Default: `2` |
+| `sidebar_toc_depth` | No | Sidebar heading depth for generated heading-based TOC entries in `render_mode: single_page`. Allowed: `1..6`. Default: `2` |
 | `content_toc` | No | Render AsciiDoc in-content TOC. Allowed values: `off`, `on`. Default: `off` |
+| `content_section_numbers` | No | Render section/chapter numbers in HTML content. Allowed values: `on`, `off`. Default: `on` |
+
+`sidebar_toc_depth` is applied to the generated heading tree in `single_page` mode.  
+In `split` mode, sidebar structure comes from `nav.yml`.
 
 #### `pdf` – PDF Output Settings
 
 When `pdf.enabled: true`, Biblios can write one PDF per published component version into the corresponding version output directory.  
-PDF generation is only executed when the CLI build is started with `--pdf`.
+PDF generation is only executed when the CLI build includes `--format pdf` (for example `--format pdf` or `--format html,pdf`).
 
 | Key | Required | Description |
 |-----|----------|-------------|
 | `enabled` | No | Generate PDF artifacts in addition to HTML. Default: `false` |
+| `requires` | No | One local `.rb` file path or a YAML list of local `.rb` file paths to load into the JRuby runtime before PDF generation. Intended for custom Rouge lexers or other Ruby-side PDF helpers. Paths are resolved relative to `biblios.yml`. |
 | `attributes` | No | Mapping of PDF-relevant Asciidoctor attributes passed to the PDF backend. Supports PDF theme/font options such as `pdf-theme`, `pdf-themesdir`, `pdf-fontsdir`, plus other PDF attributes like `optimize`, `compress`, `scripts`, `pdf-page-size`, etc. |
 
 Path handling inside `pdf.attributes`:
@@ -235,16 +251,36 @@ Path handling inside `pdf.attributes`:
 - Selected text attributes such as `chapter-signifier` also support `false` to explicitly unset the attribute (equivalent to `chapter-signifier!` in AsciiDoc).
 - Empty strings such as `toc: ""` or `chapter-signifier: ""` are not valid in `biblios.yml`; use boolean semantics instead.
 
+Custom Rouge lexers for PDF:
+
+- Set `pdf.attributes.source-highlighter: rouge` to activate Rouge during PDF conversion.
+- Biblios ships with a built-in INTERLIS Rouge lexer, so `interlis` and `ili` are available without any extra Ruby file.
+- Use `pdf.requires` only for additional custom Ruby code such as your own extra Rouge lexers before the PDF is rendered.
+- `rouge-style` only selects the color theme for Rouge tokens. For example, `rouge-style: github` applies a GitHub-like color palette; it does not change the lexer or the font.
+- `pdf.requires` does not automatically enable Rouge. If `source-highlighter` is unset, the Ruby file is still loaded, but syntax highlighting stays off.
+
 Example:
 
 ```yaml
 pdf:
   enabled: true
   attributes:
+    source-highlighter: rouge
+    rouge-style: github
     pdf-theme: ./themes/default-theme.yml
     toc: true
     sectnums: true
     chapter-signifier: false
+```
+
+With the built-in INTERLIS Rouge lexer, use the lexer tag or alias in your AsciiDoc source:
+
+```adoc
+[source,interlis]
+----
+MODEL Demo;
+END Demo.
+----
 ```
 
 Admonitions in PDF can also be customized through `pdf.attributes`. This is useful if you want localized captions such as `Tipp` instead of `Tip`, or if you want a custom PDF theme for admonition styling:
@@ -284,7 +320,7 @@ Current limitation: plain Asciidoctor PDF theming can style labels and icons per
 #### `docx` – DOCX Output Settings
 
 When `docx.enabled: true`, Biblios can write one DOCX per published component version into the corresponding version output directory.  
-DOCX generation is only executed when the CLI build is started with `--docx` and one or more `--docx-version` filters.
+DOCX generation is only executed when the CLI build includes `--format docx` and one or more `--docx-version` filters.
 
 | Key | Required | Description |
 |-----|----------|-------------|
@@ -311,9 +347,10 @@ Each entry defines a Git repository as a documentation source.
 | `revnumber` | No | Controls Asciidoctor `revnumber` attribute. `true` uses `branches[].display_version`, string uses explicit value, `false`/unset sets nothing. |
 | `render_mode` | No | Rendering mode. Allowed values: `split`, `single_page`. Default: `split` |
 | `master_file` | Conditionally | Required when `render_mode: single_page`. Path to the AsciiDoc master file under `start_path` |
-| `sidebar_toc_numbers` | No | Show chapter numbers in the sidebar TOC. Allowed values: `off`, `on`. Default: `off` |
+| `sidebar_toc_numbers` | No | Show chapter numbers in the single-page sidebar TOC. Allowed values: `off`, `on`. Default: `off`. Ignored when `ui.content_section_numbers: off`. |
 | `pdf.enabled` | No | Override global PDF enablement for this source only. |
 | `pdf.master_file` | No | Optional PDF-specific master file under `start_path`. Useful for `split` sources that need a dedicated PDF assembly document. |
+| `pdf.requires` | No | Source-specific Ruby `.rb` files to load before PDF generation. These are appended to global `pdf.requires`, not replaced. |
 | `pdf.attributes` | No | Source-specific PDF attribute overrides merged on top of global `pdf.attributes`. |
 | `docx.enabled` | No | Override global DOCX enablement for this source only. |
 | `docx.master_file` | No | Optional DOCX-specific master file under `start_path`. |
@@ -614,8 +651,11 @@ java -jar thoth-biblios-<version>-all.jar build \
 | `--config` | Yes | Path to `biblios.yml` configuration file |
 | `--output` | No | Output directory (overrides `output.dir` in config) |
 | `--clean` | No | Delete output directory before building |
-| `--pdf` | No | Enable PDF generation in addition to HTML (requires PDF to be enabled in config globally or per source) |
-| `--pdf-version` | No | Limit PDF generation to selected versions (`main`, `v1.x`, or `<component>/<version>`). Requires `--pdf`. |
+| `--format` | No | Output format(s): `html`, `pdf`, `docx` (comma-separated). Default: `html` |
+| `--pdf-version` | No | Limit PDF generation to selected versions (`main`, `v1.x`, or `<component>/<version>`). Requires `--format` to include `pdf`. |
+| `--docx-version` | No | Limit DOCX generation to selected versions (`main`, `v1.x`, or `<component>/<version>`). Requires `--format` to include `docx`. |
+
+`--format docx` requires at least one `--docx-version`.
 
 ### `serve`
 
@@ -634,6 +674,8 @@ java -jar thoth-biblios-<version>-all.jar serve \
 | `--output` | No | Output directory (overrides `output.dir` in config) |
 | `--port` | No | HTTP server port. Default: `8080` |
 | `--use-local-working-tree` | No | For local sources (`file://` or local paths), render the currently checked-out branch directly from the local working tree |
+
+`serve` is always HTML-only.
 
 **Serve behavior:**
 1. Performs an initial build

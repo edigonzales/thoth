@@ -75,7 +75,7 @@ public final class BibliosDocxGenerator {
     public void generate(Set<String> selectedVersions) throws IOException {
         Set<String> filters = normalizeFilters(selectedVersions);
         Set<String> unmatched = new HashSet<>(filters);
-        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer(true)) {
             for (DocComponent component : catalog.components()) {
                 SourceConfig source = sourceConfigById.get(component.id());
                 if (source == null) {

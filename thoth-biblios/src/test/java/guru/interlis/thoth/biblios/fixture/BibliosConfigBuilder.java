@@ -30,6 +30,7 @@ public final class BibliosConfigBuilder {
     private String searchLanguageMode = null;
     private Integer sidebarTocDepth = null;
     private String contentToc = null;
+    private String contentSectionNumbers = null;
     private String syntaxHighlightingMode = null;
     private final ArrayList<String> prismCustomComponents = new ArrayList<>();
     private boolean pdfEnabled = false;
@@ -103,6 +104,11 @@ public final class BibliosConfigBuilder {
 
     public BibliosConfigBuilder withContentToc(String mode) {
         this.contentToc = mode;
+        return this;
+    }
+
+    public BibliosConfigBuilder withContentSectionNumbers(String mode) {
+        this.contentSectionNumbers = mode;
         return this;
     }
 
@@ -236,7 +242,7 @@ public final class BibliosConfigBuilder {
 
         StringBuilder uiSection = new StringBuilder();
         if (showEditLink || showSourceLink || versionSwitchMode != null || searchLanguageMode != null
-            || sidebarTocDepth != null || contentToc != null || syntaxHighlightingMode != null
+            || sidebarTocDepth != null || contentToc != null || contentSectionNumbers != null || syntaxHighlightingMode != null
             || !prismCustomComponents.isEmpty()) {
             uiSection.append("ui:\n");
             uiSection.append("  show_edit_link: %s\n".formatted(showEditLink));
@@ -252,6 +258,9 @@ public final class BibliosConfigBuilder {
             }
             if (contentToc != null) {
                 uiSection.append("  content_toc: %s\n".formatted(contentToc));
+            }
+            if (contentSectionNumbers != null) {
+                uiSection.append("  content_section_numbers: %s\n".formatted(contentSectionNumbers));
             }
             if (syntaxHighlightingMode != null) {
                 uiSection.append("  syntax_highlighting: %s\n".formatted(syntaxHighlightingMode));

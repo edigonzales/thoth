@@ -1,12 +1,15 @@
 package guru.interlis.thoth.biblios.render;
 
+import org.asciidoctor.Asciidoctor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -225,6 +228,78 @@ class AsciidoctorRendererTest {
     }
 
     @Test
+    void loadsBundledInterlisRougeLexerForHighlighting(@TempDir Path tempDir) throws Exception {
+        Path adoc = tempDir.resolve("test.adoc");
+        Files.writeString(adoc, """
+            = PDF Test
+
+            [source,interlis]
+            ----
+            MODEL Demo;
+            ----
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer(true)) {
+            AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
+                adoc,
+                AsciidoctorRenderer.RenderOptions.split(false, "en"),
+                Map.of("source-highlighter", "rouge")
+            );
+
+            assertTrue(rendered.html().contains("rouge"), rendered.html());
+            assertTrue(rendered.html().contains("<span class=\"k\">MODEL</span>"), rendered.html());
+        }
+    }
+
+    @Test
+    void rejectsMissingBundledRubyRequire() {
+        IllegalStateException ex = assertThrows(
+            IllegalStateException.class,
+            () -> new AsciidoctorRenderer(Asciidoctor.Factory.create(), List.of("ruby/missing_lexer.rb"))
+        );
+        assertTrue(ex.getMessage().contains("initialize Biblios Ruby runtime"));
+        assertNotNull(ex.getCause());
+        assertTrue(ex.getCause().getMessage().contains("bundled Ruby require"));
+        assertTrue(ex.getCause().getMessage().contains("resource not found"));
+    }
+
+    @Test
+    void loadRubyRequiresIsIdempotent(@TempDir Path tempDir) throws Exception {
+        Path ruby = tempDir.resolve("custom_lexer.rb");
+        Files.writeString(ruby, """
+            require 'rouge'
+
+            module Rouge
+              module Lexers
+                class Dummy < RegexLexer
+                  title 'Dummy'
+                  tag 'dummy'
+                  state :root do
+                    rule %r/./, Text
+                  end
+                end
+              end
+            end
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            renderer.loadRubyRequires(List.of(ruby.toString()));
+            renderer.loadRubyRequires(List.of(ruby.toString()));
+        }
+    }
+
+    @Test
+    void rejectsMissingRubyRequireFile(@TempDir Path tempDir) {
+        Path missing = tempDir.resolve("missing.rb");
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            IOException ex = assertThrows(IOException.class, () -> renderer.loadRubyRequires(List.of(missing.toString())));
+            assertTrue(ex.getMessage().contains("custom Rouge lexers"));
+            assertTrue(ex.getMessage().contains("not found"));
+        }
+    }
+
+    @Test
     void providesGermanPdfAdmonitionCaptionsAsSoftDefaults() {
         Map<String, Object> defaults = AsciidoctorRenderer.defaultLocalizedAttributesForLanguage("de");
 
@@ -271,6 +346,53 @@ class AsciidoctorRendererTest {
             assertFalse(rendered.html().contains("id=\"toc\""));
             assertTrue(rendered.html().contains("class=\"anchor\""));
             assertTrue(rendered.html().matches("(?s).*class=\"anchor\"\\s+href=\"#.+?\".*"));
+        }
+    }
+
+    @Test
+    void rendersSplitDocumentWithoutSectionNumbersWhenDisabled(@TempDir Path tempDir) throws Exception {
+        Path adoc = tempDir.resolve("split.adoc");
+        Files.writeString(adoc, """
+            = Manual
+            :doctype: book
+
+            == Einleitung
+
+            === Status
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
+                adoc,
+                AsciidoctorRenderer.RenderOptions.split(false, false, "en")
+            );
+
+            assertNotNull(rendered);
+            assertFalse(rendered.html().contains("class=\"sectnum\""));
+            assertFalse(rendered.html().matches("(?s).*\\b1\\.?\\s+Einleitung\\b.*"));
+        }
+    }
+
+    @Test
+    void doesNotMarkRegularSectionsAsUnnumberedWhenSectionNumbersAreDisabled(@TempDir Path tempDir) throws Exception {
+        Path adoc = tempDir.resolve("master.adoc");
+        Files.writeString(adoc, """
+            = Manual
+            :doctype: book
+
+            == Einleitung
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
+                adoc,
+                AsciidoctorRenderer.RenderOptions.singlePage(false, false, 2, "en")
+            );
+
+            assertEquals(1, rendered.headings().size());
+            assertEquals("Einleitung", rendered.headings().get(0).title());
+            assertTrue(rendered.headings().get(0).sectionNumber().isBlank());
+            assertFalse(rendered.headings().get(0).unnumbered());
         }
     }
 

@@ -376,6 +376,46 @@ class BibliosIntegrationTest {
     }
 
     @Test
+    void generateSupportsPdfAndDocxWithoutHtml() throws Exception {
+        Path repoDir = tempDir.resolve("artifact-only-repo");
+        Path workRoot = tempDir.resolve("artifact-only-work");
+        Path outputRoot = tempDir.resolve("artifact-only-output");
+        Path configFile = tempDir.resolve("artifact-only-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Artifact Only Docs")
+            .withOutputDir(outputRoot)
+            .withPdfEnabled(true)
+            .withDocxEnabled(true)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate(false, true, Set.of("main"), true, Set.of("main"));
+            }
+        }
+
+        assertFalse(Files.exists(outputRoot.resolve("index.html")));
+        assertFalse(Files.exists(outputRoot.resolve("search/index.html")));
+        assertFalse(Files.exists(outputRoot.resolve("site-assets/styles.css")));
+        assertFalse(Files.exists(outputRoot.resolve("mydocs/main/index.html")));
+
+        Path pdfFile = outputRoot.resolve("mydocs/main/mydocs-main.pdf");
+        Path docxFile = outputRoot.resolve("mydocs/main/mydocs-main.docx");
+        assertTrue(Files.exists(pdfFile));
+        assertTrue(Files.exists(docxFile));
+    }
+
+    @Test
     void localWorkingTreeOverrideIncludesUncommittedChangesWhenEnabled() throws Exception {
         Path repoDir = tempDir.resolve("local-working-tree-repo");
         Path workRoot = tempDir.resolve("work-local-working-tree");
@@ -1097,6 +1137,39 @@ class BibliosIntegrationTest {
     }
 
     @Test
+    void splitModeCanDisableContentSectionNumbers() throws Exception {
+        Path repoDir = tempDir.resolve("split-no-sectnums-repo");
+        Path workRoot = tempDir.resolve("work-split-no-sectnums");
+        Path outputRoot = tempDir.resolve("output-split-no-sectnums");
+        Path configFile = tempDir.resolve("split-no-sectnums-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Split Without Section Numbers")
+            .withOutputDir(outputRoot)
+            .withContentSectionNumbers("off")
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertFalse(html.contains("class=\"sectnum\""));
+        assertFalse(html.matches("(?s).*\\b1\\.?\\s+Getting Started\\b.*"));
+    }
+
+    @Test
     void singlePageSidebarTocNumbersOnPrefixesTitles() throws Exception {
         Path repoDir = tempDir.resolve("single-page-numbered-repo");
         Path workRoot = tempDir.resolve("work-single-numbered");
@@ -1129,6 +1202,43 @@ class BibliosIntegrationTest {
         assertTrue(html.matches("(?s).*\\b1\\.\\s+Einleitung\\b.*"));
         assertTrue(html.matches("(?s).*\\b1\\.1\\.\\s+Status\\b.*"));
         assertTrue(html.contains("data-chapter-title=\"Einleitung\""));
+    }
+
+    @Test
+    void singlePageDisablingSectionNumbersSuppressesSidebarNumbersEvenWhenEnabled() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-no-sectnums-repo");
+        Path workRoot = tempDir.resolve("work-single-no-sectnums");
+        Path outputRoot = tempDir.resolve("output-single-no-sectnums");
+        Path configFile = tempDir.resolve("single-page-no-sectnums-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withSinglePageNumberedDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Single Page Without Section Numbers")
+            .withOutputDir(outputRoot)
+            .withSidebarTocDepth(3)
+            .withContentToc("off")
+            .withContentSectionNumbers("off")
+            .withSinglePageSourceGitRepoWithTocNumbers(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "on", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertFalse(html.matches("(?s).*\\b1\\.\\s+Einleitung\\b.*"));
+        assertFalse(html.matches("(?s).*\\b1\\.1\\.\\s+Status\\b.*"));
+        assertTrue(html.contains("data-chapter-title=\"Einleitung\""));
+        assertTrue(html.contains("data-chapter-title=\"Grundprinzipien\""));
     }
 
     @Test

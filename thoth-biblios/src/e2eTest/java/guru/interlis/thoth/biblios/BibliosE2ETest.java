@@ -341,6 +341,53 @@ class BibliosE2ETest {
         assertions.assertFileContains("mydocs/main/index.html", "Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3");
     }
 
+    @Test
+    void splitModeCanDisableContentSectionNumbers() throws Exception {
+        Path repoDir = setupTestRepo("split-no-sectnums-repo");
+        setupOutputDirs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Split No Sectnums")
+            .withOutputDir(outputRoot)
+            .withContentSectionNumbers("off")
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileNotContains("mydocs/main/index.html", "class=\"sectnum\"");
+        assertions.assertFileNotContains("mydocs/main/guide/index.html", "class=\"sectnum\"");
+    }
+
+    @Test
+    void singlePageContentSectionNumbersOffSuppressesSidebarNumbersEvenWhenSidebarTocNumbersOn() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-no-sectnums-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withSinglePageNumberedDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Single Page No Sectnums")
+            .withOutputDir(outputRoot)
+            .withSidebarTocDepth(3)
+            .withContentToc("off")
+            .withContentSectionNumbers("off")
+            .withSinglePageSourceGitRepoWithTocNumbers(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "on", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        SiteAssertions assertions = new SiteAssertions(outputRoot);
+        assertions.assertFileContains("mydocs/main/index.html", "data-chapter-title=\"Einleitung\"");
+        assertions.assertFileContains("mydocs/main/index.html", "data-chapter-title=\"Grundprinzipien\"");
+        assertions.assertFileNotContains("mydocs/main/index.html", "1. Einleitung");
+        assertions.assertFileNotContains("mydocs/main/index.html", "1.1. Status");
+    }
+
     /**
      * E2E-6: Search language mode is exposed to the rendered HTML.
      * Verifies: ui.search_language_mode reaches templates and can drive client-side mode selection.

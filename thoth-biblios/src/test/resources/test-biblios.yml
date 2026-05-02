@@ -16,6 +16,7 @@ ui:
   search_language_mode: english_default
   sidebar_toc_depth: 3
   content_toc: on
+  content_section_numbers: on
 
 content:
   sources:

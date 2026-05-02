@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -41,6 +42,7 @@ class BibliosConfigParserTest {
         assertEquals(SearchLanguageMode.ENGLISH_DEFAULT, config.ui().searchLanguageMode());
         assertEquals(3, config.ui().sidebarTocDepth());
         assertEquals(ContentTocMode.ON, config.ui().contentToc());
+        assertEquals(ContentSectionNumbersMode.ON, config.ui().contentSectionNumbers());
         assertEquals(SyntaxHighlightingMode.PRISM, config.ui().syntaxHighlightingMode());
         assertTrue(config.ui().prismCustomComponents().isEmpty());
         assertFalse(config.pdf().enabled());
@@ -606,6 +608,78 @@ class BibliosConfigParserTest {
     }
 
     @Test
+    void defaultsContentSectionNumbersToOn(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("content-section-numbers-default.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(ContentSectionNumbersMode.ON, config.ui().contentSectionNumbers());
+    }
+
+    @Test
+    void parsesContentSectionNumbersOff(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              content_section_numbers: off
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("content-section-numbers-off.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(ContentSectionNumbersMode.OFF, config.ui().contentSectionNumbers());
+    }
+
+    @Test
+    void rejectsInvalidContentSectionNumbersMode(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              content_section_numbers: maybe
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("invalid-content-section-numbers.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("ui.content_section_numbers"));
+        assertTrue(ex.getMessage().contains("off"));
+        assertTrue(ex.getMessage().contains("on"));
+    }
+
+    @Test
     void parsesSyntaxHighlightingOff(@TempDir Path tempDir) throws IOException {
         String yaml = """
             site:
@@ -834,10 +908,14 @@ class BibliosConfigParserTest {
     void parsesGlobalPdfSection(@TempDir Path tempDir) throws IOException {
         Path themesDir = tempDir.resolve("themes");
         Path fontsDir = tempDir.resolve("fonts");
+        Path highlightingDir = tempDir.resolve("highlighting");
         Files.createDirectories(themesDir);
         Files.createDirectories(fontsDir);
+        Files.createDirectories(highlightingDir);
         Path themeFile = themesDir.resolve("basic-theme.yml");
+        Path rubyRequire = highlightingDir.resolve("interlis_rouge_lexer.rb");
         Files.writeString(themeFile, "extends: default\n");
+        Files.writeString(rubyRequire, "require 'rouge'\n");
 
         String yaml = """
             site:
@@ -846,6 +924,8 @@ class BibliosConfigParserTest {
               dir: build
             pdf:
               enabled: true
+              requires:
+                - ./highlighting/interlis_rouge_lexer.rb
               attributes:
                 pdf-theme: ./themes/basic-theme.yml
                 pdf-fontsdir:
@@ -866,6 +946,7 @@ class BibliosConfigParserTest {
 
         BibliosConfig config = parser.parse(file);
         assertTrue(config.pdf().enabled());
+        assertEquals(List.of(rubyRequire.toAbsolutePath().normalize().toString()), config.pdf().requires());
         assertEquals(themeFile.toAbsolutePath().normalize().toString(), config.pdf().attributes().get("pdf-theme"));
         assertEquals(fontsDir.toAbsolutePath().normalize() + ";GEM_FONTS_DIR", config.pdf().attributes().get("pdf-fontsdir"));
         assertEquals("default", config.pdf().attributes().get("optimize"));
@@ -874,6 +955,11 @@ class BibliosConfigParserTest {
 
     @Test
     void parsesPerSourcePdfOverrides(@TempDir Path tempDir) throws IOException {
+        Path globalRequire = tempDir.resolve("global.rb");
+        Path sourceRequire = tempDir.resolve("source.rb");
+        Files.writeString(globalRequire, "require 'rouge'\n");
+        Files.writeString(sourceRequire, "require 'rouge'\n");
+
         String yaml = """
             site:
               title: Test
@@ -881,6 +967,7 @@ class BibliosConfigParserTest {
               dir: build
             pdf:
               enabled: true
+              requires: ./global.rb
               attributes:
                 optimize: default
             content:
@@ -893,6 +980,8 @@ class BibliosConfigParserTest {
                   pdf:
                     enabled: false
                     master_file: pdf/book.adoc
+                    requires:
+                      - ./source.rb
                     attributes:
                       compress: true
             """;
@@ -904,7 +993,35 @@ class BibliosConfigParserTest {
         assertNotNull(source.pdf());
         assertEquals(Boolean.FALSE, source.pdf().enabled());
         assertEquals("pdf/book.adoc", source.pdf().masterFile());
+        assertEquals(List.of(sourceRequire.toAbsolutePath().normalize().toString()), source.pdf().requires());
+        assertEquals(List.of(globalRequire.toAbsolutePath().normalize().toString()), config.pdf().requires());
         assertEquals(Boolean.TRUE, source.pdf().attributes().get("compress"));
+    }
+
+    @Test
+    void rejectsMissingPdfRequireFile(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            pdf:
+              enabled: true
+              requires: ./missing.rb
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("pdf-missing-require.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("pdf.requires"));
+        assertTrue(ex.getMessage().contains("not found"));
     }
 
     @Test

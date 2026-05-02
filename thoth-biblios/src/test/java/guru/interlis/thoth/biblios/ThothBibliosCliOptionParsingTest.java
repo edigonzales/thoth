@@ -10,51 +10,66 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ThothBibliosCliOptionParsingTest {
 
     @Test
-    void buildParsesPdfFlags() {
+    void buildParsesFormatPdf() {
         CommandLine cli = new CommandLine(new ThothBibliosCli());
         CommandLine.ParseResult parseResult = cli.parseArgs(
             "build",
             "--config", "biblios.yml",
-            "--pdf",
+            "--format", "pdf",
             "--pdf-version", "main",
             "--pdf-version", "docs/v1.x"
         );
 
-        assertTrue(parseResult.subcommand().hasMatchedOption("--pdf"));
+        assertTrue(parseResult.subcommand().hasMatchedOption("--format"));
         assertTrue(parseResult.subcommand().hasMatchedOption("--pdf-version"));
     }
 
     @Test
-    void buildParsesDocxFlags() {
+    void buildParsesFormatDocx() {
         CommandLine cli = new CommandLine(new ThothBibliosCli());
         CommandLine.ParseResult parseResult = cli.parseArgs(
             "build",
             "--config", "biblios.yml",
-            "--docx",
+            "--format", "docx",
             "--docx-version", "main",
             "--docx-version", "docs/v1.x"
         );
 
-        assertTrue(parseResult.subcommand().hasMatchedOption("--docx"));
+        assertTrue(parseResult.subcommand().hasMatchedOption("--format"));
         assertTrue(parseResult.subcommand().hasMatchedOption("--docx-version"));
     }
 
     @Test
-    void buildLeavesPdfDisabledByDefault() {
+    void buildParsesCombinedFormats() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        CommandLine.ParseResult parseResult = cli.parseArgs(
+            "build",
+            "--config", "biblios.yml",
+            "--format", "html,pdf,docx",
+            "--pdf-version", "main",
+            "--docx-version", "main"
+        );
+
+        assertTrue(parseResult.subcommand().hasMatchedOption("--format"));
+        assertTrue(parseResult.subcommand().hasMatchedOption("--pdf-version"));
+        assertTrue(parseResult.subcommand().hasMatchedOption("--docx-version"));
+    }
+
+    @Test
+    void buildUsesHtmlDefaultWhenFormatMissing() {
         CommandLine cli = new CommandLine(new ThothBibliosCli());
         CommandLine.ParseResult parseResult = cli.parseArgs(
             "build",
             "--config", "biblios.yml"
         );
 
-        assertFalse(parseResult.subcommand().hasMatchedOption("--pdf"));
+        assertFalse(parseResult.subcommand().hasMatchedOption("--format"));
         assertFalse(parseResult.subcommand().hasMatchedOption("--pdf-version"));
-        assertFalse(parseResult.subcommand().hasMatchedOption("--docx"));
         assertFalse(parseResult.subcommand().hasMatchedOption("--docx-version"));
     }
 
     @Test
-    void buildRejectsPdfVersionWithoutPdfFlag() {
+    void buildRejectsPdfVersionWithoutPdfFormat() {
         CommandLine cli = new CommandLine(new ThothBibliosCli());
         int exitCode = cli.execute(
             "build",
@@ -66,7 +81,7 @@ class ThothBibliosCliOptionParsingTest {
     }
 
     @Test
-    void buildRejectsDocxVersionWithoutDocxFlag() {
+    void buildRejectsDocxVersionWithoutDocxFormat() {
         CommandLine cli = new CommandLine(new ThothBibliosCli());
         int exitCode = cli.execute(
             "build",
@@ -78,7 +93,43 @@ class ThothBibliosCliOptionParsingTest {
     }
 
     @Test
-    void buildRejectsDocxFlagWithoutDocxVersion() {
+    void buildRejectsDocxFormatWithoutDocxVersion() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        int exitCode = cli.execute(
+            "build",
+            "--config", "missing.yml",
+            "--format", "docx"
+        );
+
+        assertEquals(2, exitCode);
+    }
+
+    @Test
+    void buildRejectsUnknownFormat() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        int exitCode = cli.execute(
+            "build",
+            "--config", "missing.yml",
+            "--format", "epub"
+        );
+
+        assertEquals(2, exitCode);
+    }
+
+    @Test
+    void buildRejectsRemovedPdfFlag() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        int exitCode = cli.execute(
+            "build",
+            "--config", "missing.yml",
+            "--pdf"
+        );
+
+        assertEquals(2, exitCode);
+    }
+
+    @Test
+    void buildRejectsRemovedDocxFlag() {
         CommandLine cli = new CommandLine(new ThothBibliosCli());
         int exitCode = cli.execute(
             "build",
@@ -110,5 +161,17 @@ class ThothBibliosCliOptionParsingTest {
         );
 
         assertFalse(parseResult.subcommand().hasMatchedOption("--use-local-working-tree"));
+    }
+
+    @Test
+    void serveRejectsFormatOption() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        int exitCode = cli.execute(
+            "serve",
+            "--config", "biblios.yml",
+            "--format", "html"
+        );
+
+        assertEquals(2, exitCode);
     }
 }

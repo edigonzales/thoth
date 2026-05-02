@@ -8,15 +8,19 @@ import org.asciidoctor.SafeMode;
 import org.asciidoctor.ast.Document;
 import org.asciidoctor.ast.Section;
 import org.asciidoctor.ast.StructuralNode;
+import org.asciidoctor.jruby.internal.JRubyAsciidoctor;
+import org.asciidoctor.jruby.internal.RubyUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.TextNode;
 
+import java.io.InputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -30,6 +34,7 @@ import java.util.regex.Pattern;
  * Thread-safe after initialization. Should be closed when done.
  */
 public final class AsciidoctorRenderer implements AutoCloseable {
+    static final String BUNDLED_INTERLIS_ROUGE_LEXER = "ruby/interlis_rouge_lexer.rb";
 
     private static final String DEFAULT_LANGUAGE = "en";
     private static final Set<String> STANDALONE_MARKERS = Set.of("*", "§", "※", "✱", "✶", "✳");
@@ -48,9 +53,27 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     );
     private static final Pattern NUMERIC_CONUM_PATTERN = Pattern.compile("<(\\d+)>");
     private final Asciidoctor asciidoctor;
+    private final Set<Path> loadedRubyRequires = new HashSet<>();
+    private final Set<String> loadedBundledRubyRequires = new HashSet<>();
 
     public AsciidoctorRenderer() {
-        this.asciidoctor = Asciidoctor.Factory.create();
+        this(false);
+    }
+
+    public AsciidoctorRenderer(boolean loadBundledRubyRequires) {
+        this(
+            Asciidoctor.Factory.create(),
+            loadBundledRubyRequires ? List.of(BUNDLED_INTERLIS_ROUGE_LEXER) : List.of()
+        );
+    }
+
+    AsciidoctorRenderer(Asciidoctor asciidoctor, List<String> bundledRubyRequires) {
+        this.asciidoctor = asciidoctor;
+        try {
+            loadBundledRubyRequires(bundledRubyRequires);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to initialize Biblios Ruby runtime.", e);
+        }
     }
 
     /**
@@ -82,7 +105,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
                 ? sourcePath.getParent().toAbsolutePath().normalize().toString()
                 : "";
             List<Heading> headings = resolvedOptions.collectHeadings()
-                ? extractHeadings(document, resolvedOptions.headingDepth())
+                ? extractHeadings(document, resolvedOptions.headingDepth(), resolvedOptions.sectionNumbers())
                 : List.of();
 
             return new RenderedDocument(
@@ -171,8 +194,14 @@ public final class AsciidoctorRenderer implements AutoCloseable {
 
     public void writePdf(Path sourcePath, Path targetPath, Map<String, Object> pdfAttributes, String language,
                          Map<String, Object> additionalAttributes) throws IOException {
+        writePdf(sourcePath, targetPath, pdfAttributes, language, additionalAttributes, List.of());
+    }
+
+    public void writePdf(Path sourcePath, Path targetPath, Map<String, Object> pdfAttributes, String language,
+                         Map<String, Object> additionalAttributes, List<String> rubyRequires) throws IOException {
         try {
             Files.createDirectories(targetPath.toAbsolutePath().normalize().getParent());
+            loadRubyRequires(rubyRequires);
             Options options = buildPdfOptions(sourcePath, targetPath, pdfAttributes, language, additionalAttributes);
             asciidoctor.convertFile(sourcePath.toFile(), options);
         } catch (Exception e) {
@@ -262,6 +291,79 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             return;
         }
         attributes.attribute(key, value);
+    }
+
+    void loadRubyRequires(List<String> rubyRequires) throws IOException {
+        if (rubyRequires == null || rubyRequires.isEmpty()) {
+            return;
+        }
+
+        for (String rawPath : rubyRequires) {
+            if (rawPath == null || rawPath.isBlank()) {
+                continue;
+            }
+
+            Path requirePath = Path.of(rawPath).toAbsolutePath().normalize();
+            if (loadedRubyRequires.contains(requirePath)) {
+                continue;
+            }
+            if (!Files.exists(requirePath) || !Files.isRegularFile(requirePath)) {
+                throw new IOException(
+                    "Failed to load PDF Ruby require: file not found: " + requirePath +
+                        ". This hook is intended for custom Rouge lexers or other Ruby extensions."
+                );
+            }
+
+            try (InputStream input = Files.newInputStream(requirePath)) {
+                loadRubyStream(input);
+                loadedRubyRequires.add(requirePath);
+            } catch (Exception e) {
+                throw new IOException(
+                    "Failed to load PDF Ruby require: " + requirePath +
+                        ". This hook is intended for custom Rouge lexers or other Ruby extensions.",
+                    e
+                );
+            }
+        }
+    }
+
+    private void loadBundledRubyRequires(List<String> bundledRubyRequires) throws IOException {
+        if (bundledRubyRequires == null || bundledRubyRequires.isEmpty()) {
+            return;
+        }
+
+        for (String resourcePath : bundledRubyRequires) {
+            if (resourcePath == null || resourcePath.isBlank() || loadedBundledRubyRequires.contains(resourcePath)) {
+                continue;
+            }
+
+            try (InputStream input = AsciidoctorRenderer.class.getClassLoader().getResourceAsStream(resourcePath)) {
+                if (input == null) {
+                    throw new IOException(
+                        "Failed to load bundled Ruby require: resource not found: " + resourcePath +
+                            ". This hook is intended for built-in Rouge lexers or other Ruby extensions."
+                    );
+                }
+                loadRubyStream(input);
+                loadedBundledRubyRequires.add(resourcePath);
+            } catch (Exception e) {
+                if (e instanceof IOException ioException) {
+                    throw ioException;
+                }
+                throw new IOException(
+                    "Failed to load bundled Ruby require: " + resourcePath +
+                        ". This hook is intended for built-in Rouge lexers or other Ruby extensions.",
+                    e
+                );
+            }
+        }
+    }
+
+    private void loadRubyStream(InputStream input) throws IOException {
+        if (!(asciidoctor instanceof JRubyAsciidoctor jrubyAsciidoctor)) {
+            throw new IOException("Custom PDF Ruby requires are only supported with the JRuby-based Asciidoctor runtime.");
+        }
+        RubyUtils.loadRubyClass(jrubyAsciidoctor.getRubyRuntime(), input);
     }
 
     private AttributesBuilder baseHtmlAttributes(String language) {
@@ -557,6 +659,10 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     }
 
     private List<Heading> extractHeadings(Document document, int maxDepth) {
+        return extractHeadings(document, maxDepth, true);
+    }
+
+    private List<Heading> extractHeadings(Document document, int maxDepth, boolean sectionNumbersEnabled) {
         List<Section> topSections = childSections(document);
         if (topSections.isEmpty()) {
             return List.of();
@@ -568,10 +674,10 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             .orElse(1);
 
         int depth = Math.max(1, Math.min(6, maxDepth));
-        return mapSections(topSections, minLevel, depth);
+        return mapSections(topSections, minLevel, depth, sectionNumbersEnabled);
     }
 
-    private List<Heading> mapSections(List<Section> sections, int minLevel, int maxDepth) {
+    private List<Heading> mapSections(List<Section> sections, int minLevel, int maxDepth, boolean sectionNumbersEnabled) {
         List<Heading> result = new ArrayList<>();
         int index = 0;
         for (Section section : sections) {
@@ -593,9 +699,9 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             }
 
             String sectionNumber = normalizeSectionNumber(section);
-            boolean unnumbered = isUnnumberedSection(section);
+            boolean unnumbered = isUnnumberedSection(section, sectionNumbersEnabled);
             boolean appendix = isAppendixSection(section);
-            List<Heading> children = mapSections(childSections(section), minLevel, maxDepth);
+            List<Heading> children = mapSections(childSections(section), minLevel, maxDepth, sectionNumbersEnabled);
             result.add(new Heading(id, title, normalizedLevel, sectionNumber, unnumbered, appendix, List.copyOf(children)));
         }
         return result;
@@ -638,12 +744,12 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         return normalized;
     }
 
-    private boolean isUnnumberedSection(Section section) {
+    private boolean isUnnumberedSection(Section section, boolean sectionNumbersEnabled) {
         if (section == null) {
             return false;
         }
 
-        if (!section.isNumbered()) {
+        if (sectionNumbersEnabled && !section.isNumbered()) {
             return true;
         }
 
@@ -678,7 +784,11 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         }
 
         public static RenderOptions split(boolean contentToc, String language) {
-            return new RenderOptions(true, contentToc, false, 2, normalizeLanguage(language));
+            return split(true, contentToc, language);
+        }
+
+        public static RenderOptions split(boolean sectionNumbers, boolean contentToc, String language) {
+            return new RenderOptions(sectionNumbers, contentToc, false, 2, normalizeLanguage(language));
         }
 
         public static RenderOptions singlePage(boolean contentToc, int headingDepth) {
@@ -686,7 +796,11 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         }
 
         public static RenderOptions singlePage(boolean contentToc, int headingDepth, String language) {
-            return new RenderOptions(true, contentToc, true, headingDepth, normalizeLanguage(language));
+            return singlePage(true, contentToc, headingDepth, language);
+        }
+
+        public static RenderOptions singlePage(boolean sectionNumbers, boolean contentToc, int headingDepth, String language) {
+            return new RenderOptions(sectionNumbers, contentToc, true, headingDepth, normalizeLanguage(language));
         }
     }
 

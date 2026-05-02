@@ -17,6 +17,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -43,7 +45,7 @@ public final class BibliosPdfGenerator {
     public void generate(Set<String> selectedVersions) throws IOException {
         Set<String> filters = normalizeFilters(selectedVersions);
         Set<String> unmatched = new HashSet<>(filters);
-        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer(true)) {
             for (DocComponent component : catalog.components()) {
                 SourceConfig source = sourceConfigById.get(component.id());
                 if (source == null) {
@@ -80,7 +82,14 @@ public final class BibliosPdfGenerator {
         Path outputFile = versionRoot.resolve(pdfFileName(component, version));
         Path explicitMaster = resolveExplicitMaster(version, source, effective.masterFile());
         if (explicitMaster != null) {
-            renderer.writePdf(explicitMaster, outputFile, effective.attributes(), config.site().defaultLanguage(), sourceRenderAttributes);
+            renderer.writePdf(
+                explicitMaster,
+                outputFile,
+                effective.attributes(),
+                config.site().defaultLanguage(),
+                sourceRenderAttributes,
+                effective.requires()
+            );
             System.out.println("[pdf] " + component.id() + "/" + version.version() + " -> " + outputRoot.relativize(outputFile));
             return;
         }
@@ -92,7 +101,14 @@ public final class BibliosPdfGenerator {
 
         Path temporaryMaster = createAggregateMaster(component, version);
         try {
-            renderer.writePdf(temporaryMaster, outputFile, effective.attributes(), config.site().defaultLanguage(), sourceRenderAttributes);
+            renderer.writePdf(
+                temporaryMaster,
+                outputFile,
+                effective.attributes(),
+                config.site().defaultLanguage(),
+                sourceRenderAttributes,
+                effective.requires()
+            );
             System.out.println("[pdf] " + component.id() + "/" + version.version() + " -> " + outputRoot.relativize(outputFile));
         } finally {
             Files.deleteIfExists(temporaryMaster);
@@ -182,16 +198,19 @@ public final class BibliosPdfGenerator {
             enabled = local.enabled();
         }
 
+        Set<String> requires = new LinkedHashSet<>();
         Map<String, Object> attributes = new LinkedHashMap<>();
         if (global != null) {
+            requires.addAll(global.requires());
             attributes.putAll(global.attributes());
         }
         if (local != null) {
+            requires.addAll(local.requires());
             attributes.putAll(local.attributes());
         }
 
         String masterFile = local != null ? local.masterFile() : null;
-        return new EffectivePdfConfig(enabled, masterFile, Map.copyOf(attributes));
+        return new EffectivePdfConfig(enabled, masterFile, List.copyOf(requires), Map.copyOf(attributes));
     }
 
     private String pdfFileName(DocComponent component, ComponentVersion version) {
@@ -253,6 +272,6 @@ public final class BibliosPdfGenerator {
         return Map.copyOf(indexed);
     }
 
-    private record EffectivePdfConfig(boolean enabled, String masterFile, Map<String, Object> attributes) {
+    private record EffectivePdfConfig(boolean enabled, String masterFile, List<String> requires, Map<String, Object> attributes) {
     }
 }
