@@ -243,7 +243,12 @@ project(':thoth-biblios') {
     }
 
     tasks.named('integrationTest', Test) {
-        maxHeapSize = '1024m'
+        // Integration tests run heavy PDF/DOCX renderers; isolate worker state
+        // and allow a larger heap to avoid cumulative OOM across long suites.
+        maxHeapSize = '2048m'
+        maxParallelForks = 1
+        forkEvery = 1
+        jvmArgs '-XX:+HeapDumpOnOutOfMemoryError'
     }
 
     tasks.named('e2eTest', Test) {
