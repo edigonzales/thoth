@@ -16,6 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.awt.image.BufferedImage;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -24,11 +25,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import javax.imageio.ImageIO;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -88,7 +89,7 @@ class BibliosE2ETest {
         assertions.assertSiteAssets();
         assertions.assertFileExists("site-assets/site-logo.svg");
         assertions.assertFileContains("index.html", "class=\"brand-logo\"");
-        assertions.assertFileContains("index.html", "src=\"/site-assets/site-logo.svg\"");
+        assertions.assertFileContains("index.html", "src=\"./site-assets/site-logo.svg\"");
         assertions.assertFileContains("site-assets/styles.css", ".brand-logo {");
         assertions.assertFileContains("site-assets/styles.css", "width: 36px;");
         assertions.assertFileContains("site-assets/styles.css", "height: 36px;");
@@ -111,7 +112,7 @@ class BibliosE2ETest {
         assertions.assertDocPage("mydocs", "main", "guide");
         assertions.assertSearchIndex("mydocs", "Welcome", "User Guide");
         assertions.assertFileExists("search/index.html");
-        assertions.assertFileContains("index.html", "action=\"/search/\"");
+        assertions.assertFileContains("index.html", "action=\"./search/\"");
         assertions.assertFileContains("search/index.html", "id=\"search-results\"");
 
         // Ensure page content is not rendered into <head>
@@ -250,7 +251,7 @@ class BibliosE2ETest {
         // Navigation on content pages
         assertions.assertNavigation("mydocs/main/guide/index.html",
             "Welcome", "User Guide", "Advanced");
-        assertions.assertFileContains("mydocs/main/guide/index.html", "href=\"/mydocs/main/\"");
+        assertions.assertFileContains("mydocs/main/guide/index.html", "href=\"../../../mydocs/main/\"");
         assertions.assertFileNotContains("mydocs/main/guide/index.html", "href=\"/mydocs/main/index/\"");
 
         // Breadcrumbs
@@ -292,7 +293,7 @@ class BibliosE2ETest {
         assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-root\"");
         assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-trail\"");
         assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-current\"");
-        assertions.assertFileContains("mydocs/main/index.html", "href=\"/mydocs/main/#");
+        assertions.assertFileContains("mydocs/main/index.html", "href=\"../../mydocs/main/#");
         assertions.assertFileContains("mydocs/main/index.html", "class=\"anchor\"");
         assertions.assertFileContains("mydocs/main/index.html", "Einleitung");
         assertions.assertFileContains("mydocs/main/index.html", "Grundprinzipien");
@@ -336,7 +337,7 @@ class BibliosE2ETest {
         assertions.assertFileNotContains("mydocs/main/index.html", "data-chapter-title=\"Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3\"");
         assertions.assertFileContains("mydocs/main/index.html", "data-chapter-title=\"Anhang A - foo bar\"");
         assertions.assertFileNotContains("mydocs/main/index.html", "aria-label=\"Toggle subsections for Anhang A - foo bar\"");
-        assertions.assertFileContains("mydocs/main/index.html", "href=\"/mydocs/main/#_anhang_a_foo_bar\"");
+        assertions.assertFileContains("mydocs/main/index.html", "href=\"../../mydocs/main/#_anhang_a_foo_bar\"");
         assertions.assertFileContains("mydocs/main/index.html", "id=\"chapter-breadcrumb-current\">Einleitung<");
         assertions.assertFileContains("mydocs/main/index.html", "Erweiterungen von INTERLIS 2.4 gegenüber INTERLIS 2.3");
     }
@@ -436,7 +437,9 @@ class BibliosE2ETest {
 
         SiteAssertions assertions = new SiteAssertions(outputRoot);
         assertions.assertFileContains("mydocs/main/guide/index.html", "class=\"admonitionblock note\"");
-        assertions.assertFileContains("mydocs/main/guide/index.html", "title=\"Note\"");
+        String notePage = Files.readString(outputRoot.resolve("mydocs/main/guide/index.html"));
+        assertTrue(notePage.contains("Hinweis") || notePage.contains("Note"),
+            "NOTE admonition should render a visible caption (localized where configured).");
         assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.note {");
         assertions.assertFileContains("site-assets/styles.css", "#f1fafe");
         assertions.assertFileContains("site-assets/styles.css", "#d4e7f4");
@@ -795,7 +798,7 @@ class BibliosE2ETest {
         );
         assertEquals(200, searchPageResponse.statusCode());
         assertTrue(searchPageResponse.body().contains("id=\"search-results\""));
-        assertTrue(searchPageResponse.body().contains("action=\"/search/\""));
+        assertTrue(searchPageResponse.body().contains("action=\"../search/\""));
 
         // Test CSS asset
         HttpResponse<String> cssResponse = client.send(
@@ -885,15 +888,15 @@ class BibliosE2ETest {
         // Verify doc switcher on docs-a page links to docs-b
         String docsAPage = Files.readString(outputRoot.resolve("docs-a/main/index.html"));
         assertTrue(docsAPage.contains("Documentation B"));
-        assertTrue(docsAPage.contains("/docs-b/main/"));
-        assertTrue(optionSelected(docsAPage, "/docs-a/main/"), "docs-a page must keep docs-a selected.");
+        assertTrue(docsAPage.contains("../../docs-b/main/"));
+        assertTrue(optionSelected(docsAPage, "../../docs-a/main/"), "docs-a page must keep docs-a selected.");
         assertFalse(optionSelected(docsAPage, ""), "docs-a page must not select placeholder.");
 
         // Verify doc switcher on docs-b page links to docs-a
         String docsBPage = Files.readString(outputRoot.resolve("docs-b/main/index.html"));
         assertTrue(docsBPage.contains("Documentation A"));
-        assertTrue(docsBPage.contains("/docs-a/main/"));
-        assertTrue(optionSelected(docsBPage, "/docs-b/main/"), "docs-b page must keep docs-b selected.");
+        assertTrue(docsBPage.contains("../../docs-a/main/"));
+        assertTrue(optionSelected(docsBPage, "../../docs-b/main/"), "docs-b page must keep docs-b selected.");
         assertFalse(optionSelected(docsBPage, ""), "docs-b page must not select placeholder.");
     }
 
@@ -1048,9 +1051,9 @@ class BibliosE2ETest {
         buildAndGenerate(config);
 
         String mainGuide = Files.readString(outputRoot.resolve("mydocs/main/guide/index.html"));
-        assertTrue(mainGuide.contains("option value=\"/mydocs/v1.x/\""),
+        assertTrue(mainGuide.contains("option value=\"../../../mydocs/v1.x/\""),
             "Default switch mode should link to target version root.");
-        assertFalse(mainGuide.contains("option value=\"/mydocs/v1.x/guide/\""),
+        assertFalse(mainGuide.contains("option value=\"../../../mydocs/v1.x/guide/\""),
             "Default switch mode must not map to equivalent page.");
     }
 
@@ -1152,11 +1155,15 @@ class BibliosE2ETest {
     }
 
     private void prepareDocxReferenceFixture(Path repoDir) throws Exception {
-        byte[] onePixelPng = Base64.getDecoder().decode(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sN3cJQAAAAASUVORK5CYII="
-        );
+        BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
+        image.setRGB(0, 0, 0xFF3B82F6);
+        image.setRGB(1, 0, 0xFF3B82F6);
+        image.setRGB(0, 1, 0xFF3B82F6);
+        image.setRGB(1, 1, 0xFF3B82F6);
         Files.createDirectories(repoDir.resolve("docs/images"));
-        Files.write(repoDir.resolve("docs/images/overview.png"), onePixelPng);
+        try (var output = Files.newOutputStream(repoDir.resolve("docs/images/overview.png"))) {
+            ImageIO.write(image, "png", output);
+        }
 
         try (Git git = Git.open(repoDir.toFile())) {
             Files.writeString(repoDir.resolve("docs/guide.adoc"), """

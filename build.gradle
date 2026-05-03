@@ -252,7 +252,8 @@ project(':thoth-biblios') {
     }
 
     tasks.named('e2eTest', Test) {
-        maxHeapSize = '1024m'
+        // E2E suite renders large fixtures (HTML/PDF/DOCX) and can OOM on JDK 25 with 1G heap.
+        maxHeapSize = '2048m'
     }
 
     jacocoTestReport {
