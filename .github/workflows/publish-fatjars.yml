@@ -45,6 +45,18 @@ jobs:
 
           echo "Resolved version: $VERSION"
 
+      - name: Run all tests (unit, integration, e2e)
+        run: ./gradlew --no-daemon test integrationTest e2eTest
+
+      - name: Upload test logs and reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-and-reports
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
+
       - name: Publish fatjars to Maven repository (snapshot only)
         if: steps.version.outputs.is_snapshot == 'true'
         env:
@@ -53,6 +65,6 @@ jobs:
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
         run: ./gradlew --no-daemon :thoth-blog:publish :thoth-biblios:publish
 
-      - name: Build and test when not a snapshot
+      - name: Build when not a snapshot
         if: steps.version.outputs.is_snapshot != 'true'
-        run: ./gradlew --no-daemon build
+        run: ./gradlew --no-daemon assemble
