@@ -94,16 +94,12 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     public RenderedDocument renderDocument(Path sourcePath, RenderOptions options, Map<String, Object> additionalAttributes) throws IOException {
         try {
             RenderOptions resolvedOptions = options != null ? options : RenderOptions.legacyDefaults();
+            LoadedDocument loaded = loadDocument(sourcePath, resolvedOptions, additionalAttributes);
+            Document document = loaded.document();
             Options asciidoctorOptions = buildOptions(sourcePath, resolvedOptions, additionalAttributes);
-
-            Document document = asciidoctor.loadFile(sourcePath.toFile(), asciidoctorOptions);
             String html = asciidoctor.convertFile(sourcePath.toFile(), asciidoctorOptions, String.class);
             String normalizedHtml = normalizeCodeBlocksForPrism(html);
             String title = document.getDoctitle();
-            String imagesDir = attributeAsString(document.getAttribute("imagesdir"));
-            String baseDir = sourcePath.getParent() != null
-                ? sourcePath.getParent().toAbsolutePath().normalize().toString()
-                : "";
             List<Heading> headings = resolvedOptions.collectHeadings()
                 ? extractHeadings(document, resolvedOptions.headingDepth(), resolvedOptions.sectionNumbers())
                 : List.of();
@@ -112,11 +108,38 @@ public final class AsciidoctorRenderer implements AutoCloseable {
                 normalizedHtml,
                 title != null ? title : "",
                 List.copyOf(headings),
-                imagesDir,
-                baseDir
+                loaded.imagesDir(),
+                loaded.baseDir()
             );
         } catch (Exception e) {
             throw new IOException("Failed to render AsciiDoc file: " + sourcePath, e);
+        }
+    }
+
+    public LoadedDocument loadDocument(Path sourcePath, RenderOptions options, Map<String, Object> additionalAttributes) throws IOException {
+        try {
+            RenderOptions resolvedOptions = options != null ? options : RenderOptions.legacyDefaults();
+            Options asciidoctorOptions = buildOptions(sourcePath, resolvedOptions, additionalAttributes);
+            Document document = asciidoctor.loadFile(sourcePath.toFile(), asciidoctorOptions);
+            String title = document.getDoctitle();
+            String imagesDir = attributeAsString(document.getAttribute("imagesdir"));
+            String baseDir = sourcePath.getParent() != null
+                ? sourcePath.getParent().toAbsolutePath().normalize().toString()
+                : "";
+            String language = attributeAsString(document.getAttribute("lang"));
+            String doctype = attributeAsString(document.getAttribute("doctype"));
+            return new LoadedDocument(
+                document,
+                title != null ? title : "",
+                normalizeLanguage(language),
+                doctype,
+                imagesDir,
+                baseDir,
+                sourcePath.toAbsolutePath().normalize(),
+                resolvedOptions.sectionNumbers()
+            );
+        } catch (Exception e) {
+            throw new IOException("Failed to load AsciiDoc document: " + sourcePath, e);
         }
     }
 
@@ -808,5 +831,17 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     }
 
     public record RenderedDocument(String html, String title, List<Heading> headings, String imagesDir, String baseDir) {
+    }
+
+    public record LoadedDocument(
+        Document document,
+        String title,
+        String language,
+        String doctype,
+        String imagesDir,
+        String baseDir,
+        Path sourcePath,
+        boolean sectionNumbers
+    ) {
     }
 }

@@ -1526,6 +1526,50 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("mydocs/main/mydocs-main.docx")));
     }
 
+    @Test
+    void docxRendersTablesAdmonitionsCalloutsAndFootnotes() throws Exception {
+        Path repoDir = tempDir.resolve("docx-rich-repo");
+        Path workRoot = tempDir.resolve("docx-rich-work");
+        Path outputRoot = tempDir.resolve("docx-rich-output");
+        Path configFile = tempDir.resolve("docx-rich-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+        prepareDocxRichFixture(repoDir);
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("DOCX Rich Docs")
+            .withSiteLanguage("en")
+            .withOutputDir(outputRoot)
+            .withDocxEnabled(true)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation", "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate(false, Set.of(), true, Set.of("main"));
+            }
+        }
+
+        Path docxFile = outputRoot.resolve("mydocs/main/mydocs-main.docx");
+        assertTrue(Files.exists(docxFile));
+        String xml = readDocxEntry(docxFile, "word/document.xml");
+        String footnotes = readDocxEntry(docxFile, "word/footnotes.xml");
+
+        assertTrue(xml.contains("Deployment Matrix"));
+        assertTrue(xml.contains("<w:tbl>"));
+        assertTrue(xml.contains("Note block for DOCX export."));
+        assertTrue(xml.contains("(1)"));
+        assertTrue(xml.contains("Use the default environment."));
+        assertTrue(xml.contains("w:footnoteReference"));
+        assertTrue(xml.contains("EE F4 FF".replace(" ", "")) || xml.contains("EEF4FF"));
+        assertTrue(footnotes.contains("Footnote body for DOCX export."));
+    }
+
     private void prepareDocxReferenceFixture(Path repoDir) throws Exception {
         Files.createDirectories(repoDir.resolve("docs/images"));
         BufferedImage overview = new BufferedImage(1600, 400, BufferedImage.TYPE_INT_RGB);
@@ -1559,6 +1603,54 @@ class BibliosIntegrationTest {
                 """);
             git.add().addFilepattern("docs/").call();
             git.commit().setMessage("Add DOCX reference fixture").call();
+        }
+    }
+
+    private void prepareDocxRichFixture(Path repoDir) throws Exception {
+        try (Git git = Git.open(repoDir.toFile())) {
+            Files.writeString(repoDir.resolve("docs/guide.adoc"), """
+                = User Guide
+                :doctype: book
+
+                This paragraph contains a footnote:footnote:[Footnote body for DOCX export.].
+
+                [NOTE]
+                ====
+                Note block for DOCX export.
+                ====
+
+                [source,interlis]
+                ----
+                MODEL Sample (en)
+                END Sample. <1>
+                ----
+
+                <1> Use the default environment.
+
+                .Deployment Matrix
+                |===
+                |Environment |Status
+
+                |Development
+                |Ready
+
+                |Production
+                |Planned
+                |===
+
+                API:: Stable
+                CLI:: Fast
+                """);
+
+            Files.writeString(repoDir.resolve("docs/nav.yml"), """
+                items:
+                  - title: Welcome
+                    page: index.adoc
+                  - title: User Guide
+                    page: guide.adoc
+                """);
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Add DOCX rich fixture").call();
         }
     }
 
