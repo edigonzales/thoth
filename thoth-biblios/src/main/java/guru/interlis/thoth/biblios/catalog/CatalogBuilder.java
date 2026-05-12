@@ -298,6 +298,12 @@ public final class CatalogBuilder implements AutoCloseable {
             pagePaths = discoverAdocFiles(docRoot);
         }
 
+        String configuredStartPage = normalizePagePath(source.startPage() != null ? source.startPage() : "index.adoc");
+        if (Files.exists(docRoot.resolve(configuredStartPage)) && !pagePaths.contains(configuredStartPage)) {
+            pagePaths = new ArrayList<>(pagePaths);
+            pagePaths.add(0, configuredStartPage);
+        }
+
         // Create renderer for this version
         try (AsciidoctorRenderer renderer = new AsciidoctorRenderer(true)) {
             boolean contentToc = ui != null && ui.contentToc().isEnabled();
@@ -630,8 +636,11 @@ public final class CatalogBuilder implements AutoCloseable {
 
         // Create page map
         var pageMap = new java.util.HashMap<String, DocPage>();
-        for (DocPage p : pages) {
+        var pageIndexByPath = new java.util.HashMap<String, Integer>();
+        for (int pageIndex = 0; pageIndex < pages.size(); pageIndex++) {
+            DocPage p = pages.get(pageIndex);
             pageMap.put(p.sourcePath(), p);
+            pageIndexByPath.put(p.sourcePath(), pageIndex);
         }
 
         // Link prev/next based on navigation order
@@ -651,7 +660,10 @@ public final class CatalogBuilder implements AutoCloseable {
                 page.imagesDir(), page.sourceBaseDir(),
                 page.usesInterlisLab()
             );
-            pages.set(i, updated);
+            Integer pageIndex = pageIndexByPath.get(page.sourcePath());
+            if (pageIndex != null) {
+                pages.set(pageIndex, updated);
+            }
             pageMap.put(orderedPaths.get(i), updated);
         }
     }

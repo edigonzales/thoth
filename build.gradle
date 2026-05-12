@@ -1,3 +1,6 @@
+import groovy.json.JsonSlurper
+import java.nio.file.Files
+
 plugins {
     id 'java'
 }
@@ -5,6 +8,111 @@ plugins {
 apply from: "$rootDir/gradle/versioning.gradle"
 
 group = 'guru.interlis'
+
+def interlisLabVersion = providers.gradleProperty('interlisLabVersion').orElse('0.1.2').get()
+def interlisLabPackageMetadataUrl = providers.gradleProperty('interlisLabPackageMetadataUrl')
+    .orElse('https://codeberg.org/api/packages/edigonzales/npm/@edigonzales%2Finterlis-lab-web-component')
+    .get()
+def interlisLabTarballUrlOverride = providers.gradleProperty('interlisLabTarballUrl').orNull
+
+ext.interlisLabVersion = interlisLabVersion
+
+def interlisLabWorkDir = layout.buildDirectory.dir("interlis-lab/${interlisLabVersion}")
+def interlisLabDistDir = layout.buildDirectory.dir("interlis-lab/${interlisLabVersion}/dist")
+
+tasks.register('resolveInterlisLabPackage') {
+    group = 'build setup'
+    description = 'Downloads @edigonzales/interlis-lab-web-component assets from Codeberg and extracts dist/interlis-lab.js + dist/ili2c.jar.'
+
+    inputs.property('interlisLabVersion', interlisLabVersion)
+    inputs.property('interlisLabPackageMetadataUrl', interlisLabPackageMetadataUrl)
+    inputs.property('interlisLabTarballUrl', interlisLabTarballUrlOverride ?: '')
+    outputs.dir(interlisLabDistDir)
+
+    doLast {
+        def version = interlisLabVersion
+        def metadataUrl = interlisLabPackageMetadataUrl
+        def tarballUrlOverride = interlisLabTarballUrlOverride
+        def workDir = interlisLabWorkDir.get().asFile
+        def distDir = interlisLabDistDir.get().asFile
+        def extractDir = new File(workDir, 'extract')
+        def metadataFile = new File(workDir, 'package-metadata.json')
+        def tarballFile = new File(workDir, "interlis-lab-web-component-${version}.tgz")
+
+        project.delete(workDir)
+        distDir.mkdirs()
+
+        def downloadToFile = { String sourceUrl, File targetFile ->
+            targetFile.parentFile.mkdirs()
+            logger.lifecycle("Downloading ${sourceUrl}")
+            def connection = new URL(sourceUrl).openConnection()
+            connection.setConnectTimeout(15_000)
+            connection.setReadTimeout(180_000)
+            connection.setRequestProperty('User-Agent', "thoth/${project.version}")
+            connection.inputStream.withCloseable { input ->
+                Files.copy(input, targetFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            }
+        }
+
+        String tarballUrl
+        if (tarballUrlOverride != null && !tarballUrlOverride.isBlank()) {
+            tarballUrl = tarballUrlOverride
+            logger.lifecycle("Using overridden interlis-lab tarball URL: ${tarballUrl}")
+        } else {
+            downloadToFile(metadataUrl, metadataFile)
+            def metadata = new JsonSlurper().parse(metadataFile)
+            def selectedVersion = metadata?.versions?.get(version)
+            if (!(selectedVersion instanceof Map)) {
+                throw new GradleException("interlis-lab version '${version}' not found at ${metadataUrl}")
+            }
+            tarballUrl = selectedVersion?.dist?.tarball
+            if (!(tarballUrl instanceof String) || tarballUrl.isBlank()) {
+                throw new GradleException("No dist.tarball URL found for interlis-lab version '${version}'")
+            }
+        }
+
+        downloadToFile(tarballUrl, tarballFile)
+        project.delete(extractDir)
+        extractDir.mkdirs()
+
+        copy {
+            from tarTree(resources.gzip(tarballFile))
+            include 'package/dist/interlis-lab.js'
+            include 'package/dist/ili2c.jar'
+            eachFile { it.path = it.name }
+            includeEmptyDirs = false
+            into distDir
+        }
+
+        def componentJs = new File(distDir, 'interlis-lab.js')
+        def ili2cJar = new File(distDir, 'ili2c.jar')
+        if (!componentJs.exists() || !ili2cJar.exists()) {
+            throw new GradleException("Downloaded package ${version} does not contain dist/interlis-lab.js and dist/ili2c.jar")
+        }
+
+        logger.lifecycle("Resolved interlis-lab assets version ${version} to ${distDir}")
+    }
+}
+
+def wireInterlisLabAssets = { Project proj ->
+    def moduleGeneratedResourcesDir = proj.layout.buildDirectory.dir('generated-resources')
+    def moduleAssetDir = proj.layout.buildDirectory.dir('generated-resources/site-assets/interlis-lab')
+    def prepareTask = proj.tasks.register('prepareInterlisLabAssets', Sync) {
+        group = 'build setup'
+        description = "Copies resolved interlis-lab assets into ${proj.name} resources"
+        dependsOn rootProject.tasks.named('resolveInterlisLabPackage')
+        from(interlisLabDistDir) {
+            include 'interlis-lab.js'
+            include 'ili2c.jar'
+        }
+        into moduleAssetDir
+    }
+
+    proj.sourceSets.main.resources.srcDir(moduleGeneratedResourcesDir)
+    proj.tasks.named('processResources') {
+        dependsOn prepareTask
+    }
+}
 
 subprojects {
     apply plugin: 'java'
@@ -208,6 +316,8 @@ project(':thoth-blog') {
         }
     }
 
+    wireInterlisLabAssets(delegate)
+
     // Apply shared CLI conventions
     configureCliModule(delegate)
 }
@@ -264,6 +374,8 @@ project(':thoth-biblios') {
             xml.required = false
         }
     }
+
+    wireInterlisLabAssets(delegate)
 
     // Apply shared CLI conventions
     configureCliModule(delegate)

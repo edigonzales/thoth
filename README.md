@@ -101,10 +101,23 @@ interlis-lab::labs/simple.json[storage-key=simple-lab,title="Simple Lab"]
 The macro emits `<interlis-lab>` only for HTML output. Thoth copies the bundled component runtime to
 `assets/interlis-lab/` for Blog and `site-assets/interlis-lab/` for Biblios, injects the module
 script only on pages that use a lab, and copies referenced lesson JSON files next to the generated
-page. Refresh the vendored runtime from the sibling component repo with:
+page.
+
+During build, Thoth resolves `@edigonzales/interlis-lab-web-component` from Codeberg Packages and
+extracts `dist/interlis-lab.js` plus `dist/ili2c.jar` into both products. Select the package version
+with a Gradle property:
 
 ```bash
-scripts/update-interlis-lab-assets.sh
+./gradlew build -PinterlisLabVersion=0.1.2
+```
+
+Optional: override the tarball URL directly (for npmjs.org, mirrors, or internal proxies). When set,
+this URL takes precedence over package metadata lookup:
+
+```bash
+./gradlew build \
+  -PinterlisLabVersion=0.1.2 \
+  -PinterlisLabTarballUrl=https://codeberg.org/api/packages/edigonzales/npm/%40edigonzales%2Finterlis-lab-web-component/-/0.1.2/interlis-lab-web-component-0.1.2.tgz
 ```
 
 ### thoth-blog

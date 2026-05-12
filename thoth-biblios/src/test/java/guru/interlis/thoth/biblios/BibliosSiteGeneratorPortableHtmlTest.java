@@ -110,15 +110,69 @@ class BibliosSiteGeneratorPortableHtmlTest {
         assertFalse(indexHtml.contains("site-assets/interlis-lab/interlis-lab.js"));
     }
 
+    @Test
+    void rendersGermanInterlisLabMacroWithoutRawFallback(@TempDir Path tempDir) throws Exception {
+        Path repoDir = tempDir.resolve("repo");
+        new TestRepoBuilder(repoDir).withGermanInterlisLabInGuide();
+
+        Path outputDir = tempDir.resolve("site");
+        Path relativeWorkRoot = Path.of("build/tmp/portable-html-" + tempDir.getFileName());
+        generateSite(tempDir, repoDir, outputDir, "de", relativeWorkRoot);
+
+        SiteAssertions site = new SiteAssertions(outputDir);
+        site.assertFileExists("docs/main/guide/labs/erste-klasse.json");
+        site.assertFileExists("site-assets/interlis-lab/interlis-lab.js");
+        site.assertFileExists("site-assets/interlis-lab/ili2c.jar");
+
+        String guideHtml = Files.readString(outputDir.resolve("docs/main/guide/index.html"));
+        assertFalse(guideHtml.contains("interlis-lab::"));
+
+        Document guidePage = Jsoup.parse(guideHtml);
+        Element lab = guidePage.selectFirst("interlis-lab");
+        assertTrue(lab != null);
+        assertEquals("labs/erste-klasse.json", lab.attr("src"));
+        assertEquals("cheerpj", lab.attr("runner"));
+        assertEquals("demo-ili-lab-01-erste-klasse", lab.attr("storage-key"));
+        assertEquals("../../../site-assets/interlis-lab/ili2c.jar", lab.attr("ili2c-jar-url"));
+        assertEquals(
+            "../../../site-assets/interlis-lab/interlis-lab.js",
+            attr(guidePage, "script[src$='interlis-lab.js']", "src")
+        );
+    }
+
+    @Test
+    void rendersConfiguredStartPageOutsideNavigation(@TempDir Path tempDir) throws Exception {
+        Path repoDir = tempDir.resolve("repo");
+        new TestRepoBuilder(repoDir).withStartPageOutsideNavigation();
+
+        Path outputDir = tempDir.resolve("site");
+        generateSite(tempDir, repoDir, outputDir);
+
+        assertTrue(Files.exists(outputDir.resolve("docs/main/index.html")));
+        assertTrue(Files.exists(outputDir.resolve("docs/main/guide/index.html")));
+
+        String guideHtml = Files.readString(outputDir.resolve("docs/main/guide/index.html"));
+        assertFalse(guideHtml.contains("class=\"prev\""));
+    }
+
     private void generateSite(Path tempDir, Path repoDir, Path outputDir) throws Exception {
+        generateSite(tempDir, repoDir, outputDir, "en");
+    }
+
+    private void generateSite(Path tempDir, Path repoDir, Path outputDir, String language) throws Exception {
+        generateSite(tempDir, repoDir, outputDir, language, tempDir.resolve("work"));
+    }
+
+    private void generateSite(Path tempDir, Path repoDir, Path outputDir, String language, Path workRoot) throws Exception {
         Path configFile = tempDir.resolve("biblios.yml");
         BibliosConfig config = new BibliosConfigBuilder()
             .withOutputDir(outputDir)
+            .withSiteLanguage(language)
             .withSingleSourceGitRepo(repoDir, "docs", "Documentation", "docs", "main", "main")
             .writeTo(configFile);
 
         SiteCatalog catalog;
-        try (CatalogBuilder builder = new CatalogBuilder(config, tempDir.resolve("work"), false)) {
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot, false)) {
             catalog = builder.build();
         }
 

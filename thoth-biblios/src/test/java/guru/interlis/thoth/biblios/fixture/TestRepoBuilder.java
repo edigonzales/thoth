@@ -177,6 +177,47 @@ public final class TestRepoBuilder {
         return this;
     }
 
+    public TestRepoBuilder withGermanInterlisLabInGuide() throws Exception {
+        withBasicDocs();
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Path docsDir = repoDir.resolve("docs");
+            Files.writeString(docsDir.resolve("guide.adoc"), """
+                = Übung 1: Deine erste Klasse
+                :doctype: book
+
+                Ziel: eine einfache Klasse mit Attribut ergänzen.
+
+                interlis-lab::labs/erste-klasse.json[storage-key=demo-ili-lab-01-erste-klasse,title="Übung 1: Deine erste Klasse"]
+                """);
+            Files.createDirectories(docsDir.resolve("labs"));
+            Files.writeString(docsDir.resolve("labs/erste-klasse.json"), "{\"id\":\"erste-klasse\"}");
+
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Add German INTERLIS lab fixture").call();
+        }
+
+        return this;
+    }
+
+    public TestRepoBuilder withStartPageOutsideNavigation() throws Exception {
+        withBasicDocs();
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Path docsDir = repoDir.resolve("docs");
+            Files.writeString(docsDir.resolve("nav.yml"), """
+                items:
+                  - title: User Guide
+                    page: guide.adoc
+                """);
+
+            git.add().addFilepattern("docs/nav.yml").call();
+            git.commit().setMessage("Remove start page from navigation").call();
+        }
+
+        return this;
+    }
+
     /**
      * Extend the basic docs fixture with a NOTE admonition in guide.adoc.
      */

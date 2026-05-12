@@ -19,8 +19,6 @@ out/
 
 # Package files
 *.jar
-!thoth-blog/src/main/resources/site-assets/interlis-lab/ili2c.jar
-!thoth-biblios/src/main/resources/site-assets/interlis-lab/ili2c.jar
 *.war
 *.nar
 *.ear

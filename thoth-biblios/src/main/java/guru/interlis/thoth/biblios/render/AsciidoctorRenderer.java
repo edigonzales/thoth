@@ -292,7 +292,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             .safe(SafeMode.UNSAFE)
             .standalone(false)
             .toFile(false)
-            .baseDir(sourcePath.getParent().toFile())
+            .baseDir(sourceBaseDir(sourcePath).toFile())
             .attributes(attributes.build())
             .build();
     }
@@ -319,9 +319,15 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             .backend("pdf")
             .safe(SafeMode.UNSAFE)
             .toFile(targetPath.toFile())
-            .baseDir(sourcePath.getParent().toFile())
+            .baseDir(sourceBaseDir(sourcePath).toFile())
             .attributes(attributes.build())
             .build();
+    }
+
+    private Path sourceBaseDir(Path sourcePath) {
+        Path absoluteSource = sourcePath.toAbsolutePath().normalize();
+        Path parent = absoluteSource.getParent();
+        return parent != null ? parent : Path.of(".").toAbsolutePath().normalize();
     }
 
     static Map<String, Object> defaultLocalizedAttributesForLanguage(String language) {
