@@ -1,5 +1,7 @@
 package guru.interlis.thoth.biblios.render;
 
+import guru.interlis.thoth.core.InterlisLabHtmlSupport;
+import guru.interlis.thoth.core.InterlisLabMacroProcessor;
 import org.asciidoctor.Asciidoctor;
 import org.asciidoctor.AttributesBuilder;
 import org.asciidoctor.Options;
@@ -17,6 +19,7 @@ import org.jsoup.nodes.TextNode;
 
 import java.io.InputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -94,22 +97,28 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     public RenderedDocument renderDocument(Path sourcePath, RenderOptions options, Map<String, Object> additionalAttributes) throws IOException {
         try {
             RenderOptions resolvedOptions = options != null ? options : RenderOptions.legacyDefaults();
+            InterlisLabMacroProcessor.Result interlisLabMacros = processInterlisLabHtml(sourcePath);
             LoadedDocument loaded = loadDocument(sourcePath, resolvedOptions, additionalAttributes);
             Document document = loaded.document();
             Options asciidoctorOptions = buildOptions(sourcePath, resolvedOptions, additionalAttributes);
-            String html = asciidoctor.convertFile(sourcePath.toFile(), asciidoctorOptions, String.class);
+            String html = interlisLabMacros.usesInterlisLab()
+                ? asciidoctor.convert(interlisLabMacros.content(), asciidoctorOptions)
+                : asciidoctor.convertFile(sourcePath.toFile(), asciidoctorOptions, String.class);
             String normalizedHtml = normalizeCodeBlocksForPrism(html);
             String title = document.getDoctitle();
             List<Heading> headings = resolvedOptions.collectHeadings()
                 ? extractHeadings(document, resolvedOptions.headingDepth(), resolvedOptions.sectionNumbers())
                 : List.of();
+            boolean usesInterlisLab = interlisLabMacros.usesInterlisLab()
+                || InterlisLabHtmlSupport.hasInterlisLab(normalizedHtml);
 
             return new RenderedDocument(
                 normalizedHtml,
                 title != null ? title : "",
                 List.copyOf(headings),
                 loaded.imagesDir(),
-                loaded.baseDir()
+                loaded.baseDir(),
+                usesInterlisLab
             );
         } catch (Exception e) {
             throw new IOException("Failed to render AsciiDoc file: " + sourcePath, e);
@@ -120,7 +129,10 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         try {
             RenderOptions resolvedOptions = options != null ? options : RenderOptions.legacyDefaults();
             Options asciidoctorOptions = buildOptions(sourcePath, resolvedOptions, additionalAttributes);
-            Document document = asciidoctor.loadFile(sourcePath.toFile(), asciidoctorOptions);
+            InterlisLabMacroProcessor.Result fallback = processInterlisLabFallback(sourcePath);
+            Document document = fallback.usesInterlisLab()
+                ? asciidoctor.load(fallback.content(), asciidoctorOptions)
+                : asciidoctor.loadFile(sourcePath.toFile(), asciidoctorOptions);
             String title = document.getDoctitle();
             String imagesDir = attributeAsString(document.getAttribute("imagesdir"));
             String baseDir = sourcePath.getParent() != null
@@ -226,10 +238,32 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             Files.createDirectories(targetPath.toAbsolutePath().normalize().getParent());
             loadRubyRequires(rubyRequires);
             Options options = buildPdfOptions(sourcePath, targetPath, pdfAttributes, language, additionalAttributes);
-            asciidoctor.convertFile(sourcePath.toFile(), options);
+            InterlisLabMacroProcessor.Result fallback = processInterlisLabFallback(sourcePath);
+            if (fallback.usesInterlisLab()) {
+                asciidoctor.convert(fallback.content(), options);
+            } else {
+                asciidoctor.convertFile(sourcePath.toFile(), options);
+            }
         } catch (Exception e) {
             throw new IOException("Failed to render PDF from AsciiDoc file: " + sourcePath, e);
         }
+    }
+
+    private InterlisLabMacroProcessor.Result processInterlisLabHtml(Path sourcePath) throws IOException {
+        String content = Files.readString(sourcePath, StandardCharsets.UTF_8);
+        return InterlisLabMacroProcessor.processHtml(
+            content,
+            new InterlisLabMacroProcessor.HtmlOptions(
+                InterlisLabMacroProcessor.ILI2C_JAR_URL_PLACEHOLDER,
+                "",
+                InterlisLabMacroProcessor.DEFAULT_RUNNER
+            )
+        );
+    }
+
+    private InterlisLabMacroProcessor.Result processInterlisLabFallback(Path sourcePath) throws IOException {
+        String content = Files.readString(sourcePath, StandardCharsets.UTF_8);
+        return InterlisLabMacroProcessor.processFallback(content);
     }
 
     private Options buildOptions(Path sourcePath, RenderOptions options, Map<String, Object> additionalAttributes) {
@@ -830,7 +864,14 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     public record Heading(String id, String title, int level, String sectionNumber, boolean unnumbered, boolean appendix, List<Heading> children) {
     }
 
-    public record RenderedDocument(String html, String title, List<Heading> headings, String imagesDir, String baseDir) {
+    public record RenderedDocument(
+        String html,
+        String title,
+        List<Heading> headings,
+        String imagesDir,
+        String baseDir,
+        boolean usesInterlisLab
+    ) {
     }
 
     public record LoadedDocument(

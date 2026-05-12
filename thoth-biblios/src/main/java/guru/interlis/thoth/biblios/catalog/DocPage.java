@@ -23,12 +23,13 @@ public final class DocPage {
     private final String sourceUrl;
     private final String imagesDir;
     private final String sourceBaseDir;
+    private final boolean usesInterlisLab;
 
     public DocPage(String componentId, String version, String sourcePath, String sourceUri,
                    String pageId, String title, String navTitle, String route, String html,
                    List<Breadcrumb> breadcrumbs, DocPage prev, DocPage next) {
         this(componentId, version, sourcePath, sourceUri, pageId, title, navTitle, route, html,
-             breadcrumbs, prev, next, null, null, "", "");
+             breadcrumbs, prev, next, null, null, "", "", false);
     }
 
     public DocPage(String componentId, String version, String sourcePath, String sourceUri,
@@ -36,13 +37,22 @@ public final class DocPage {
                    List<Breadcrumb> breadcrumbs, DocPage prev, DocPage next,
                    String editUrl, String sourceUrl) {
         this(componentId, version, sourcePath, sourceUri, pageId, title, navTitle, route, html,
-            breadcrumbs, prev, next, editUrl, sourceUrl, "", "");
+            breadcrumbs, prev, next, editUrl, sourceUrl, "", "", false);
     }
 
     public DocPage(String componentId, String version, String sourcePath, String sourceUri,
                    String pageId, String title, String navTitle, String route, String html,
                    List<Breadcrumb> breadcrumbs, DocPage prev, DocPage next,
                    String editUrl, String sourceUrl, String imagesDir, String sourceBaseDir) {
+        this(componentId, version, sourcePath, sourceUri, pageId, title, navTitle, route, html,
+            breadcrumbs, prev, next, editUrl, sourceUrl, imagesDir, sourceBaseDir, false);
+    }
+
+    public DocPage(String componentId, String version, String sourcePath, String sourceUri,
+                   String pageId, String title, String navTitle, String route, String html,
+                   List<Breadcrumb> breadcrumbs, DocPage prev, DocPage next,
+                   String editUrl, String sourceUrl, String imagesDir, String sourceBaseDir,
+                   boolean usesInterlisLab) {
         this.componentId = Objects.requireNonNull(componentId, "componentId is required");
         this.version = Objects.requireNonNull(version, "version is required");
         this.sourcePath = Objects.requireNonNull(sourcePath, "sourcePath is required");
@@ -59,6 +69,7 @@ public final class DocPage {
         this.sourceUrl = sourceUrl;
         this.imagesDir = imagesDir != null ? imagesDir.trim() : "";
         this.sourceBaseDir = sourceBaseDir != null ? sourceBaseDir.trim() : "";
+        this.usesInterlisLab = usesInterlisLab;
     }
 
     public String componentId() {
@@ -139,6 +150,10 @@ public final class DocPage {
      */
     public String sourceBaseDir() {
         return sourceBaseDir;
+    }
+
+    public boolean usesInterlisLab() {
+        return usesInterlisLab;
     }
 
     @Override

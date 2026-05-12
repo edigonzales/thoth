@@ -152,6 +152,31 @@ public final class TestRepoBuilder {
         return this;
     }
 
+    public TestRepoBuilder withInterlisLabInGuide() throws Exception {
+        withBasicDocs();
+
+        try (Git git = Git.open(repoDir.toFile())) {
+            Path docsDir = repoDir.resolve("docs");
+            Files.writeString(docsDir.resolve("guide.adoc"), """
+                = User Guide
+                :doctype: book
+
+                This is the user guide.
+
+                == Installation
+
+                interlis-lab::labs/simple.json[storage-key=biblios-simple,title="Simple Lab"]
+                """);
+            Files.createDirectories(docsDir.resolve("labs"));
+            Files.writeString(docsDir.resolve("labs/simple.json"), "{\"id\":\"simple\"}");
+
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Add INTERLIS lab fixture").call();
+        }
+
+        return this;
+    }
+
     /**
      * Extend the basic docs fixture with a NOTE admonition in guide.adoc.
      */

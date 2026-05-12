@@ -82,6 +82,34 @@ class BibliosSiteGeneratorPortableHtmlTest {
         assertEquals("../config/", guideLinks.get("Config sibling"));
     }
 
+    @Test
+    void rendersInterlisLabMacroWithPortableAssetUrls(@TempDir Path tempDir) throws Exception {
+        Path repoDir = tempDir.resolve("repo");
+        new TestRepoBuilder(repoDir).withInterlisLabInGuide();
+
+        Path outputDir = tempDir.resolve("site");
+        generateSite(tempDir, repoDir, outputDir);
+
+        SiteAssertions site = new SiteAssertions(outputDir);
+        site.assertFileExists("site-assets/interlis-lab/interlis-lab.js");
+        site.assertFileExists("site-assets/interlis-lab/ili2c.jar");
+        site.assertFileExists("docs/main/guide/labs/simple.json");
+
+        Document guidePage = Jsoup.parse(Files.readString(outputDir.resolve("docs/main/guide/index.html")));
+        assertEquals(
+            "../../../site-assets/interlis-lab/interlis-lab.js",
+            attr(guidePage, "script[src$='interlis-lab.js']", "src")
+        );
+        Element lab = guidePage.selectFirst("interlis-lab");
+        assertTrue(lab != null);
+        assertEquals("labs/simple.json", lab.attr("src"));
+        assertEquals("cheerpj", lab.attr("runner"));
+        assertEquals("../../../site-assets/interlis-lab/ili2c.jar", lab.attr("ili2c-jar-url"));
+
+        String indexHtml = Files.readString(outputDir.resolve("docs/main/index.html"));
+        assertFalse(indexHtml.contains("site-assets/interlis-lab/interlis-lab.js"));
+    }
+
     private void generateSite(Path tempDir, Path repoDir, Path outputDir) throws Exception {
         Path configFile = tempDir.resolve("biblios.yml");
         BibliosConfig config = new BibliosConfigBuilder()

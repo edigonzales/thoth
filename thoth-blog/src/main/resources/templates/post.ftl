@@ -1,5 +1,5 @@
 <#import "layout.ftl" as layout>
-<@layout.page pageTitle=post.title>
+<@layout.page pageTitle=post.title interlisLabEnabled=(post.usesInterlisLab)!false>
 <article class="post">
   <h1 class="post-title">${post.title?html}</h1>
   <p class="post-date">${post.date?html}</p>

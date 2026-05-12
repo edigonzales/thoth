@@ -65,6 +65,8 @@ public final class SiteGenerator implements AutoCloseable {
         "site-assets/theme.js::assets/theme.js",
         "site-assets/code-copy.js::assets/code-copy.js",
         "site-assets/image-lightbox.js::assets/image-lightbox.js",
+        "site-assets/interlis-lab/interlis-lab.js::assets/interlis-lab/interlis-lab.js",
+        "site-assets/interlis-lab/ili2c.jar::assets/interlis-lab/ili2c.jar",
         "site-assets/home-hero.jpg::assets/home-hero.jpg",
         "site-assets/search.js::assets/search.js",
         "site-assets/lunr.min.js::assets/lunr.min.js",
@@ -530,6 +532,7 @@ public final class SiteGenerator implements AutoCloseable {
         postModel.put("html", post.htmlContent());
         postModel.put("tags", tagsForTemplate(post.tags()));
         postModel.put("url", post.url());
+        postModel.put("usesInterlisLab", post.usesInterlisLab());
 
         model.put("post", postModel);
         templateService.renderToFile("post.ftl", model, outputRoot.resolve(post.outputRelativePath()));

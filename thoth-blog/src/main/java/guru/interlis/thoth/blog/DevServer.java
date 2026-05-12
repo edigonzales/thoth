@@ -135,6 +135,7 @@ public final class DevServer {
             types.put("css", "text/css; charset=utf-8");
             types.put("js", "application/javascript; charset=utf-8");
             types.put("json", "application/json; charset=utf-8");
+            types.put("jar", "application/java-archive");
             types.put("xml", "application/rss+xml; charset=utf-8");
             types.put("png", "image/png");
             types.put("jpg", "image/jpeg");

@@ -15,6 +15,7 @@ public record Post(
     String coverImage,
     String htmlContent,
     String plainText,
+    boolean usesInterlisLab,
     String url,
     String guid,
     Path outputRelativePath

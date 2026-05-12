@@ -8,6 +8,8 @@
     searchLanguageMode=(searchLanguageMode)!"multilingual_safe"
     syntaxHighlightingEnabled=(syntaxHighlightingEnabled)!true
     prismCustomComponentUrls=(prismCustomComponentUrls)![]
+    interlisLabEnabled=(interlisLabEnabled)!false
+    interlisLabScriptHref=(interlisLabScriptHref)!""
     singlePageMode=(singlePageMode)!false
     chapterBreadcrumbEnabled=(chapterBreadcrumbEnabled)!false
     initialChapterId=(initialChapterId)!"">

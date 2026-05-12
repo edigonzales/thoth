@@ -1,5 +1,7 @@
 package guru.interlis.thoth.blog;
 
+import guru.interlis.thoth.core.InterlisLabHtmlSupport;
+import guru.interlis.thoth.core.InterlisLabMacroProcessor;
 import org.asciidoctor.Asciidoctor;
 import org.asciidoctor.AttributesBuilder;
 import org.asciidoctor.OptionsBuilder;
@@ -24,6 +26,7 @@ import java.util.regex.Pattern;
 
 public final class PostParser {
     private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("^:([^:]+):\\s*(.*)$");
+    private static final String INTERLIS_LAB_ILI2C_JAR_URL = "/assets/interlis-lab/ili2c.jar";
     private static final int DEFAULT_TEASER_LENGTH = 400;
     private static final int TEASER_SENTENCE_LOOKAHEAD = 220;
 
@@ -62,12 +65,17 @@ public final class PostParser {
         Map<String, String> attributes = parseAttributes(headerLines.subList(3, headerLines.size()));
 
         String body = String.join("\n", lines.subList(secondDelimiter + 1, lines.size()));
+        InterlisLabMacroProcessor.Result interlisLabMacros = InterlisLabMacroProcessor.processHtml(
+            body,
+            new InterlisLabMacroProcessor.HtmlOptions(INTERLIS_LAB_ILI2C_JAR_URL, "", InterlisLabMacroProcessor.DEFAULT_RUNNER)
+        );
         List<Boolean> sourceBlockLineNumbers = detectSourceBlockLineNumbers(body);
-        String renderedHtml = renderAsciiDoc(body, sourceFile);
+        String renderedHtml = renderAsciiDoc(interlisLabMacros.content(), sourceFile);
         String normalizedHtml = rewriteRelativeLinks(renderedHtml, sourceRelativePath.getParent(), sourceBlockLineNumbers);
 
         Document document = Jsoup.parseBodyFragment(normalizedHtml);
         String plainText = collapseWhitespace(document.text());
+        boolean usesInterlisLab = interlisLabMacros.usesInterlisLab() || InterlisLabHtmlSupport.hasInterlisLab(normalizedHtml);
 
         String teaser = resolveTeaser(attributes.get("thoth-teaser"), plainText);
         String coverImage = resolveCover(attributes.get("thoth-cover-image"), document, sourceRelativePath.getParent());
@@ -91,6 +99,7 @@ public final class PostParser {
             coverImage,
             normalizedHtml,
             plainText,
+            usesInterlisLab,
             url,
             guid,
             outputRelativePath
@@ -146,6 +155,7 @@ public final class PostParser {
         }
 
         normalizeCodeBlocksForPrism(document, sourceBlockLineNumbers);
+        InterlisLabHtmlSupport.applyDefaultAttributes(document, INTERLIS_LAB_ILI2C_JAR_URL, "");
 
         return document.body().html();
     }

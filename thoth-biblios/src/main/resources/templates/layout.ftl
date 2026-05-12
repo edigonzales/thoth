@@ -1,4 +1,4 @@
-<#macro layout siteTitle siteLogo="" pageTitle="" basePath="." siteRootHref="./" searchPageHref="./search/" searchIndexUrl="./search-index.json" searchIndexScriptHref="" locale="en" docSwitcher=[] versionSwitcher=[] currentComponentId="" currentVersionStr="" currentVersion={} currentPagePath="" navigation={} breadcrumbs=[] prevPage={} nextPage={} searchQuery="" searchLanguageMode="multilingual_safe" syntaxHighlightingEnabled=true prismCustomComponentUrls=[] singlePageMode=false chapterBreadcrumbEnabled=false initialChapterId="">
+<#macro layout siteTitle siteLogo="" pageTitle="" basePath="." siteRootHref="./" searchPageHref="./search/" searchIndexUrl="./search-index.json" searchIndexScriptHref="" locale="en" docSwitcher=[] versionSwitcher=[] currentComponentId="" currentVersionStr="" currentVersion={} currentPagePath="" navigation={} breadcrumbs=[] prevPage={} nextPage={} searchQuery="" searchLanguageMode="multilingual_safe" syntaxHighlightingEnabled=true prismCustomComponentUrls=[] interlisLabEnabled=false interlisLabScriptHref="" singlePageMode=false chapterBreadcrumbEnabled=false initialChapterId="">
 <!DOCTYPE html>
 <html lang="${locale}">
 <head>
@@ -26,6 +26,13 @@
     <script src="${searchIndexScriptHref}" defer></script>
     </#if>
     <script src="${basePath}/site-assets/search.js" defer></script>
+    <#if interlisLabEnabled>
+        <#if interlisLabScriptHref?has_content>
+    <script type="module" src="${interlisLabScriptHref}"></script>
+        <#else>
+    <script type="module" src="${basePath}/site-assets/interlis-lab/interlis-lab.js"></script>
+        </#if>
+    </#if>
     <#if syntaxHighlightingEnabled>
     <script src="${basePath}/site-assets/prism/prism.js" defer></script>
     <script src="${basePath}/site-assets/prism-conum-bridge.js" defer></script>

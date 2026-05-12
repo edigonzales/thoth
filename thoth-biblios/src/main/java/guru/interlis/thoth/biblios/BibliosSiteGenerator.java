@@ -5,6 +5,8 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
+import guru.interlis.thoth.core.InterlisLabHtmlSupport;
+import guru.interlis.thoth.core.InterlisLabMacroProcessor;
 import guru.interlis.thoth.biblios.catalog.*;
 import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.RenderMode;
@@ -274,8 +276,11 @@ public final class BibliosSiteGenerator implements AutoCloseable {
 
         boolean singlePageMode = version.renderMode() == RenderMode.SINGLE_PAGE;
 
+        String contentHtml = rewriteContentLinks(page, version, outputFile);
+        contentHtml = prepareInterlisLabMarkup(contentHtml, outputFile);
+
         Map<String, Object> model = createCommonModel(outputFile);
-        model.put("page", pageToModel(page, rewriteContentLinks(page, version, outputFile)));
+        model.put("page", pageToModel(page, contentHtml));
         model.put("currentComponentId", component.id());
         model.put("currentVersionStr", version.version());
         model.put("currentVersion", versionToModel(version));
@@ -296,6 +301,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("sourceUrl", page.sourceUrl());
         model.put("showEditLink", config.ui() != null && config.ui().showEditLink());
         model.put("showSourceLink", config.ui() != null && config.ui().showSourceLink());
+        model.put("interlisLabEnabled", page.usesInterlisLab() || InterlisLabHtmlSupport.hasInterlisLab(contentHtml));
 
         if (page.prev() != null) {
             model.put("prevPage", pageToModel(page.prev()));
@@ -342,6 +348,31 @@ public final class BibliosSiteGenerator implements AutoCloseable {
                 Files.createDirectories(targetAsset.getParent());
                 Files.copy(sourceAsset, targetAsset, StandardCopyOption.REPLACE_EXISTING);
             }
+            for (String src : extractInterlisLabSources(page.html())) {
+                if (!isLocalRelativeAssetReference(src)) {
+                    continue;
+                }
+
+                Path sourceAsset = resolveSourceAssetPath(page, src);
+                if (sourceAsset == null || !Files.exists(sourceAsset) || !Files.isRegularFile(sourceAsset)) {
+                    System.err.println("[warn] Referenced INTERLIS Lab lesson not found: " + src + " (source page: " + page.sourcePath() + ")");
+                    continue;
+                }
+
+                Path targetAsset = pageDir.resolve(src).normalize();
+                if (!targetAsset.startsWith(versionRoot)) {
+                    System.err.println("[warn] Skipping unsafe INTERLIS Lab lesson target path: " + src + " (source page: " + page.sourcePath() + ")");
+                    continue;
+                }
+
+                String dedupeKey = sourceAsset.toAbsolutePath().normalize() + "->" + targetAsset.toAbsolutePath().normalize();
+                if (!copiedTargets.add(dedupeKey)) {
+                    continue;
+                }
+
+                Files.createDirectories(targetAsset.getParent());
+                Files.copy(sourceAsset, targetAsset, StandardCopyOption.REPLACE_EXISTING);
+            }
         }
     }
 
@@ -374,6 +405,21 @@ public final class BibliosSiteGenerator implements AutoCloseable {
                 if (!normalized.isEmpty()) {
                     sources.add(normalized);
                 }
+            }
+        }
+        return sources;
+    }
+
+    private static List<String> extractInterlisLabSources(String html) {
+        if (html == null || html.isBlank()) {
+            return List.of();
+        }
+        List<String> sources = new ArrayList<>();
+        Document document = Jsoup.parseBodyFragment(html);
+        for (Element lab : document.select("interlis-lab[src]")) {
+            String src = lab.attr("src").trim();
+            if (!src.isEmpty()) {
+                sources.add(src);
             }
         }
         return sources;
@@ -484,6 +530,25 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         }
 
         return changed ? document.body().html() : page.html();
+    }
+
+    private String prepareInterlisLabMarkup(String html, Path outputFile) {
+        if (html == null || html.isBlank() || !InterlisLabHtmlSupport.hasInterlisLab(html)) {
+            return html != null ? html : "";
+        }
+
+        String ili2cJarUrl = assetHref(basePathForOutput(outputFile), "site-assets/interlis-lab/ili2c.jar");
+        Document document = Jsoup.parseBodyFragment(html);
+        boolean changed = false;
+        for (Element lab : document.select("interlis-lab")) {
+            String current = lab.attr("ili2c-jar-url").trim();
+            if (current.isEmpty() || InterlisLabMacroProcessor.ILI2C_JAR_URL_PLACEHOLDER.equals(current)) {
+                lab.attr("ili2c-jar-url", ili2cJarUrl);
+                changed = true;
+            }
+        }
+
+        return changed ? document.body().html() : html;
     }
 
     private String rewriteContentHref(String href, DocPage currentPage, ComponentVersion version,
@@ -897,6 +962,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "styles.css");
         copyAsset(assetsDest, "lunr.min.js");
         copyAsset(assetsDest, "search.js");
+        copyAsset(assetsDest, "interlis-lab/interlis-lab.js");
+        copyAsset(assetsDest, "interlis-lab/ili2c.jar");
         if (uiSyntaxHighlightingEnabled()) {
             copyAsset(assetsDest, "prism-overrides.css");
             copyPrismAssets(assetsDest);
@@ -918,6 +985,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("searchLanguageMode", uiSearchLanguageMode());
         model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
         model.put("prismCustomComponentUrls", uiPrismCustomComponentHrefs(basePath));
+        model.put("interlisLabEnabled", false);
+        model.put("interlisLabScriptHref", assetHref(basePath, "site-assets/interlis-lab/interlis-lab.js"));
         return model;
     }
 

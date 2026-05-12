@@ -240,6 +240,57 @@ public class SiteGeneratorIntegrationTest {
         assertFalse(themeJs.contains("watch override marker"));
     }
 
+    @Test
+    public void rendersInterlisLabMacroAndLoadsScriptOnlyForLabPosts() throws Exception {
+        Path input = Files.createTempDirectory("thoth-input");
+        Path output = Files.createTempDirectory("thoth-output");
+
+        write(input.resolve("thoth.properties"), """
+            site.title=Lab Blog
+            site.description=Demo feed
+            site.baseUrl=https://example.com
+            site.language=en-gb
+            site.dateFormat=yyyy-MM-dd
+            """);
+        write(input.resolve("blog/2026/lab-post.adoc"), """
+            ---
+            = Lab Post
+            Alice Author
+            2026-05-12
+            ---
+            interlis-lab::labs/simple.json[storage-key=blog-simple,title="Simple Lab"]
+            """);
+        write(input.resolve("blog/2026/plain-post.adoc"), """
+            ---
+            = Plain Post
+            Alice Author
+            2026-05-13
+            ---
+            Plain content.
+            """);
+        write(input.resolve("blog/2026/labs/simple.json"), "{\"id\":\"simple\"}");
+
+        try (SiteGenerator generator = new SiteGenerator(input, output)) {
+            generator.buildAll(true);
+        }
+
+        assertTrue(Files.exists(output.resolve("assets/interlis-lab/interlis-lab.js")));
+        assertTrue(Files.exists(output.resolve("assets/interlis-lab/ili2c.jar")));
+        assertTrue(Files.exists(output.resolve("2026/labs/simple.json")));
+
+        String labHtml = Files.readString(output.resolve("2026/lab-post/index.html"), StandardCharsets.UTF_8);
+        Document labDoc = Jsoup.parse(labHtml);
+        Element lab = labDoc.selectFirst("interlis-lab");
+        assertNotNull(lab);
+        assertEquals("/2026/labs/simple.json", lab.attr("src"));
+        assertEquals("cheerpj", lab.attr("runner"));
+        assertEquals("/assets/interlis-lab/ili2c.jar", lab.attr("ili2c-jar-url"));
+        assertEquals("/assets/interlis-lab/interlis-lab.js", labDoc.selectFirst("script[type=module]").attr("src"));
+
+        String plainHtml = Files.readString(output.resolve("2026/plain-post/index.html"), StandardCharsets.UTF_8);
+        assertFalse(plainHtml.contains("assets/interlis-lab/interlis-lab.js"));
+    }
+
     private void assertCommonSiteArtifacts(Path output) throws Exception {
         assertTrue(Files.exists(output.resolve("2026/post-one/index.html")));
         assertTrue(Files.exists(output.resolve("2026/post-two/index.html")));
@@ -260,6 +311,8 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("assets/theme.js")));
         assertTrue(Files.exists(output.resolve("assets/code-copy.js")));
         assertTrue(Files.exists(output.resolve("assets/image-lightbox.js")));
+        assertTrue(Files.exists(output.resolve("assets/interlis-lab/interlis-lab.js")));
+        assertTrue(Files.exists(output.resolve("assets/interlis-lab/ili2c.jar")));
         assertTrue(Files.exists(output.resolve("assets/home-hero.jpg")));
         assertFalse(Files.exists(output.resolve("assets/home-hero.png")));
         assertTrue(Files.exists(output.resolve("assets/search.js")));

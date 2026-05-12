@@ -107,6 +107,8 @@ public final class SiteAssertions {
         assertFileExists("site-assets/styles.css");
         assertFileExists("site-assets/lunr.min.js");
         assertFileExists("site-assets/search.js");
+        assertFileExists("site-assets/interlis-lab/interlis-lab.js");
+        assertFileExists("site-assets/interlis-lab/ili2c.jar");
     }
 
     /**

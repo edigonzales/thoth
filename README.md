@@ -90,6 +90,23 @@ HTML reports: `<module>/build/reports/jacoco/test/html/index.html`
 
 ## Input Structures
 
+### INTERLIS Lab
+
+Blog posts and Biblios pages can embed the bundled Interlis Lab web component:
+
+```asciidoc
+interlis-lab::labs/simple.json[storage-key=simple-lab,title="Simple Lab"]
+```
+
+The macro emits `<interlis-lab>` only for HTML output. Thoth copies the bundled component runtime to
+`assets/interlis-lab/` for Blog and `site-assets/interlis-lab/` for Biblios, injects the module
+script only on pages that use a lab, and copies referenced lesson JSON files next to the generated
+page. Refresh the vendored runtime from the sibling component repo with:
+
+```bash
+scripts/update-interlis-lab-assets.sh
+```
+
 ### thoth-blog
 
 Input root with required content directory plus optional theme overrides:

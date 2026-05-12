@@ -24,7 +24,7 @@
   </nav>
 </#macro>
 
-<#macro page pageTitle pageClass="" homeHero=false heroTitle="">
+<#macro page pageTitle pageClass="" homeHero=false heroTitle="" interlisLabEnabled=false>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,6 +64,9 @@
   <script src="/assets/image-lightbox.js" defer></script>
   <script src="/assets/lunr.min.js" defer></script>
   <script src="/assets/search.js" defer></script>
+  <#if interlisLabEnabled>
+  <script type="module" src="/assets/interlis-lab/interlis-lab.js"></script>
+  </#if>
 </head>
 <body<#if pageClass?has_content> class="${pageClass?html}"</#if>>
   <#if !homeHero>

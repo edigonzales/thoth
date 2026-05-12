@@ -270,7 +270,8 @@ public final class CatalogBuilder implements AutoCloseable {
             editUrl,
             sourceUrl,
             rendered.imagesDir(),
-            rendered.baseDir()
+            rendered.baseDir(),
+            rendered.usesInterlisLab()
         );
 
         return new ComponentVersion(
@@ -320,6 +321,7 @@ public final class CatalogBuilder implements AutoCloseable {
                 String baseDir = filePath.getParent() != null
                     ? filePath.getParent().toAbsolutePath().normalize().toString()
                     : "";
+                boolean usesInterlisLab = false;
                 try {
                     AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
                         filePath,
@@ -328,6 +330,7 @@ public final class CatalogBuilder implements AutoCloseable {
                     );
                     imagesDir = rendered.imagesDir();
                     baseDir = rendered.baseDir();
+                    usesInterlisLab = rendered.usesInterlisLab();
                     html = rendered.html();
                     if (html == null || html.isEmpty()) {
                         // Fallback to raw content if renderer returns empty
@@ -369,7 +372,8 @@ public final class CatalogBuilder implements AutoCloseable {
                     editUrl,
                     sourceUrl,
                     imagesDir,
-                    baseDir
+                    baseDir,
+                    usesInterlisLab
                 );
                 pages.add(page);
             }
@@ -644,7 +648,8 @@ public final class CatalogBuilder implements AutoCloseable {
                 page.pageId(), page.title(), page.navTitle(), page.route(), page.html(),
                 page.breadcrumbs(), prev, next,
                 page.editUrl(), page.sourceUrl(),
-                page.imagesDir(), page.sourceBaseDir()
+                page.imagesDir(), page.sourceBaseDir(),
+                page.usesInterlisLab()
             );
             pages.set(i, updated);
             pageMap.put(orderedPaths.get(i), updated);
