@@ -285,6 +285,14 @@ def configureCliModule = { Project proj ->
     }
 }
 
+// ---- thoth-core ----
+project(':thoth-core') {
+    dependencies {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.14.2'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+}
+
 // ---- thoth-blog ----
 project(':thoth-blog') {
     apply plugin: 'application'

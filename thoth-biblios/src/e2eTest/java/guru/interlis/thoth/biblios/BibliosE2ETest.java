@@ -810,6 +810,21 @@ class BibliosE2ETest {
         );
         assertEquals(200, cssResponse.statusCode());
         assertTrue(cssResponse.body().contains("body") || cssResponse.body().contains("."));
+
+        // CheerpJ requires HTTP byte ranges for JAR resources loaded from /app/.
+        HttpResponse<byte[]> jarRangeResponse = client.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/site-assets/interlis-lab/ili2c.jar"))
+                .header("Range", "bytes=0-15")
+                .timeout(Duration.ofSeconds(5))
+                .build(),
+            HttpResponse.BodyHandlers.ofByteArray()
+        );
+        assertEquals(206, jarRangeResponse.statusCode());
+        assertEquals("bytes", header(jarRangeResponse, "accept-ranges"));
+        assertTrue(header(jarRangeResponse, "content-range").startsWith("bytes 0-15/"));
+        assertEquals("16", header(jarRangeResponse, "content-length"));
+        assertEquals(16, jarRangeResponse.body().length);
     }
 
     /**
@@ -1198,6 +1213,10 @@ class BibliosE2ETest {
                 return new String(in.readAllBytes(), StandardCharsets.UTF_8);
             }
         }
+    }
+
+    private String header(HttpResponse<?> response, String name) {
+        return response.headers().firstValue(name).orElse("");
     }
 
     private int findFreePort() {
