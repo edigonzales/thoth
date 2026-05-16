@@ -631,6 +631,105 @@ class BibliosIntegrationTest {
     }
 
     @Test
+    void copiesConfigRelativeAssetOverridesAfterBundledAssets() throws Exception {
+        Path repoDir = tempDir.resolve("html-assets-repo");
+        Path workRoot = tempDir.resolve("work-html-assets");
+        Path outputRoot = tempDir.resolve("output-html-assets");
+        Path configFile = tempDir.resolve("html-assets-biblios.yml");
+        Path assetsDir = tempDir.resolve("assets");
+        Path fontDir = assetsDir.resolve("fonts/MyFont");
+        Path logoDir = tempDir.resolve("branding");
+        Path explicitLogo = logoDir.resolve("logo.svg");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+        Files.createDirectories(fontDir);
+        Files.createDirectories(logoDir);
+        Files.writeString(assetsDir.resolve("styles.css"), """
+            @font-face {
+              font-family: "MyFont";
+              src: url("./fonts/MyFont/MyFont.woff2") format("woff2");
+            }
+            :root { --font-body: "MyFont", sans-serif; }
+            """);
+        Files.writeString(fontDir.resolve("MyFont.woff2"), "font-bytes");
+        Files.writeString(assetsDir.resolve("site-logo.svg"), "<svg id=\"asset-logo\"></svg>");
+        Files.writeString(explicitLogo, "<svg id=\"explicit-logo\"></svg>");
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("HTML Asset Overrides")
+            .withSiteLogo("branding/logo.svg")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot, configFile)) {
+                generator.generate();
+            }
+        }
+
+        String styles = Files.readString(outputRoot.resolve("site-assets/styles.css"));
+        assertTrue(styles.contains("font-family: \"MyFont\";"));
+        assertTrue(styles.contains("./fonts/MyFont/MyFont.woff2"));
+        assertEquals("font-bytes", Files.readString(outputRoot.resolve("site-assets/fonts/MyFont/MyFont.woff2")));
+        String logo = Files.readString(outputRoot.resolve("site-assets/site-logo.svg"));
+        assertTrue(logo.contains("explicit-logo"));
+        assertFalse(logo.contains("asset-logo"));
+    }
+
+    @Test
+    void usesConfigRelativeTemplateOverridesWithBundledFallbacks() throws Exception {
+        Path repoDir = tempDir.resolve("html-template-repo");
+        Path workRoot = tempDir.resolve("work-html-template");
+        Path outputRoot = tempDir.resolve("output-html-template");
+        Path configFile = tempDir.resolve("html-template-biblios.yml");
+        Path templatesDir = tempDir.resolve("templates");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+        Files.createDirectories(templatesDir);
+        Files.writeString(templatesDir.resolve("index.ftl"), """
+            <!doctype html>
+            <html>
+            <body>
+            <main id="template-override-marker">${siteTitle}</main>
+            </body>
+            </html>
+            """);
+
+        new TestRepoBuilder(repoDir).withBasicDocs();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("HTML Template Overrides")
+            .withOutputDir(outputRoot)
+            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "main")
+            .writeTo(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot, configFile)) {
+                generator.generate();
+            }
+        }
+
+        String homePage = Files.readString(outputRoot.resolve("index.html"));
+        assertTrue(homePage.contains("template-override-marker"));
+        assertTrue(homePage.contains("HTML Template Overrides"));
+
+        String docPage = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(docPage.contains("site-assets/styles.css"));
+        assertTrue(docPage.contains("My Documentation"));
+    }
+
+    @Test
     void copiesReferencedRelativeImagesInSplitMode() throws Exception {
         Path repoDir = tempDir.resolve("split-images-repo");
         Path workRoot = tempDir.resolve("work-split-images");

@@ -4,10 +4,11 @@ import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.SourceConfig;
 
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.nio.file.Path;
 
 public final class ServeWatchSupport {
     private ServeWatchSupport() {
@@ -82,6 +83,27 @@ public final class ServeWatchSupport {
             }
         }
         return false;
+    }
+
+    static boolean isHtmlCustomizationPath(Path configPath, Path changedPath) {
+        if (configPath == null || changedPath == null) {
+            return false;
+        }
+        Path configDirectory = configDirectory(configPath);
+        if (configDirectory == null) {
+            return false;
+        }
+        Path normalizedChangedPath = changedPath.toAbsolutePath().normalize();
+        return normalizedChangedPath.startsWith(configDirectory.resolve("assets").normalize())
+            || normalizedChangedPath.startsWith(configDirectory.resolve("templates").normalize());
+    }
+
+    private static Path configDirectory(Path configPath) {
+        Path normalized = configPath.toAbsolutePath().normalize();
+        if (Files.isDirectory(normalized)) {
+            return normalized;
+        }
+        return normalized.getParent();
     }
 
     private static boolean isRemoteUrl(String value) {

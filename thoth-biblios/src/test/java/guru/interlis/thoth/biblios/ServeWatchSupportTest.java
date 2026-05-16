@@ -111,4 +111,25 @@ class ServeWatchSupportTest {
         assertTrue(ServeWatchSupport.shouldIgnoreRepoMetadataChange(Path.of(".git/index")));
         assertFalse(ServeWatchSupport.shouldIgnoreRepoMetadataChange(Path.of("/tmp/repo/docs/index.adoc")));
     }
+
+    @Test
+    void detectsHtmlCustomizationPaths(@TempDir Path tempDir) throws Exception {
+        Path configFile = tempDir.resolve("biblios.yml");
+        Path assetFile = tempDir.resolve("assets/styles.css");
+        Path templateFile = tempDir.resolve("templates/layout.ftl");
+        Path contentFile = tempDir.resolve("docs/index.adoc");
+
+        Files.createDirectories(assetFile.getParent());
+        Files.createDirectories(templateFile.getParent());
+        Files.createDirectories(contentFile.getParent());
+        Files.writeString(configFile, "site:\n  title: Test\n");
+        Files.writeString(assetFile, "body { color: red; }");
+        Files.writeString(templateFile, "<html></html>");
+        Files.writeString(contentFile, "= Index\n");
+
+        assertTrue(ServeWatchSupport.isHtmlCustomizationPath(configFile, assetFile));
+        assertTrue(ServeWatchSupport.isHtmlCustomizationPath(configFile, templateFile));
+        assertFalse(ServeWatchSupport.isHtmlCustomizationPath(configFile, contentFile));
+        assertFalse(ServeWatchSupport.isHtmlCustomizationPath(configFile, configFile));
+    }
 }

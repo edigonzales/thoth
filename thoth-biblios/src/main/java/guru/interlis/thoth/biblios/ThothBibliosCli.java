@@ -178,7 +178,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
                 System.out.println("[info] Catalog built: " + catalog.components().size() + " components");
 
                 // Generate site
-                try (BibliosSiteGenerator generator = new BibliosSiteGenerator(bibliosConfig, catalog, outputDir)) {
+                try (BibliosSiteGenerator generator = new BibliosSiteGenerator(bibliosConfig, catalog, outputDir, config)) {
                     generator.generate(generateHtml, generatePdf, selectedPdfVersions(), generateDocx, selectedDocxVersions());
                 }
             }
@@ -357,12 +357,15 @@ public final class ThothBibliosCli implements Callable<Integer> {
                 configDirectory = Path.of(".").toAbsolutePath();
             }
             InputWatcher watcher = new InputWatcher(configDirectory, (changedPath, eventType) -> {
-                if (changedPath.toAbsolutePath().normalize().equals(configFile) &&
-                    !rebuilding.getAndSet(true)) {
-                    System.out.println("[info] Config changed (" + eventType + "), full rebuild...");
+                boolean configChanged = changedPath.toAbsolutePath().normalize().equals(configFile);
+                boolean htmlCustomizationChanged = ServeWatchSupport.isHtmlCustomizationPath(configFile, changedPath);
+                if ((configChanged || htmlCustomizationChanged) && !rebuilding.getAndSet(true)) {
+                    boolean fetchEnabled = configChanged;
+                    String reason = configChanged ? "Config" : "HTML customization";
+                    System.out.println("[info] " + reason + " changed (" + eventType + "), full rebuild...");
                     try {
                         ServeState updatedState = doFullBuild(
-                            configPath, outputOverride, workRoot, false, useLocalWorkingTree, true
+                            configPath, outputOverride, workRoot, fetchEnabled, useLocalWorkingTree, true
                         );
                         serveState.set(updatedState);
                         refreshLocalSourceWatchers(
@@ -464,7 +467,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
                 DocComponent updatedComponent = catalogBuilder.buildComponent(source);
                 SiteCatalog updatedCatalog = state.catalog().withReplacedComponent(updatedComponent);
                 try (BibliosSiteGenerator generator = new BibliosSiteGenerator(
-                    state.config(), updatedCatalog, state.outputDir()
+                    state.config(), updatedCatalog, state.outputDir(), state.configFile()
                 )) {
                     generator.regenerateComponent(updatedComponent);
                     generator.regenerateGlobalArtifacts();
@@ -492,7 +495,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
                 SiteCatalog catalog = catalogBuilder.build();
                 System.out.println("[info] Catalog: " + catalog.components().size() + " components");
 
-                try (BibliosSiteGenerator generator = new BibliosSiteGenerator(bibliosConfig, catalog, outputDir)) {
+                try (BibliosSiteGenerator generator = new BibliosSiteGenerator(bibliosConfig, catalog, outputDir, configPath)) {
                     generator.generate();
                 }
                 System.out.println("[info] Build complete.");

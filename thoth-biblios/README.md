@@ -549,6 +549,134 @@ If `display_version` is not specified, the branch name is used as-is.
 
 When a document already defines `:revnumber:`, the Biblios config value wins (config override).
 
+## HTML Customization
+
+Biblios supports config-relative HTML overrides next to `biblios.yml`. This affects the generated HTML site only.
+
+```text
+project/
+  biblios.yml
+  assets/      # optional: copied to output/site-assets/
+  templates/   # optional: FreeMarker template overrides
+```
+
+### Asset Overrides
+
+Bundled assets are copied first, then `assets/` is copied recursively over them. Files in `assets/` therefore override bundled files with the same output path.
+
+Examples:
+
+| Input file | Output file | Effect |
+|------------|-------------|--------|
+| `assets/styles.css` | `site-assets/styles.css` | Replaces the default Biblios stylesheet |
+| `assets/fonts/MyFont/MyFont.woff2` | `site-assets/fonts/MyFont/MyFont.woff2` | Adds a webfont file |
+| `assets/custom.css` | `site-assets/custom.css` | Copies an extra stylesheet; it must still be linked from a template |
+
+Common build and editor directories inside `assets/` are skipped (`.git`, `.hg`, `.svn`, `.idea`, `.vscode`, `node_modules`, `build`, `target`, `.gradle`), as is `.DS_Store`.
+
+If `site.logo` is configured, that explicit logo is copied after asset overrides and wins over any `assets/site-logo.*` file.
+
+### Replacing the Default CSS
+
+The simplest customization is replacing the default stylesheet:
+
+```text
+project/
+  biblios.yml
+  assets/
+    styles.css
+```
+
+The generated HTML already links `site-assets/styles.css`, so no template override is needed.
+
+### Custom Fonts
+
+Example custom font in `assets/styles.css`:
+
+```css
+@font-face {
+  font-family: "MyFont";
+  src: url("./fonts/MyFont/MyFont.woff2") format("woff2");
+}
+
+:root {
+  --font-body: "MyFont", sans-serif;
+}
+```
+
+Font URLs in `styles.css` are relative to `site-assets/`, because the stylesheet is emitted as `site-assets/styles.css`.
+
+The bundled Biblios stylesheet exposes font-related CSS variables such as `--font-body`, `--font-navbar`, `--font-sidebar-toc`, `--font-chapter-headings`, `--font-index-page`, `--font-breadcrumb`, and `--font-conum`.
+
+### Template Overrides
+
+`templates/` overrides bundled FreeMarker templates selectively; missing templates fall back to bundled defaults. Copy only the template you need to change.
+
+Available bundled templates:
+
+| Template | Purpose |
+|----------|---------|
+| `layout.ftl` | Shared HTML shell, `<head>`, stylesheet/script links, header, search form, sidebar layout |
+| `index.ftl` | Global start page |
+| `component.ftl` | Component landing page |
+| `page.ftl` | Documentation content page |
+| `search.ftl` | Search page |
+| `sidebar-nav.ftl` | Recursive sidebar navigation rendering |
+
+In a source checkout, the originals are under:
+
+```text
+thoth-biblios/src/main/resources/templates/
+```
+
+In a packaged JAR, they are classpath resources under `templates/`. You can inspect or extract them with:
+
+```bash
+jar tf thoth-biblios-<version>-all.jar | grep '^templates/'
+jar xf thoth-biblios-<version>-all.jar templates/layout.ftl
+```
+
+Then copy the file into your project:
+
+```text
+project/
+  biblios.yml
+  templates/
+    layout.ftl
+```
+
+Template overrides are full replacements, not partial patches. If you override `layout.ftl`, keep the `layout` macro signature compatible with the bundled version, because `index.ftl`, `component.ftl`, `page.ftl`, and `search.ftl` import and call it.
+
+### Loading an Extra Stylesheet
+
+To load an additional stylesheet without replacing `styles.css`, add the asset and override `layout.ftl`:
+
+```text
+project/
+  biblios.yml
+  assets/
+    custom.css
+  templates/
+    layout.ftl
+```
+
+In `templates/layout.ftl`, add the extra `<link>` after the default stylesheet links:
+
+```ftl
+<link rel="stylesheet" href="${basePath}/site-assets/styles.css">
+<link rel="stylesheet" href="${basePath}/site-assets/custom.css">
+```
+
+Use `${basePath}` for local site assets so links work from nested pages such as `/<component>/<version>/guide/`.
+
+### Development Server
+
+`thoth-biblios serve` watches `biblios.yml` plus config-relative `assets/` and `templates/`. Changes in `assets/` or `templates/` trigger a clean HTML rebuild without fetching Git content again.
+
+### Compatibility Note
+
+The template model is currently an implementation-level extension point. It is useful for site-specific customization, but template variables and macro signatures can change between Thoth versions. Prefer CSS overrides when possible, and template overrides only when CSS alone is not enough.
+
 ### Examples
 
 ```yaml

@@ -1,6 +1,9 @@
 package guru.interlis.thoth.biblios;
 
 import freemarker.cache.ClassTemplateLoader;
+import freemarker.cache.FileTemplateLoader;
+import freemarker.cache.MultiTemplateLoader;
+import freemarker.cache.TemplateLoader;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
@@ -18,12 +21,15 @@ import org.jsoup.nodes.Element;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.regex.Matcher;
 
@@ -31,9 +37,22 @@ import java.util.regex.Matcher;
  * Generates the HTML site from a SiteCatalog.
  */
 public final class BibliosSiteGenerator implements AutoCloseable {
+    private static final String TEMPLATE_OVERRIDES_DIR_NAME = "templates";
+    private static final String ASSET_OVERRIDES_DIR_NAME = "assets";
     private static final int SEARCH_MAX_SECTION_LEVEL = 4;
     private static final java.util.regex.Pattern IMG_SRC_PATTERN =
         java.util.regex.Pattern.compile("<img\\b[^>]*\\bsrc\\s*=\\s*(['\"])(.*?)\\1", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final Set<String> DEFAULT_EXCLUDED_DIRECTORIES = Set.of(
+        ".git",
+        ".hg",
+        ".svn",
+        ".idea",
+        ".vscode",
+        "node_modules",
+        "build",
+        "target",
+        ".gradle"
+    );
     private static final List<String> PRISM_BUNDLED_ASSETS = List.of(
         "prism-conum-bridge.js",
         "prism/prism.css",
@@ -69,22 +88,57 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private final BibliosConfig config;
     private final SiteCatalog catalog;
     private final Path outputRoot;
+    private final Path configDirectory;
+    private final Path templateOverrideRoot;
+    private final Path assetOverrideRoot;
     private final Configuration freemarker;
     private String siteLogo;
 
     public BibliosSiteGenerator(BibliosConfig config, SiteCatalog catalog, Path outputRoot) {
+        this(config, catalog, outputRoot, null);
+    }
+
+    public BibliosSiteGenerator(BibliosConfig config, SiteCatalog catalog, Path outputRoot, Path configPath) {
         this.config = config;
         this.catalog = catalog;
         this.outputRoot = outputRoot;
+        this.configDirectory = resolveConfigDirectory(configPath);
+        this.templateOverrideRoot = configDirectory != null ? configDirectory.resolve(TEMPLATE_OVERRIDES_DIR_NAME) : null;
+        this.assetOverrideRoot = configDirectory != null ? configDirectory.resolve(ASSET_OVERRIDES_DIR_NAME) : null;
         this.siteLogo = resolveConfiguredLogoReference();
 
         // Initialize FreeMarker
         freemarker = new Configuration(Configuration.VERSION_2_3_34);
-        freemarker.setTemplateLoader(new ClassTemplateLoader(getClass(), "/templates"));
+        freemarker.setTemplateLoader(createTemplateLoader());
         freemarker.setDefaultEncoding(StandardCharsets.UTF_8.name());
         freemarker.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
         freemarker.setLogTemplateExceptions(false);
         freemarker.setWrapUncheckedExceptions(true);
+    }
+
+    private Path resolveConfigDirectory(Path configPath) {
+        if (configPath == null) {
+            return null;
+        }
+        Path normalized = configPath.toAbsolutePath().normalize();
+        if (Files.isDirectory(normalized)) {
+            return normalized;
+        }
+        Path parent = normalized.getParent();
+        return parent != null ? parent : Path.of(".").toAbsolutePath().normalize();
+    }
+
+    private TemplateLoader createTemplateLoader() {
+        TemplateLoader bundled = new ClassTemplateLoader(getClass(), "/templates");
+        if (templateOverrideRoot == null || !Files.isDirectory(templateOverrideRoot)) {
+            return bundled;
+        }
+        try {
+            TemplateLoader overrides = new FileTemplateLoader(templateOverrideRoot.toFile());
+            return new MultiTemplateLoader(new TemplateLoader[] {overrides, bundled});
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to initialize template override directory " + templateOverrideRoot, e);
+        }
     }
 
     /**
@@ -969,6 +1023,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
             copyPrismAssets(assetsDest);
             copyPrismCustomComponents(assetsDest);
         }
+        copyAssetOverrides(assetsDest);
         siteLogo = copyConfiguredLogoAsset(assetsDest);
     }
 
@@ -1046,6 +1101,65 @@ public final class BibliosSiteGenerator implements AutoCloseable {
             Files.createDirectories(target.getParent());
             Files.copy(stream, target, StandardCopyOption.REPLACE_EXISTING);
         }
+    }
+
+    private void copyAssetOverrides(Path assetsDest) throws IOException {
+        if (assetOverrideRoot == null || !Files.isDirectory(assetOverrideRoot)) {
+            return;
+        }
+        Path normalizedAssetsDest = assetsDest.toAbsolutePath().normalize();
+        Files.walkFileTree(assetOverrideRoot, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                if (assetOverrideRoot.equals(dir)) {
+                    return FileVisitResult.CONTINUE;
+                }
+                if (shouldSkipAssetOverrideDirectory(dir)) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                if (attrs.isSymbolicLink()) {
+                    return FileVisitResult.CONTINUE;
+                }
+                Path relativePath = assetOverrideRoot.relativize(file).normalize();
+                if (!isSafeRelativePath(relativePath) || shouldSkipAssetOverrideFile(relativePath)) {
+                    return FileVisitResult.CONTINUE;
+                }
+                Path target = assetsDest.resolve(relativePath).toAbsolutePath().normalize();
+                if (!target.startsWith(normalizedAssetsDest)) {
+                    throw new IOException("Asset override target escapes site-assets: " + relativePath);
+                }
+                Files.createDirectories(target.getParent());
+                Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    private boolean shouldSkipAssetOverrideDirectory(Path dir) {
+        Path name = dir.getFileName();
+        return name != null && DEFAULT_EXCLUDED_DIRECTORIES.contains(name.toString());
+    }
+
+    private boolean shouldSkipAssetOverrideFile(Path relativePath) {
+        Path fileName = relativePath.getFileName();
+        return fileName != null && ".DS_Store".equals(fileName.toString());
+    }
+
+    private boolean isSafeRelativePath(Path relativePath) {
+        if (relativePath == null || relativePath.isAbsolute()) {
+            return false;
+        }
+        for (Path part : relativePath) {
+            if ("..".equals(part.toString())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void copyPrismAssets(Path assetsDest) throws IOException {
