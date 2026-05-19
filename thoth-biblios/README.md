@@ -576,6 +576,19 @@ Common build and editor directories inside `assets/` are skipped (`.git`, `.hg`,
 
 If `site.logo` is configured, that explicit logo is copied after asset overrides and wins over any `assets/site-logo.*` file.
 
+### Bundled Interlis Lab Assets
+
+Biblios always writes the bundled Interlis Lab runtime to `site-assets/interlis-lab/interlis-lab.js` and `site-assets/interlis-lab/ili2c.jar` in the generated HTML output.
+
+That does **not** mean every generated page loads those files automatically. The module script for `interlis-lab.js` is injected only on pages whose rendered content actually contains an `interlis-lab`. As a result, `ili2c.jar` is also not requested by every standard page, but only indirectly through the web component on pages that use it.
+
+In practice, the web server may expose these assets globally, while ordinary pages do not reference them unless needed.
+
+Example:
+
+- Home page or component index without a lab: no `interlis-lab.js` script is embedded.
+- Content page with `interlis-lab::labs/simple.json[...]`: the page embeds `site-assets/interlis-lab/interlis-lab.js`, and the generated `interlis-lab` element gets an `ili2c-jar-url` pointing to `site-assets/interlis-lab/ili2c.jar`.
+
 ### Replacing the Default CSS
 
 The simplest customization is replacing the default stylesheet:
