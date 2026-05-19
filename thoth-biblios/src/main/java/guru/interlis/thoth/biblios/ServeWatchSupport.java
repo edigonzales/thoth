@@ -85,6 +85,26 @@ public final class ServeWatchSupport {
         return false;
     }
 
+    static boolean shouldIgnoreLocalSourceChange(Path configPath, Path outputDir, Path workRoot, Path changedPath) {
+        if (changedPath == null) {
+            return false;
+        }
+        Path normalizedChangedPath = changedPath.toAbsolutePath().normalize();
+        if (shouldIgnoreRepoMetadataChange(normalizedChangedPath)) {
+            return true;
+        }
+        if (configPath != null && normalizedChangedPath.equals(configPath.toAbsolutePath().normalize())) {
+            return true;
+        }
+        if (isHtmlCustomizationPath(configPath, normalizedChangedPath)) {
+            return true;
+        }
+        if (outputDir != null && normalizedChangedPath.startsWith(outputDir.toAbsolutePath().normalize())) {
+            return true;
+        }
+        return workRoot != null && normalizedChangedPath.startsWith(workRoot.toAbsolutePath().normalize());
+    }
+
     static boolean isHtmlCustomizationPath(Path configPath, Path changedPath) {
         if (configPath == null || changedPath == null) {
             return false;

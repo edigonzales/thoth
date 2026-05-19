@@ -113,6 +113,37 @@ class ServeWatchSupportTest {
     }
 
     @Test
+    void ignoresLocalSourceChangesThatBelongToServeInfrastructure(@TempDir Path tempDir) throws Exception {
+        Path configFile = tempDir.resolve("biblios.yml");
+        Path outputDir = tempDir.resolve("build/site");
+        Path workRoot = tempDir.resolve(".thoth/cache");
+        Path assetFile = tempDir.resolve("assets/custom.css");
+        Path templateFile = tempDir.resolve("templates/layout.ftl");
+        Path outputFile = outputDir.resolve("index.html");
+        Path cacheFile = workRoot.resolve("repos/demo/index.adoc");
+        Path contentFile = tempDir.resolve("docs/index.adoc");
+
+        Files.createDirectories(assetFile.getParent());
+        Files.createDirectories(templateFile.getParent());
+        Files.createDirectories(outputFile.getParent());
+        Files.createDirectories(cacheFile.getParent());
+        Files.createDirectories(contentFile.getParent());
+        Files.writeString(configFile, "site:\n  title: Test\n");
+        Files.writeString(assetFile, "body { color: red; }");
+        Files.writeString(templateFile, "<html></html>");
+        Files.writeString(outputFile, "<html></html>");
+        Files.writeString(cacheFile, "= Cached\n");
+        Files.writeString(contentFile, "= Index\n");
+
+        assertTrue(ServeWatchSupport.shouldIgnoreLocalSourceChange(configFile, outputDir, workRoot, configFile));
+        assertTrue(ServeWatchSupport.shouldIgnoreLocalSourceChange(configFile, outputDir, workRoot, assetFile));
+        assertTrue(ServeWatchSupport.shouldIgnoreLocalSourceChange(configFile, outputDir, workRoot, templateFile));
+        assertTrue(ServeWatchSupport.shouldIgnoreLocalSourceChange(configFile, outputDir, workRoot, outputFile));
+        assertTrue(ServeWatchSupport.shouldIgnoreLocalSourceChange(configFile, outputDir, workRoot, cacheFile));
+        assertFalse(ServeWatchSupport.shouldIgnoreLocalSourceChange(configFile, outputDir, workRoot, contentFile));
+    }
+
+    @Test
     void detectsHtmlCustomizationPaths(@TempDir Path tempDir) throws Exception {
         Path configFile = tempDir.resolve("biblios.yml");
         Path assetFile = tempDir.resolve("assets/styles.css");

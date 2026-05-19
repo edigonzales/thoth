@@ -398,11 +398,16 @@ public final class ThothBibliosCli implements Callable<Integer> {
                     continue;
                 }
                 InputWatcher watcher = new InputWatcher(root, (changedPath, eventType) -> {
-                    if (ServeWatchSupport.shouldIgnoreRepoMetadataChange(changedPath)) {
-                        return;
-                    }
                     ServeState currentState = serveState.get();
                     if (currentState == null) {
+                        return;
+                    }
+                    if (ServeWatchSupport.shouldIgnoreLocalSourceChange(
+                        currentState.configFile(),
+                        currentState.outputDir(),
+                        workRoot,
+                        changedPath
+                    )) {
                         return;
                     }
                     String sourceId = ServeWatchSupport.findChangedSourceId(currentState.localSourceRootsById(), changedPath);

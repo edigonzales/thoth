@@ -9,7 +9,7 @@ apply from: "$rootDir/gradle/versioning.gradle"
 
 group = 'guru.interlis'
 
-def interlisLabVersion = providers.gradleProperty('interlisLabVersion').orElse('0.1.2').get()
+def interlisLabVersion = providers.gradleProperty('interlisLabVersion').orElse('0.1.10').get()
 def interlisLabPackageMetadataUrl = providers.gradleProperty('interlisLabPackageMetadataUrl')
     .orElse('https://codeberg.org/api/packages/edigonzales/npm/@edigonzales%2Finterlis-lab-web-component')
     .get()
