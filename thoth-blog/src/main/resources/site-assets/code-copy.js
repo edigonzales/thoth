@@ -68,13 +68,31 @@
     return button;
   }
 
+  function ensureCodeBlockShell(pre) {
+    const parent = pre.parentElement;
+    if (!parent) {
+      return null;
+    }
+
+    if (parent.classList.contains("code-block-shell")) {
+      return parent;
+    }
+
+    const shell = document.createElement("div");
+    shell.className = "code-block-shell";
+    parent.insertBefore(shell, pre);
+    shell.appendChild(pre);
+    return shell;
+  }
+
   function attachCopyButton(pre) {
-    if (pre.querySelector(".code-copy-button")) {
+    const code = pre.querySelector("code");
+    if (!code) {
       return;
     }
 
-    const code = pre.querySelector("code");
-    if (!code) {
+    const shell = ensureCodeBlockShell(pre);
+    if (!shell || shell.querySelector(".code-copy-button")) {
       return;
     }
 
@@ -91,7 +109,7 @@
       }
     });
 
-    pre.appendChild(button);
+    shell.appendChild(button);
   }
 
   function initCopyButtons() {

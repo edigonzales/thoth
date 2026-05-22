@@ -356,6 +356,8 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(lightCss.contains("font-size: 0.95em;"));
         assertTrue(lightCss.contains("background-color: #f2f2f2;"));
         assertTrue(lightCss.contains("--code-bg: #f2f2f2;"));
+        assertTrue(lightCss.contains(".code-block-shell {\n  position: relative;\n  margin: 0.5em 0;\n}"));
+        assertTrue(lightCss.contains(".code-block-shell > pre[class*=\"language-\"] {\n  margin: 0;\n  padding-top: 2.1rem;\n}"));
         assertTrue(lightCss.contains(".code-copy-button {"));
         assertTrue(lightCss.contains(".teaser {"));
         assertTrue(lightCss.contains("line-height: 1.6;"));
@@ -446,6 +448,8 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(darkCss.contains(".post-content :not(pre) > code {"));
         assertTrue(darkCss.contains("font-size: 0.95em;"));
         assertTrue(darkCss.contains("background-color: var(--code-inline-bg);"));
+        assertTrue(darkCss.contains(".code-block-shell {\n  position: relative;\n  margin: 0.5em 0;\n}"));
+        assertTrue(darkCss.contains(".code-block-shell > pre[class*=\"language-\"] {\n  margin: 0;\n  padding-top: 2.1rem;\n}"));
         assertTrue(darkCss.contains(".code-copy-button {"));
         assertTrue(darkCss.contains(".teaser {"));
         assertTrue(darkCss.contains("line-height: 1.68;"));
@@ -686,6 +690,8 @@ public class SiteGeneratorIntegrationTest {
         String codeCopyJs = Files.readString(output.resolve("assets/code-copy.js"), StandardCharsets.UTF_8);
         assertTrue(codeCopyJs.contains("bi bi-copy"));
         assertTrue(codeCopyJs.contains("bi bi-check"));
+        assertTrue(codeCopyJs.contains("ensureCodeBlockShell"));
+        assertTrue(codeCopyJs.contains("code-block-shell"));
         assertTrue(codeCopyJs.contains("setTemporarySuccessState"));
         assertTrue(codeCopyJs.contains("window.setTimeout"));
 
