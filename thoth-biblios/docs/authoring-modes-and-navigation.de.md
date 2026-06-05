@@ -126,6 +126,56 @@ Die Kurzfassung lautet also:
 - `nav.yml` ist in `split` optional
 - `nav.yml` ist in `single_page` operativ irrelevant
 
+## Projektübergreifende Links
+
+Biblios unterscheidet zwischen:
+
+- Links auf eine andere Seite innerhalb derselben Component/Version
+- Links auf eine Route in einer anderen Component
+
+### Was zuverlässig funktioniert
+
+Für projektübergreifende Links innerhalb derselben Biblios-Site sollte man explizite Biblios-Routen mit `link:` verwenden.
+
+Beispiele für Ziele im `split`-Modus:
+
+```adoc
+link:/zielprojekt/main/guide/[Guide]
+link:/zielprojekt/main/guide/#konfiguration[Konfiguration]
+```
+
+Beispiel für ein Ziel im `single_page`-Modus:
+
+```adoc
+link:/zielprojekt/main/#konfiguration[Konfiguration]
+```
+
+In diesen Beispielen gilt:
+
+- `zielprojekt` ist die `source.id` des Zielprojekts in `biblios.yml`
+- `main` ist die Zielversion beziehungsweise der Ziel-Branch im Biblios-Routing
+- `#konfiguration` ist ein expliziter Abschnitts-Anchor im Zieldokument
+
+Für stabile Abschnittslinks sollte man im Ziel explizite Anchors setzen:
+
+```adoc
+[#konfiguration]
+== Konfiguration
+```
+
+### Was projektübergreifend nicht aufgelöst wird
+
+Relative AsciiDoc-`xref`-Verweise werden nur innerhalb der aktuellen Component/Version aufgelöst.
+
+Deshalb sind diese Formen für projektübergreifende Navigation nicht geeignet:
+
+```adoc
+xref:../zielprojekt/guide.adoc[]
+xref:guide.adoc[]
+```
+
+Das zweite Beispiel ist nur dann korrekt, wenn `guide.adoc` zur aktuellen Component/Version gehört.
+
 ## Ist Eine Dokumenttitelzeile (`= ...`) Pflicht?
 
 Kurzantwort: nein, technisch nicht in jedem Fall, praktisch aber oft schon.

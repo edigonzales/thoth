@@ -126,6 +126,56 @@ So the short answer is:
 - `nav.yml` is optional in `split`
 - `nav.yml` is operationally irrelevant in `single_page`
 
+## Cross-Project Links
+
+Biblios distinguishes between:
+
+- links that target another page inside the same component/version
+- links that target a route in another component
+
+### What works reliably
+
+For cross-project links inside the same Biblios site, prefer explicit Biblios routes with `link:`.
+
+Examples for `split` targets:
+
+```adoc
+link:/target-project/main/guide/[Guide]
+link:/target-project/main/guide/#configuration[Configuration]
+```
+
+Example for a `single_page` target:
+
+```adoc
+link:/target-project/main/#configuration[Configuration]
+```
+
+In these examples:
+
+- `target-project` is the target `source.id` from `biblios.yml`
+- `main` is the target version/branch in Biblios routing
+- `#configuration` is an explicit section anchor in the target document
+
+For stable section links, prefer explicit anchors in the target content:
+
+```adoc
+[#configuration]
+== Configuration
+```
+
+### What does not resolve across projects
+
+Relative AsciiDoc cross references are only resolved within the current component/version.
+
+These are therefore the wrong tool for cross-project navigation:
+
+```adoc
+xref:../target-project/guide.adoc[]
+xref:guide.adoc[]
+```
+
+The second example is valid only when `guide.adoc` belongs to the current component/version.
+
 ## Is a Document Title Line (`= ...`) Mandatory?
 
 Short answer: no, not technically in every case, but often yes in practice.
