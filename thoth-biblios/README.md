@@ -342,8 +342,8 @@ Each entry defines a Git repository as a documentation source.
 | `branches` | Yes | List of branches to publish as versions (see below) |
 | `start_path` | Yes | Relative path inside the repo where documentation root is located |
 | `default_version` | Yes | Which version to show when navigating to `/<id>/` without explicit version |
-| `navigation.file` | Yes | Navigation file name relative to `start_path`. Must be `nav.yml` in MVP |
-| `start_page` | No | Start page filename relative to `start_path`. Default: `index.adoc` |
+| `navigation.file` | No | Navigation file path relative to `start_path`. In `split`, Biblios uses it when present and valid; on missing/invalid nav it falls back to recursive `.adoc` discovery. Ignored in `single_page`. |
+| `start_page` | No | Start page filename relative to `start_path`. Default: `index.adoc`. In `split`, this becomes the version root route and is auto-added if the file exists but is missing from nav. In `single_page`, it does not choose the rendered source document. |
 | `revnumber` | No | Controls Asciidoctor `revnumber` attribute. `true` uses `branches[].display_version`, string uses explicit value, `false`/unset sets nothing. |
 | `render_mode` | No | Rendering mode. Allowed values: `split`, `single_page`. Default: `split` |
 | `master_file` | Conditionally | Required when `render_mode: single_page`. Path to the AsciiDoc master file under `start_path` |
@@ -356,6 +356,8 @@ Each entry defines a Git repository as a documentation source.
 | `docx.master_file` | No | Optional DOCX-specific master file under `start_path`. |
 | `docx.reference_doc` | No | Source-specific `.docx` template override. |
 | `docx.features.*` | No | Source-specific feature overrides (`title_page`, `toc`, `change_log`). |
+
+For the practical interaction between `render_mode`, `nav.yml`, `start_page`, `master_file`, numbering, title lines, and `doctype`, see [docs/authoring-modes-and-navigation.md](docs/authoring-modes-and-navigation.md). A German translation is available at [docs/authoring-modes-and-navigation.de.md](docs/authoring-modes-and-navigation.de.md).
 
 For `render_mode: single_page`, chapter entries with `[unnumbered]` are hidden from the sidebar TOC by default.  
 If you want an unnumbered chapter to be shown (for example appendices like `Anhang A - ...`), add role `[.appendix]` to that section:
@@ -445,7 +447,9 @@ items:
 - `page` paths are relative to the `start_path` in `biblios.yml`
 - Nesting depth is unlimited
 - Only `.adoc` files referenced in `nav.yml` are included in the navigation sidebar
-- Pages that exist as `.adoc` files but are NOT in `nav.yml` are still rendered but not linked from the sidebar
+- In current `split` builds with a valid `nav.yml`, Biblios builds the pages referenced in nav, plus `start_page` if it exists and is missing from nav
+
+For a behavior-focused explanation of `nav.yml`, `split` fallback discovery, `single_page`, numbering, title lines, and `doctype`, see [docs/authoring-modes-and-navigation.md](docs/authoring-modes-and-navigation.md). A German translation is available at [docs/authoring-modes-and-navigation.de.md](docs/authoring-modes-and-navigation.de.md).
 
 ## URL Schema
 
