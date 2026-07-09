@@ -78,6 +78,7 @@ public final class SiteGenerator implements AutoCloseable {
         "site-assets/prism/components/prism-css.min.js::assets/prism/components/prism-css.min.js",
         "site-assets/prism/components/prism-ini.min.js::assets/prism/components/prism-ini.min.js",
         "site-assets/prism/components/prism-interlis.js::assets/prism/components/prism-interlis.js",
+        "site-assets/prism/components/prism-ilimap.js::assets/prism/components/prism-ilimap.js",
         "site-assets/prism/components/prism-java.min.js::assets/prism/components/prism-java.min.js",
         "site-assets/prism/components/prism-typescript.min.js::assets/prism/components/prism-typescript.min.js",
         "site-assets/prism/components/prism-json.min.js::assets/prism/components/prism-json.min.js",

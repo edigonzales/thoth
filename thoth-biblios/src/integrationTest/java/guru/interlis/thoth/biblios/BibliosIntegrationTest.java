@@ -410,6 +410,7 @@ class BibliosIntegrationTest {
         assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/prism.js")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/prism-overrides.css")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/components/prism-interlis.js")));
+        assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/components/prism-ilimap.js")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/plugins/toolbar/prism-toolbar.min.css")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/plugins/toolbar/prism-toolbar.min.js")));
         assertTrue(Files.exists(outputRoot.resolve("site-assets/prism/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js")));
@@ -548,6 +549,7 @@ class BibliosIntegrationTest {
         assertTrue(indexPage.contains("/site-assets/prism/prism.js"));
         assertTrue(indexPage.contains("/site-assets/prism-overrides.css"));
         assertTrue(indexPage.contains("/site-assets/prism/components/prism-interlis.js"));
+        assertTrue(indexPage.contains("/site-assets/prism/components/prism-ilimap.js"));
         assertTrue(indexPage.contains("/site-assets/prism/plugins/toolbar/prism-toolbar.min.css"));
         assertTrue(indexPage.contains("/site-assets/prism/plugins/toolbar/prism-toolbar.min.js"));
         assertTrue(indexPage.contains("/site-assets/prism/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"));

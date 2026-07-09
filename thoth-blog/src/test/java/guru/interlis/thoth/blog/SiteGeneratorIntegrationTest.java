@@ -321,6 +321,7 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("assets/prism/prism.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/components/prism-ini.min.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/components/prism-interlis.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/components/prism-ilimap.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/components/prism-javascript.min.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/components/prism-css.min.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/components/prism-java.min.js")));
@@ -661,6 +662,7 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(postHtml.contains("/assets/prism/prism.css"));
         assertTrue(postHtml.contains("/assets/prism/prism.js"));
         assertTrue(postHtml.contains("/assets/prism/components/prism-interlis.js"));
+        assertTrue(postHtml.contains("/assets/prism/components/prism-ilimap.js"));
         assertTrue(postHtml.contains("/assets/prism/plugins/line-highlight/prism-line-highlight.min.js"));
         assertTrue(postHtml.contains("/assets/prism/plugins/line-numbers/prism-line-numbers.min.js"));
         assertTrue(postHtml.contains("/assets/code-copy.js"));

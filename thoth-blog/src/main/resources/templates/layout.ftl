@@ -47,6 +47,7 @@
   <script src="/assets/prism/components/prism-css.min.js" defer></script>
   <script src="/assets/prism/components/prism-ini.min.js" defer></script>
   <script src="/assets/prism/components/prism-interlis.js" defer></script>
+  <script src="/assets/prism/components/prism-ilimap.js" defer></script>
   <script src="/assets/prism/components/prism-java.min.js" defer></script>
   <script src="/assets/prism/components/prism-typescript.min.js" defer></script>
   <script src="/assets/prism/components/prism-json.min.js" defer></script>

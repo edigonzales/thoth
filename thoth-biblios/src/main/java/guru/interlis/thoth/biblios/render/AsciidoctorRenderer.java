@@ -38,6 +38,7 @@ import java.util.regex.Pattern;
  */
 public final class AsciidoctorRenderer implements AutoCloseable {
     static final String BUNDLED_INTERLIS_ROUGE_LEXER = "ruby/interlis_rouge_lexer.rb";
+    static final String BUNDLED_ILIMAP_ROUGE_LEXER = "ruby/ilimap_rouge_lexer.rb";
 
     private static final String DEFAULT_LANGUAGE = "en";
     private static final Set<String> STANDALONE_MARKERS = Set.of("*", "§", "※", "✱", "✶", "✳");
@@ -66,7 +67,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     public AsciidoctorRenderer(boolean loadBundledRubyRequires) {
         this(
             Asciidoctor.Factory.create(),
-            loadBundledRubyRequires ? List.of(BUNDLED_INTERLIS_ROUGE_LEXER) : List.of()
+            loadBundledRubyRequires ? List.of(BUNDLED_INTERLIS_ROUGE_LEXER, BUNDLED_ILIMAP_ROUGE_LEXER) : List.of()
         );
     }
 
