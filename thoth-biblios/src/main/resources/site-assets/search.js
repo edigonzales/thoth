@@ -684,7 +684,13 @@
       for (const item of items) {
         let currentPath = ancestors;
         const children = Array.from(item.children);
-        const chapterLink = children.find((child) => child.matches(".nav-link[data-chapter-id]"));
+        let chapterLink = children.find((child) => child.matches(".nav-link[data-chapter-id]"));
+        if (!chapterLink) {
+          const navEntry = children.find((child) => child.matches(".nav-entry"));
+          if (navEntry) {
+            chapterLink = navEntry.querySelector(".nav-link[data-chapter-id]");
+          }
+        }
 
         if (chapterLink) {
           const chapterId = (chapterLink.dataset.chapterId || "").trim();
