@@ -310,8 +310,8 @@ a:hover { text-decoration: underline; }
     padding-left: 1rem;
 }
 
-body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible > .nav-entry > .nav-link,
-body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible > .nav-entry > .nav-group {
+body[data-single-page-mode="true"] .sidebar-nav .nav-item > .nav-entry > .nav-link,
+body[data-single-page-mode="true"] .sidebar-nav .nav-item > .nav-entry > .nav-group {
     flex: 1;
     min-width: 0;
 }
@@ -355,6 +355,19 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-coll
 
 body[data-single-page-mode="true"] .sidebar-nav .nav-item.is-collapsible.is-collapsed > .nav-subtree {
     display: none;
+}
+
+body[data-single-page-mode="true"] .sidebar-nav .nav-toggle--leaf {
+    cursor: default;
+}
+
+body[data-single-page-mode="true"] .sidebar-nav .nav-toggle--leaf:hover {
+    background: transparent;
+}
+
+body[data-single-page-mode="true"] .sidebar-nav .nav-toggle-chevron--leaf {
+    opacity: 0.25;
+    transform: rotate(-45deg);
 }
 
 /* Content */

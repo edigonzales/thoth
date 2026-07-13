@@ -11,7 +11,8 @@
             </#if>
             <#assign hasChildren = item.children?has_content && item.children?size gt 0>
             <#assign isTopLevel = level == 0>
-            <#assign isCollapsible = singlePageSidebar && isTopLevel && hasChildren>
+            <#assign hasEntryWrapper = singlePageSidebar && isTopLevel>
+            <#assign isCollapsible = hasEntryWrapper && hasChildren>
             <#assign childrenId = "nav-children-" + itemKey>
 
             <li class="nav-item<#if (item.group)!false> has-children</#if><#if isCollapsible> is-collapsible</#if>">
@@ -33,6 +34,20 @@
                         <#else>
                             <span class="nav-group">${item.title}</span>
                         </#if>
+                    </div>
+                <#elseif hasEntryWrapper && item.page?has_content>
+                    <div class="nav-entry">
+                        <button type="button"
+                                class="nav-toggle nav-toggle--leaf"
+                                aria-hidden="true"
+                                tabindex="-1">
+                            <span class="nav-toggle-chevron nav-toggle-chevron--leaf" aria-hidden="true"></span>
+                        </button>
+                        <a href="${basePath}${item.route}"
+                           class="nav-link<#if (currentPagePath!'__none__') == item.page> active</#if><#if (item.chapter)!false> chapter-link</#if>"
+                           <#if item.chapterId?? && item.chapterId?has_content>data-chapter-id="${item.chapterId}" data-chapter-title="${(item.chapterTitle)!item.title}"</#if>>
+                            ${item.title}
+                        </a>
                     </div>
                 <#elseif item.page?has_content>
                     <a href="${basePath}${item.route}"
