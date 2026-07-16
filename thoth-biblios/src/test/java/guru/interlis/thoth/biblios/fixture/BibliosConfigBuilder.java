@@ -31,6 +31,7 @@ public final class BibliosConfigBuilder {
     private Integer sidebarTocDepth = null;
     private String contentToc = null;
     private String contentSectionNumbers = null;
+    private Integer contentSectionNumberDepth = null;
     private String syntaxHighlightingMode = null;
     private final ArrayList<String> prismCustomComponents = new ArrayList<>();
     private boolean pdfEnabled = false;
@@ -109,6 +110,11 @@ public final class BibliosConfigBuilder {
 
     public BibliosConfigBuilder withContentSectionNumbers(String mode) {
         this.contentSectionNumbers = mode;
+        return this;
+    }
+
+    public BibliosConfigBuilder withContentSectionNumberDepth(int depth) {
+        this.contentSectionNumberDepth = depth;
         return this;
     }
 
@@ -242,7 +248,8 @@ public final class BibliosConfigBuilder {
 
         StringBuilder uiSection = new StringBuilder();
         if (showEditLink || showSourceLink || versionSwitchMode != null || searchLanguageMode != null
-            || sidebarTocDepth != null || contentToc != null || contentSectionNumbers != null || syntaxHighlightingMode != null
+            || sidebarTocDepth != null || contentToc != null || contentSectionNumbers != null
+            || contentSectionNumberDepth != null || syntaxHighlightingMode != null
             || !prismCustomComponents.isEmpty()) {
             uiSection.append("ui:\n");
             uiSection.append("  show_edit_link: %s\n".formatted(showEditLink));
@@ -261,6 +268,9 @@ public final class BibliosConfigBuilder {
             }
             if (contentSectionNumbers != null) {
                 uiSection.append("  content_section_numbers: %s\n".formatted(contentSectionNumbers));
+            }
+            if (contentSectionNumberDepth != null) {
+                uiSection.append("  content_section_number_depth: %s\n".formatted(contentSectionNumberDepth));
             }
             if (syntaxHighlightingMode != null) {
                 uiSection.append("  syntax_highlighting: %s\n".formatted(syntaxHighlightingMode));

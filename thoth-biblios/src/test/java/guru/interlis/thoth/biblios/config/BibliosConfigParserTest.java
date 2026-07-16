@@ -627,6 +627,83 @@ class BibliosConfigParserTest {
 
         BibliosConfig config = parser.parse(file);
         assertEquals(ContentSectionNumbersMode.ON, config.ui().contentSectionNumbers());
+        assertEquals(6, config.ui().contentSectionNumberDepth());
+    }
+
+    @Test
+    void parsesContentSectionNumberDepth(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              content_section_number_depth: 3
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("content-section-number-depth.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals(3, config.ui().contentSectionNumberDepth());
+    }
+
+    @Test
+    void rejectsContentSectionNumberDepthOutsideAllowedRange(@TempDir Path tempDir) throws IOException {
+        for (int depth : List.of(0, 7)) {
+            String yaml = """
+                site:
+                  title: Test
+                output:
+                  dir: build
+                ui:
+                  content_section_number_depth: %d
+                content:
+                  sources:
+                    - id: test
+                      display_name: Test
+                      url: https://example.git
+                      branches:
+                        - name: main
+                """.formatted(depth);
+            Path file = tempDir.resolve("invalid-content-section-number-depth-" + depth + ".yml");
+            Files.writeString(file, yaml);
+
+            ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+            assertTrue(ex.getMessage().contains("ui.content_section_number_depth"));
+            assertTrue(ex.getMessage().contains("1..6"));
+        }
+    }
+
+    @Test
+    void rejectsNonNumericContentSectionNumberDepth(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            ui:
+              content_section_number_depth: deep
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("invalid-content-section-number-depth-text.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("ui.content_section_number_depth"));
+        assertTrue(ex.getMessage().contains("Expected integer"));
     }
 
     @Test

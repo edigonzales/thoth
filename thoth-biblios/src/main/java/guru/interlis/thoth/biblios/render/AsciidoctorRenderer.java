@@ -108,7 +108,12 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             String normalizedHtml = normalizeCodeBlocksForPrism(html);
             String title = document.getDoctitle();
             List<Heading> headings = resolvedOptions.collectHeadings()
-                ? extractHeadings(document, resolvedOptions.headingDepth(), resolvedOptions.sectionNumbers())
+                ? extractHeadings(
+                    document,
+                    resolvedOptions.headingDepth(),
+                    resolvedOptions.sectionNumbers(),
+                    resolvedOptions.sectionNumberDepth()
+                )
                 : List.of();
             boolean usesInterlisLab = interlisLabMacros.usesInterlisLab()
                 || InterlisLabHtmlSupport.hasInterlisLab(normalizedHtml);
@@ -272,7 +277,7 @@ public final class AsciidoctorRenderer implements AutoCloseable {
 
         if (options.sectionNumbers()) {
             attributes.attribute("sectnums", "");
-            attributes.attribute("sectnumlevels", "6");
+            attributes.attribute("sectnumlevels", Integer.toString(options.sectionNumberDepth()));
         } else {
             attributes.attribute("sectnums!", "");
         }
@@ -723,10 +728,15 @@ public final class AsciidoctorRenderer implements AutoCloseable {
     }
 
     private List<Heading> extractHeadings(Document document, int maxDepth) {
-        return extractHeadings(document, maxDepth, true);
+        return extractHeadings(document, maxDepth, true, 6);
     }
 
     private List<Heading> extractHeadings(Document document, int maxDepth, boolean sectionNumbersEnabled) {
+        return extractHeadings(document, maxDepth, sectionNumbersEnabled, 6);
+    }
+
+    private List<Heading> extractHeadings(Document document, int maxDepth, boolean sectionNumbersEnabled,
+                                          int sectionNumberDepth) {
         List<Section> topSections = childSections(document);
         if (topSections.isEmpty()) {
             return List.of();
@@ -738,10 +748,12 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             .orElse(1);
 
         int depth = Math.max(1, Math.min(6, maxDepth));
-        return mapSections(topSections, minLevel, depth, sectionNumbersEnabled);
+        int numberDepth = Math.max(1, Math.min(6, sectionNumberDepth));
+        return mapSections(topSections, minLevel, depth, sectionNumbersEnabled, numberDepth);
     }
 
-    private List<Heading> mapSections(List<Section> sections, int minLevel, int maxDepth, boolean sectionNumbersEnabled) {
+    private List<Heading> mapSections(List<Section> sections, int minLevel, int maxDepth,
+                                      boolean sectionNumbersEnabled, int sectionNumberDepth) {
         List<Heading> result = new ArrayList<>();
         int index = 0;
         for (Section section : sections) {
@@ -762,10 +774,16 @@ public final class AsciidoctorRenderer implements AutoCloseable {
                 id = slug.isBlank() ? "section-" + normalizedLevel + "-" + index : slug;
             }
 
-            String sectionNumber = normalizeSectionNumber(section);
-            boolean unnumbered = isUnnumberedSection(section, sectionNumbersEnabled);
+            String sectionNumber = normalizedLevel <= sectionNumberDepth
+                ? normalizeSectionNumber(section)
+                : "";
+            boolean unnumbered = isUnnumberedSection(
+                section, sectionNumbersEnabled, normalizedLevel, sectionNumberDepth
+            );
             boolean appendix = isAppendixSection(section);
-            List<Heading> children = mapSections(childSections(section), minLevel, maxDepth, sectionNumbersEnabled);
+            List<Heading> children = mapSections(
+                childSections(section), minLevel, maxDepth, sectionNumbersEnabled, sectionNumberDepth
+            );
             result.add(new Heading(id, title, normalizedLevel, sectionNumber, unnumbered, appendix, List.copyOf(children)));
         }
         return result;
@@ -808,12 +826,13 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         return normalized;
     }
 
-    private boolean isUnnumberedSection(Section section, boolean sectionNumbersEnabled) {
+    private boolean isUnnumberedSection(Section section, boolean sectionNumbersEnabled,
+                                        int normalizedLevel, int sectionNumberDepth) {
         if (section == null) {
             return false;
         }
 
-        if (sectionNumbersEnabled && !section.isNumbered()) {
+        if (sectionNumbersEnabled && normalizedLevel <= sectionNumberDepth && !section.isNumbered()) {
             return true;
         }
 
@@ -833,14 +852,29 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         boolean contentToc,
         boolean collectHeadings,
         int headingDepth,
+        int sectionNumberDepth,
         String language
     ) {
+        private static final int DEFAULT_SECTION_NUMBER_DEPTH = 6;
+
+        public RenderOptions(boolean sectionNumbers, boolean contentToc, boolean collectHeadings,
+                             int headingDepth, String language) {
+            this(
+                sectionNumbers,
+                contentToc,
+                collectHeadings,
+                headingDepth,
+                DEFAULT_SECTION_NUMBER_DEPTH,
+                language
+            );
+        }
+
         public static RenderOptions legacyDefaults() {
             return legacyDefaults(DEFAULT_LANGUAGE);
         }
 
         public static RenderOptions legacyDefaults(String language) {
-            return new RenderOptions(true, true, false, 2, normalizeLanguage(language));
+            return new RenderOptions(true, true, false, 2, DEFAULT_SECTION_NUMBER_DEPTH, normalizeLanguage(language));
         }
 
         public static RenderOptions split(boolean contentToc) {
@@ -852,7 +886,14 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         }
 
         public static RenderOptions split(boolean sectionNumbers, boolean contentToc, String language) {
-            return new RenderOptions(sectionNumbers, contentToc, false, 2, normalizeLanguage(language));
+            return split(sectionNumbers, contentToc, DEFAULT_SECTION_NUMBER_DEPTH, language);
+        }
+
+        public static RenderOptions split(boolean sectionNumbers, boolean contentToc,
+                                          int sectionNumberDepth, String language) {
+            return new RenderOptions(
+                sectionNumbers, contentToc, false, 2, sectionNumberDepth, normalizeLanguage(language)
+            );
         }
 
         public static RenderOptions singlePage(boolean contentToc, int headingDepth) {
@@ -864,7 +905,14 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         }
 
         public static RenderOptions singlePage(boolean sectionNumbers, boolean contentToc, int headingDepth, String language) {
-            return new RenderOptions(sectionNumbers, contentToc, true, headingDepth, normalizeLanguage(language));
+            return singlePage(sectionNumbers, contentToc, headingDepth, DEFAULT_SECTION_NUMBER_DEPTH, language);
+        }
+
+        public static RenderOptions singlePage(boolean sectionNumbers, boolean contentToc, int headingDepth,
+                                               int sectionNumberDepth, String language) {
+            return new RenderOptions(
+                sectionNumbers, contentToc, true, headingDepth, sectionNumberDepth, normalizeLanguage(language)
+            );
         }
     }
 

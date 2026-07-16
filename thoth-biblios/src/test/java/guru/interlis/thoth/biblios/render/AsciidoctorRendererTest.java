@@ -350,6 +350,41 @@ class AsciidoctorRendererTest {
     }
 
     @Test
+    void limitsSectionNumberingToConfiguredDepth(@TempDir Path tempDir) throws Exception {
+        Path adoc = tempDir.resolve("numbering-depth.adoc");
+        Files.writeString(adoc, """
+            = Manual
+            :doctype: book
+
+            == Level One
+
+            === Level Two
+
+            ==== Level Three
+
+            ===== Level Four
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
+                adoc,
+                AsciidoctorRenderer.RenderOptions.singlePage(true, false, 6, 3, "en")
+            );
+
+            AsciidoctorRenderer.Heading levelOne = rendered.headings().get(0);
+            AsciidoctorRenderer.Heading levelTwo = levelOne.children().get(0);
+            AsciidoctorRenderer.Heading levelThree = levelTwo.children().get(0);
+            AsciidoctorRenderer.Heading levelFour = levelThree.children().get(0);
+
+            assertEquals("1", levelOne.sectionNumber());
+            assertEquals("1.1", levelTwo.sectionNumber());
+            assertEquals("1.1.1", levelThree.sectionNumber());
+            assertTrue(levelFour.sectionNumber().isBlank());
+            assertFalse(levelFour.unnumbered());
+        }
+    }
+
+    @Test
     void rendersSplitDocumentWithoutSectionNumbersWhenDisabled(@TempDir Path tempDir) throws Exception {
         Path adoc = tempDir.resolve("split.adoc");
         Files.writeString(adoc, """

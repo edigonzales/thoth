@@ -219,6 +219,7 @@ public final class CatalogBuilder implements AutoCloseable {
 
         boolean contentToc = ui != null && ui.contentToc().isEnabled();
         boolean sectionNumbers = ui == null || ui.contentSectionNumbers().isEnabled();
+        int sectionNumberDepth = ui != null ? ui.contentSectionNumberDepth() : 6;
         int headingDepth = ui != null ? ui.sidebarTocDepth() : 2;
         String renderLanguage = config.site().defaultLanguage();
 
@@ -227,7 +228,9 @@ public final class CatalogBuilder implements AutoCloseable {
             Map<String, Object> renderAttributes = resolveRenderAttributes(source, branch);
             rendered = renderer.renderDocument(
                 masterPath,
-                AsciidoctorRenderer.RenderOptions.singlePage(sectionNumbers, contentToc, headingDepth, renderLanguage),
+                AsciidoctorRenderer.RenderOptions.singlePage(
+                    sectionNumbers, contentToc, headingDepth, sectionNumberDepth, renderLanguage
+                ),
                 renderAttributes
             );
         }
@@ -308,6 +311,7 @@ public final class CatalogBuilder implements AutoCloseable {
         try (AsciidoctorRenderer renderer = new AsciidoctorRenderer(true)) {
             boolean contentToc = ui != null && ui.contentToc().isEnabled();
             boolean sectionNumbers = ui == null || ui.contentSectionNumbers().isEnabled();
+            int sectionNumberDepth = ui != null ? ui.contentSectionNumberDepth() : 6;
             String renderLanguage = config.site().defaultLanguage();
             Map<String, Object> renderAttributes = resolveRenderAttributes(source, branch);
             for (String pagePath : pagePaths) {
@@ -331,7 +335,9 @@ public final class CatalogBuilder implements AutoCloseable {
                 try {
                     AsciidoctorRenderer.RenderedDocument rendered = renderer.renderDocument(
                         filePath,
-                        AsciidoctorRenderer.RenderOptions.split(sectionNumbers, contentToc, renderLanguage),
+                        AsciidoctorRenderer.RenderOptions.split(
+                            sectionNumbers, contentToc, sectionNumberDepth, renderLanguage
+                        ),
                         renderAttributes
                     );
                     imagesDir = rendered.imagesDir();

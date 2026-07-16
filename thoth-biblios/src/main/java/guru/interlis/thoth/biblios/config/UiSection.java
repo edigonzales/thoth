@@ -17,6 +17,7 @@ public final class UiSection {
     private final int sidebarTocDepth;
     private final ContentTocMode contentToc;
     private final ContentSectionNumbersMode contentSectionNumbers;
+    private final int contentSectionNumberDepth;
     private final SyntaxHighlightingMode syntaxHighlightingMode;
     private final List<String> prismCustomComponents;
 
@@ -25,7 +26,7 @@ public final class UiSection {
                      VersionSwitchMode versionSwitchMode, SearchLanguageMode searchLanguageMode) {
         this(theme, showVersionBadge, showEditLink, showSourceLink, editUrlPattern, sourceUrlPattern,
             versionSwitchMode, searchLanguageMode, 2, ContentTocMode.OFF,
-            ContentSectionNumbersMode.ON, SyntaxHighlightingMode.PRISM, List.of());
+            ContentSectionNumbersMode.ON, 6, SyntaxHighlightingMode.PRISM, List.of());
     }
 
     public UiSection(String theme, boolean showVersionBadge, boolean showEditLink,
@@ -34,7 +35,7 @@ public final class UiSection {
                      int sidebarTocDepth, ContentTocMode contentToc) {
         this(theme, showVersionBadge, showEditLink, showSourceLink, editUrlPattern, sourceUrlPattern,
             versionSwitchMode, searchLanguageMode, sidebarTocDepth, contentToc,
-            ContentSectionNumbersMode.ON, SyntaxHighlightingMode.PRISM, List.of());
+            ContentSectionNumbersMode.ON, 6, SyntaxHighlightingMode.PRISM, List.of());
     }
 
     public UiSection(String theme, boolean showVersionBadge, boolean showEditLink,
@@ -42,6 +43,17 @@ public final class UiSection {
                      VersionSwitchMode versionSwitchMode, SearchLanguageMode searchLanguageMode,
                      int sidebarTocDepth, ContentTocMode contentToc,
                      ContentSectionNumbersMode contentSectionNumbers,
+                     SyntaxHighlightingMode syntaxHighlightingMode, List<String> prismCustomComponents) {
+        this(theme, showVersionBadge, showEditLink, showSourceLink, editUrlPattern, sourceUrlPattern,
+            versionSwitchMode, searchLanguageMode, sidebarTocDepth, contentToc,
+            contentSectionNumbers, 6, syntaxHighlightingMode, prismCustomComponents);
+    }
+
+    public UiSection(String theme, boolean showVersionBadge, boolean showEditLink,
+                     boolean showSourceLink, String editUrlPattern, String sourceUrlPattern,
+                     VersionSwitchMode versionSwitchMode, SearchLanguageMode searchLanguageMode,
+                     int sidebarTocDepth, ContentTocMode contentToc,
+                     ContentSectionNumbersMode contentSectionNumbers, int contentSectionNumberDepth,
                      SyntaxHighlightingMode syntaxHighlightingMode, List<String> prismCustomComponents) {
         this.theme = theme != null ? theme : "default";
         this.showVersionBadge = showVersionBadge;
@@ -54,6 +66,7 @@ public final class UiSection {
         this.sidebarTocDepth = Math.max(1, Math.min(6, sidebarTocDepth));
         this.contentToc = contentToc != null ? contentToc : ContentTocMode.OFF;
         this.contentSectionNumbers = contentSectionNumbers != null ? contentSectionNumbers : ContentSectionNumbersMode.ON;
+        this.contentSectionNumberDepth = Math.max(1, Math.min(6, contentSectionNumberDepth));
         this.syntaxHighlightingMode = syntaxHighlightingMode != null ? syntaxHighlightingMode : SyntaxHighlightingMode.PRISM;
         this.prismCustomComponents = prismCustomComponents != null ? List.copyOf(prismCustomComponents) : List.of();
     }
@@ -114,6 +127,10 @@ public final class UiSection {
         return contentSectionNumbers;
     }
 
+    public int contentSectionNumberDepth() {
+        return contentSectionNumberDepth;
+    }
+
     public SyntaxHighlightingMode syntaxHighlightingMode() {
         return syntaxHighlightingMode;
     }
@@ -129,6 +146,7 @@ public final class UiSection {
             ", sidebarTocDepth=" + sidebarTocDepth +
             ", contentToc=" + contentToc +
             ", contentSectionNumbers=" + contentSectionNumbers +
+            ", contentSectionNumberDepth=" + contentSectionNumberDepth +
             ", syntaxHighlightingMode=" + syntaxHighlightingMode +
             ", prismCustomComponents=" + prismCustomComponents.size() + "}";
     }

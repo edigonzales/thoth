@@ -78,6 +78,18 @@ Effects:
 - In `split` mode, it changes numbering inside each rendered page.
 - In `single_page` mode, it changes numbering inside the master document and also affects whether Biblios can show numbering in the generated sidebar.
 
+### `ui.content_section_number_depth`
+
+This setting limits the depth of numbered headings in HTML. The default is `6`.
+
+```yaml
+ui:
+  content_section_numbers: on
+  content_section_number_depth: 3
+```
+
+With `3`, only the first three section levels receive numbers. Deeper headings remain visible in the content and in the single-page sidebar when included by `sidebar_toc_depth`, but appear there without a number prefix. `[unnumbered]` sections retain their existing behavior.
+
 ### `sidebar_toc_numbers`
 
 This is a source-level setting and only matters in `single_page`.

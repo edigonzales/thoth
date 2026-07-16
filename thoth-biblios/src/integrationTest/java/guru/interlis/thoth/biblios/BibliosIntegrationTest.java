@@ -1016,6 +1016,54 @@ class BibliosIntegrationTest {
     }
 
     @Test
+    void singlePageNumberingDepthLeavesDeeperSidebarEntriesVisibleWithoutNumbers() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-numbering-depth-repo");
+        Path workRoot = tempDir.resolve("work-single-numbering-depth");
+        Path outputRoot = tempDir.resolve("output-single-numbering-depth");
+        Path configFile = tempDir.resolve("single-page-numbering-depth-biblios.yml");
+
+        Files.createDirectories(repoDir);
+        Files.createDirectories(workRoot);
+        Files.createDirectories(outputRoot);
+
+        new TestRepoBuilder(repoDir).withSinglePageDocsUpToSect5();
+
+        new BibliosConfigBuilder()
+            .withSiteTitle("Single Page Numbering Depth Integration")
+            .withOutputDir(outputRoot)
+            .withSidebarTocDepth(6)
+            .withContentToc("off")
+            .withContentSectionNumberDepth(3)
+            .withSinglePageSourceGitRepoWithTocNumbers(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "on", "main")
+            .writeTo(configFile);
+
+        BibliosConfigParser parser = new BibliosConfigParser();
+        BibliosConfig config = parser.parse(configFile);
+
+        try (CatalogBuilder builder = new CatalogBuilder(config, workRoot)) {
+            SiteCatalog catalog = builder.build();
+            try (BibliosSiteGenerator generator = new BibliosSiteGenerator(config, catalog, outputRoot)) {
+                generator.generate();
+            }
+        }
+
+        String html = Files.readString(outputRoot.resolve("mydocs/main/index.html"));
+        assertTrue(html.contains("data-chapter-title=\"Level One\""));
+        assertTrue(html.contains("data-chapter-title=\"Level Two\""));
+        assertTrue(html.contains("data-chapter-title=\"Level Three\""));
+        assertTrue(html.contains("data-chapter-title=\"Level Four\""));
+        assertTrue(html.contains("data-chapter-title=\"Level Five\""));
+        assertTrue(html.matches("(?s).*data-chapter-title=\"Level One\"[^>]*>\\s*1\\. Level One\\s*</a>.*"));
+        assertTrue(html.matches("(?s).*data-chapter-title=\"Level Two\"[^>]*>\\s*1\\.1\\. Level Two\\s*</a>.*"));
+        assertTrue(html.matches("(?s).*data-chapter-title=\"Level Three\"[^>]*>\\s*1\\.1\\.1\\. Level Three\\s*</a>.*"));
+        assertTrue(html.matches("(?s).*data-chapter-title=\"Level Four\"[^>]*>\\s*Level Four\\s*</a>.*"));
+        assertTrue(html.matches("(?s).*data-chapter-title=\"Level Five\"[^>]*>\\s*Level Five\\s*</a>.*"));
+        assertTrue(html.contains("<h5 id=\"_level_four\">"));
+        assertFalse(html.contains("1.1.1.1. Level Four"));
+    }
+
+    @Test
     void singlePageModeShowsAppendixRoleButSkipsOtherUnnumberedChaptersInSidebar() throws Exception {
         Path repoDir = tempDir.resolve("single-page-unnumbered-repo");
         Path workRoot = tempDir.resolve("work-single-unnumbered");

@@ -154,6 +154,7 @@ ui:
   sidebar_toc_depth: 2
   content_toc: off
   content_section_numbers: on
+  content_section_number_depth: 6
   edit_url_pattern: "https://github.com/org/repo/edit/{branch}/{path}"
   source_url_pattern: "https://github.com/org/repo/blob/{branch}/{path}"
 
@@ -227,6 +228,7 @@ If `site.logo` points to a local file that does not exist, the build fails with 
 | `sidebar_toc_depth` | No | Sidebar heading depth for generated heading-based TOC entries in `render_mode: single_page`. Allowed: `1..6`. Default: `2` |
 | `content_toc` | No | Render AsciiDoc in-content TOC. Allowed values: `off`, `on`. Default: `off` |
 | `content_section_numbers` | No | Render section/chapter numbers in HTML content. Allowed values: `on`, `off`. Default: `on` |
+| `content_section_number_depth` | No | Maximum numbered section depth in HTML content. Allowed values: `1..6`. Default: `6` |
 
 `sidebar_toc_depth` is applied to the generated heading tree in `single_page` mode.  
 In `split` mode, sidebar structure comes from `nav.yml`.

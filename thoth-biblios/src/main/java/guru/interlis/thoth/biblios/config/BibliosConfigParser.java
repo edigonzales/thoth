@@ -140,6 +140,7 @@ public final class BibliosConfigParser {
             parseSidebarTocDepth(uiMap),
             parseContentTocMode(uiMap),
             parseContentSectionNumbersMode(uiMap),
+            parseContentSectionNumberDepth(uiMap),
             parseSyntaxHighlightingMode(uiMap),
             parsePrismCustomComponents(uiMap, configPath)
         );
@@ -709,6 +710,36 @@ public final class BibliosConfigParser {
                 "config"
             );
         }
+    }
+
+    private int parseContentSectionNumberDepth(Map<String, Object> map) {
+        Object value = map.get("content_section_number_depth");
+        if (value == null) {
+            return 6;
+        }
+        final int depth;
+        if (value instanceof Number number) {
+            depth = number.intValue();
+        } else {
+            try {
+                depth = Integer.parseInt(value.toString().trim());
+            } catch (NumberFormatException e) {
+                throw new ThothBuildException(
+                    "Expected integer for 'ui.content_section_number_depth', got: " + value,
+                    ThothBuildException.ErrorSeverity.FATAL,
+                    "config"
+                );
+            }
+        }
+
+        if (depth < 1 || depth > 6) {
+            throw new ThothBuildException(
+                "Invalid ui.content_section_number_depth: " + depth + ". Allowed range: 1..6",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return depth;
     }
 
     private SyntaxHighlightingMode parseSyntaxHighlightingMode(Map<String, Object> map) {

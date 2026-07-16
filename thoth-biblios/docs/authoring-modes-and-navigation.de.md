@@ -78,6 +78,18 @@ Auswirkungen:
 - Im `split`-Modus ändert sich die Nummerierung innerhalb jeder gerenderten Seite.
 - Im `single_page`-Modus ändert sich die Nummerierung innerhalb des Master-Dokuments und außerdem, ob Biblios Nummern in der generierten Sidebar anzeigen kann.
 
+### `ui.content_section_number_depth`
+
+Diese Einstellung begrenzt die Tiefe der im HTML nummerierten Überschriften. Der Standardwert ist `6`.
+
+```yaml
+ui:
+  content_section_numbers: on
+  content_section_number_depth: 3
+```
+
+Bei `3` erhalten nur die ersten drei Abschnittsebenen Nummern. Tiefere Überschriften bleiben im Inhalt und in der Single-Page-Sidebar sichtbar, sofern sie von `sidebar_toc_depth` erfasst werden, erscheinen dort aber ohne Nummernpräfix. `[unnumbered]`-Abschnitte behalten ihr bisheriges Verhalten.
+
 ### `sidebar_toc_numbers`
 
 Dies ist eine source-spezifische Einstellung und ist nur in `single_page` relevant.
