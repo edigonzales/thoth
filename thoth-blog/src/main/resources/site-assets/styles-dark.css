@@ -465,6 +465,11 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
   word-break: break-word;
 }
 
+.post-content .line-through {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
 .post-content li,
 .post-content blockquote,
 .post-content figcaption {

@@ -354,6 +354,7 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(lightCss.contains(".archive-group-posts {"));
         assertTrue(lightCss.contains(".post-footer-separator {"));
         assertTrue(lightCss.contains(".post-content :not(pre) > code {"));
+        assertTrue(lightCss.contains(".post-content .line-through {\n  text-decoration: line-through;\n  text-decoration-thickness: 2px;\n}"));
         assertTrue(lightCss.contains("font-size: 0.95em;"));
         assertTrue(lightCss.contains("background-color: #f2f2f2;"));
         assertTrue(lightCss.contains("--code-bg: #f2f2f2;"));
@@ -447,6 +448,7 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(darkCss.contains(".archive-group-posts {"));
         assertTrue(darkCss.contains(".post-footer-separator {"));
         assertTrue(darkCss.contains(".post-content :not(pre) > code {"));
+        assertTrue(darkCss.contains(".post-content .line-through {\n  text-decoration: line-through;\n  text-decoration-thickness: 2px;\n}"));
         assertTrue(darkCss.contains("font-size: 0.95em;"));
         assertTrue(darkCss.contains("background-color: var(--code-inline-bg);"));
         assertTrue(darkCss.contains(".code-block-shell {\n  position: relative;\n  margin: 0.5em 0;\n}"));
