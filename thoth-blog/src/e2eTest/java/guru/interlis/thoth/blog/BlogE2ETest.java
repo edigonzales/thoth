@@ -302,6 +302,20 @@ class BlogE2ETest {
             }
             ----
 
+            [source,groovy]
+            ----
+            tasks.register('hello') {
+                doLast { println 'Hello' }
+            }
+            ----
+
+            [source,gradle]
+            ----
+            plugins {
+                id 'java'
+            }
+            ----
+
             Some inline code: `String s = "test";`
 
             Enough text here to form a proper teaser for the homepage listing page display.
@@ -319,11 +333,15 @@ class BlogE2ETest {
         String postHtml = Files.readString(output.resolve("code-post/index.html"), StandardCharsets.UTF_8);
         assertTrue(postHtml.contains("Code Post"));
         assertTrue(postHtml.contains("language-java"));
+        assertTrue(postHtml.contains("language-groovy"));
+        assertTrue(postHtml.contains("language-gradle"));
         assertTrue(postHtml.contains("line-numbers"));
 
         // Verify Prism assets
         assertFileExists(output, "assets/prism/prism.css");
         assertFileExists(output, "assets/prism/prism.js");
+        assertFileExists(output, "assets/prism/components/prism-groovy.min.js");
+        assertFileExists(output, "assets/prism/components/prism-gradle.min.js");
 
         // Verify custom asset copied
         assertFileExists(output, "assets/custom.css");

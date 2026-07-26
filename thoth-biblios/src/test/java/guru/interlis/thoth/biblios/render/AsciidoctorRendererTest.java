@@ -4,6 +4,7 @@ import org.asciidoctor.Asciidoctor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
 import java.io.IOException;
@@ -134,6 +135,20 @@ class AsciidoctorRendererTest {
             MODEL Demo;
             END Demo.
             ----
+
+            [source,groovy]
+            ----
+            tasks.register('hello') {
+                doLast { println 'Hello' }
+            }
+            ----
+
+            [source,gradle,linenums]
+            ----
+            plugins {
+                id 'java'
+            }
+            ----
             """;
 
         try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
@@ -141,6 +156,68 @@ class AsciidoctorRendererTest {
             assertNotNull(html);
             assertTrue(html.contains("language-markup"));
             assertTrue(html.contains("language-interlis"));
+            assertTrue(html.contains("language-groovy"));
+            assertTrue(html.contains("language-gradle"));
+
+            Document document = Jsoup.parseBodyFragment(html);
+            assertEquals(1, document.select("pre.language-gradle.line-numbers > code.language-gradle").size());
+        }
+    }
+
+    @Test
+    void appliesLineNumbersOnlyWhenRequested() {
+        String content = """
+            = Line Numbers
+
+            [source,groovy,linenums]
+            ----
+            tasks.register('numbered') {
+                doLast { println 'Hello' }
+            }
+            ----
+
+            [source,gradle]
+            ----
+            plugins {
+                id 'java'
+            }
+            ----
+
+            [source,gradle,opts=linenums]
+            ----
+            repositories {
+                mavenCentral()
+            }
+            ----
+            """;
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            Document document = Jsoup.parseBodyFragment(renderer.renderString(content));
+            assertEquals(1, document.select("pre.language-groovy.line-numbers > code.language-groovy").size());
+            assertEquals(1, document.select("pre.language-gradle:not(.line-numbers) > code.language-gradle").size());
+            assertEquals(1, document.select("pre.language-gradle.line-numbers > code.language-gradle").size());
+        }
+    }
+
+    @Test
+    void appliesLineNumbersWhenRenderingFile(@TempDir Path tempDir) throws Exception {
+        Path source = tempDir.resolve("line-numbers.adoc");
+        Files.writeString(source, """
+            = Line Numbers
+
+            [source,gradle,linenums]
+            ----
+            plugins {
+                id 'java'
+            }
+            ----
+            """);
+
+        try (AsciidoctorRenderer renderer = new AsciidoctorRenderer()) {
+            Document document = Jsoup.parseBodyFragment(
+                renderer.renderDocument(source, AsciidoctorRenderer.RenderOptions.legacyDefaults()).html()
+            );
+            assertEquals(1, document.select("pre.language-gradle.line-numbers > code.language-gradle").size());
         }
     }
 

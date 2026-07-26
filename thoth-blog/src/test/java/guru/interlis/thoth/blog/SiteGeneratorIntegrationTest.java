@@ -319,6 +319,8 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(Files.exists(output.resolve("assets/lunr.min.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/prism.css")));
         assertTrue(Files.exists(output.resolve("assets/prism/prism.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/components/prism-groovy.min.js")));
+        assertTrue(Files.exists(output.resolve("assets/prism/components/prism-gradle.min.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/components/prism-ini.min.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/components/prism-interlis.js")));
         assertTrue(Files.exists(output.resolve("assets/prism/components/prism-ilimap.js")));
@@ -663,6 +665,8 @@ public class SiteGeneratorIntegrationTest {
         assertFalse(postHtml.contains("class=\"home-hero\""));
         assertTrue(postHtml.contains("/assets/prism/prism.css"));
         assertTrue(postHtml.contains("/assets/prism/prism.js"));
+        assertTrue(postHtml.contains("/assets/prism/components/prism-groovy.min.js"));
+        assertTrue(postHtml.contains("/assets/prism/components/prism-gradle.min.js"));
         assertTrue(postHtml.contains("/assets/prism/components/prism-interlis.js"));
         assertTrue(postHtml.contains("/assets/prism/components/prism-ilimap.js"));
         assertTrue(postHtml.contains("/assets/prism/plugins/line-highlight/prism-line-highlight.min.js"));
@@ -671,6 +675,14 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(postHtml.contains("/assets/image-lightbox.js"));
         assertTrue(postHtml.contains("/assets/zurich.css"));
         assertTrue(postHtml.contains("Written by Alice Author"));
+        assertTrue(postHtml.indexOf("/assets/prism/prism.js")
+            < postHtml.indexOf("/assets/prism/components/prism-clike.min.js"));
+        assertTrue(postHtml.indexOf("/assets/prism/components/prism-clike.min.js")
+            < postHtml.indexOf("/assets/prism/components/prism-groovy.min.js"));
+        assertTrue(postHtml.indexOf("/assets/prism/components/prism-groovy.min.js")
+            < postHtml.indexOf("/assets/prism/components/prism-gradle.min.js"));
+        assertTrue(postHtml.indexOf("/assets/prism/components/prism-gradle.min.js")
+            < postHtml.indexOf("/assets/prism/plugins/line-highlight/prism-line-highlight.min.js"));
 
         Document postDoc = Jsoup.parse(postHtml);
         assertEquals(1, postDoc.select("pre.language-ini.line-numbers > code.language-ini").size());

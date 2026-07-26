@@ -109,6 +109,8 @@ public final class SiteAssertions {
         assertFileExists("site-assets/search.js");
         assertFileExists("site-assets/interlis-lab/interlis-lab.js");
         assertFileExists("site-assets/interlis-lab/ili2c.jar");
+        assertFileExists("site-assets/prism/components/prism-groovy.min.js");
+        assertFileExists("site-assets/prism/components/prism-gradle.min.js");
     }
 
     /**

@@ -59,6 +59,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         "prism/prism.js",
         "prism/components/prism-markup.min.js",
         "prism/components/prism-clike.min.js",
+        "prism/components/prism-groovy.min.js",
+        "prism/components/prism-gradle.min.js",
         "prism/components/prism-javascript.min.js",
         "prism/components/prism-css.min.js",
         "prism/components/prism-ini.min.js",

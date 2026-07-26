@@ -217,7 +217,7 @@ java -jar thoth-blog-<version>-all.jar <command> [options]
 - RSS 2.0 feed with Atom self-link
 - Client-side Lunr search
 - Dark mode toggle with `prefers-color-scheme` support
-- Prism.js syntax highlighting with line numbers support
+- Prism.js syntax highlighting with line numbers support, including Groovy and Gradle
 - Responsive layout with sticky navbar
 
 ## Project Structure

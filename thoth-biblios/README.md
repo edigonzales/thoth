@@ -383,7 +383,7 @@ Each branch entry maps a Git branch to a published documentation version.
 
 Biblios uses Prism by default (`ui.syntax_highlighting: prism`) and supports the bundled languages:
 
-- `interlis`, `xml`/`html`/`svg` (via Prism `markup`), `java`, `javascript`, `typescript`, `css`, `ini`, `json`, `bash`, `sql`, `python`, `yaml`, `kotlin`, `go`, `c`, `cpp`
+- `interlis`, `xml`/`html`/`svg` (via Prism `markup`), `java`, `javascript`, `typescript`, `css`, `ini`, `json`, `bash`, `sql`, `python`, `yaml`, `kotlin`, `go`, `c`, `cpp`, `groovy`, `gradle`
 
 Example in AsciiDoc:
 

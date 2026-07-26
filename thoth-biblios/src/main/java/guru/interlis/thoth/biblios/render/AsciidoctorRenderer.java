@@ -105,7 +105,10 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             String html = interlisLabMacros.usesInterlisLab()
                 ? asciidoctor.convert(interlisLabMacros.content(), asciidoctorOptions)
                 : asciidoctor.convertFile(sourcePath.toFile(), asciidoctorOptions, String.class);
-            String normalizedHtml = normalizeCodeBlocksForPrism(html);
+            List<Boolean> sourceBlockLineNumbers = detectSourceBlockLineNumbers(
+                Files.readString(sourcePath, StandardCharsets.UTF_8)
+            );
+            String normalizedHtml = normalizeCodeBlocksForPrism(html, sourceBlockLineNumbers);
             String title = document.getDoctitle();
             List<Heading> headings = resolvedOptions.collectHeadings()
                 ? extractHeadings(
@@ -189,7 +192,8 @@ public final class AsciidoctorRenderer implements AutoCloseable {
                 .toFile(false)
                 .attributes(attributes.build());
 
-            return normalizeCodeBlocksForPrism(asciidoctor.convert(content, options.build()));
+            List<Boolean> sourceBlockLineNumbers = detectSourceBlockLineNumbers(content);
+            return normalizeCodeBlocksForPrism(asciidoctor.convert(content, options.build()), sourceBlockLineNumbers);
         } catch (Exception e) {
             String snippet = content != null && content.length() > 80
                 ? content.substring(0, 80) + "..."
@@ -463,12 +467,13 @@ public final class AsciidoctorRenderer implements AutoCloseable {
         return text != null ? text.trim() : "";
     }
 
-    private String normalizeCodeBlocksForPrism(String html) {
+    private String normalizeCodeBlocksForPrism(String html, List<Boolean> sourceBlockLineNumbers) {
         if (html == null || html.isBlank()) {
             return html != null ? html : "";
         }
         org.jsoup.nodes.Document document = Jsoup.parseBodyFragment(html);
         markStandaloneMarkersBeforeListings(document);
+        int sourceBlockIndex = 0;
         for (Element code : document.select("pre > code")) {
             Element pre = code.parent();
             replaceNumericCalloutsWithConums(code);
@@ -482,9 +487,81 @@ public final class AsciidoctorRenderer implements AutoCloseable {
             if (pre != null && "pre".equals(pre.tagName())) {
                 pre.addClass("language-" + normalizedLanguage);
                 pre.removeAttr("data-lang");
+                if (sourceBlockIndex < sourceBlockLineNumbers.size()
+                    && sourceBlockLineNumbers.get(sourceBlockIndex)) {
+                    pre.addClass("line-numbers");
+                }
+                sourceBlockIndex++;
             }
         }
         return document.body().html();
+    }
+
+    private List<Boolean> detectSourceBlockLineNumbers(String content) {
+        List<Boolean> lineNumbersByBlock = new ArrayList<>();
+        if (content == null || content.isBlank()) {
+            return lineNumbersByBlock;
+        }
+
+        String[] lines = content.split("\\R", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String trimmed = lines[i].trim();
+            if (!isBlockAttributeLine(trimmed)) {
+                continue;
+            }
+
+            String attributeList = trimmed.substring(1, trimmed.length() - 1);
+            if (!isSourceBlockAttributeList(attributeList)) {
+                continue;
+            }
+
+            int next = i + 1;
+            while (next < lines.length) {
+                String candidate = lines[next].trim();
+                if (candidate.isEmpty() || candidate.startsWith(".") || candidate.startsWith("//")) {
+                    next++;
+                    continue;
+                }
+
+                if (isListingDelimiter(candidate)) {
+                    lineNumbersByBlock.add(hasLineNumbersOption(attributeList));
+                }
+                break;
+            }
+        }
+        return lineNumbersByBlock;
+    }
+
+    private boolean isBlockAttributeLine(String line) {
+        return line.startsWith("[") && line.endsWith("]") && line.length() >= 2;
+    }
+
+    private boolean isSourceBlockAttributeList(String attributeList) {
+        for (String token : attributeList.split(",")) {
+            String normalized = token.trim().toLowerCase(Locale.ROOT);
+            if (normalized.equals("source") || normalized.startsWith("source%")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasLineNumbersOption(String attributeList) {
+        for (String token : attributeList.split(",")) {
+            String normalized = token.trim().toLowerCase(Locale.ROOT);
+            if (normalized.equals("linenums")
+                || normalized.startsWith("linenums=")
+                || normalized.contains("%linenums")
+                || (normalized.startsWith("opts=") && normalized.contains("linenums"))
+                || (normalized.startsWith("options=") && normalized.contains("linenums"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isListingDelimiter(String line) {
+        return "----".equals(line) || "....".equals(line);
     }
 
     private boolean replaceNumericCalloutsWithConums(Element code) {

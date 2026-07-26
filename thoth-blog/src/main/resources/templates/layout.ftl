@@ -43,6 +43,8 @@
   <script src="/assets/prism/prism.js" defer></script>
   <script src="/assets/prism/components/prism-markup.min.js" defer></script>
   <script src="/assets/prism/components/prism-clike.min.js" defer></script>
+  <script src="/assets/prism/components/prism-groovy.min.js" defer></script>
+  <script src="/assets/prism/components/prism-gradle.min.js" defer></script>
   <script src="/assets/prism/components/prism-javascript.min.js" defer></script>
   <script src="/assets/prism/components/prism-css.min.js" defer></script>
   <script src="/assets/prism/components/prism-ini.min.js" defer></script>
