@@ -496,41 +496,73 @@ final class Docx4jWriter {
                              DocxDocumentModel.Block block,
                              Map<String, DocxDocumentModel.AnchorTarget> anchors,
                              int listLevel) throws Exception {
-        switch (block) {
-            case DocxDocumentModel.SectionBlock section -> {
-                P p = createStyledParagraph("Heading" + Math.max(1, Math.min(6, section.level())));
-                if (section.numbered() && !section.special()) {
-                    applyNumbering(p, headingNumId, Math.max(0, Math.min(5, section.level() - 1)));
-                }
-                openBookmark(p, section.id(), anchors);
-                addTextRun(p, section.title(), null);
-                closePendingBookmark(p);
-                addTo(container, p);
-                renderBlocks(container, section.children(), anchors, listLevel);
+        if (block instanceof DocxDocumentModel.SectionBlock section) {
+            P p = createStyledParagraph("Heading" + Math.max(1, Math.min(6, section.level())));
+            if (section.numbered() && !section.special()) {
+                applyNumbering(p, headingNumId, Math.max(0, Math.min(5, section.level() - 1)));
             }
-            case DocxDocumentModel.ParagraphBlock paragraph -> {
-                P p = WML.createP();
-                openBookmark(p, paragraph.id(), anchors);
-                appendInlines(p, paragraph.inlines(), anchors);
-                closePendingBookmark(p);
-                addTo(container, p);
-            }
-            case DocxDocumentModel.OrderedListBlock ordered -> renderList(container, ordered.items(), anchors, true, listLevel, ordered.id());
-            case DocxDocumentModel.UnorderedListBlock unordered -> renderList(container, unordered.items(), anchors, false, listLevel, unordered.id());
-            case DocxDocumentModel.DescriptionListBlock descriptionList -> renderDescriptionList(container, descriptionList, anchors);
-            case DocxDocumentModel.ListingBlock listing -> renderListing(container, listing, anchors);
-            case DocxDocumentModel.LiteralBlock literal -> renderLiteral(container, literal, anchors);
-            case DocxDocumentModel.ImageBlock image -> renderImage(container, image, anchors);
-            case DocxDocumentModel.TableBlock table -> renderTable(container, table, anchors);
-            case DocxDocumentModel.AdmonitionBlock admonition -> renderAdmonition(container, admonition, anchors);
-            case DocxDocumentModel.OpenBlock open -> renderBlocks(container, open.children(), anchors, listLevel);
-            case DocxDocumentModel.ExampleBlock example -> renderExample(container, example, anchors, listLevel);
-            case DocxDocumentModel.ThematicBreakBlock ignored -> {
-                P p = WML.createP();
-                addTextRun(p, "", null);
-                addTo(container, p);
-            }
+            openBookmark(p, section.id(), anchors);
+            addTextRun(p, section.title(), null);
+            closePendingBookmark(p);
+            addTo(container, p);
+            renderBlocks(container, section.children(), anchors, listLevel);
+            return;
         }
+        if (block instanceof DocxDocumentModel.ParagraphBlock paragraph) {
+            P p = WML.createP();
+            openBookmark(p, paragraph.id(), anchors);
+            appendInlines(p, paragraph.inlines(), anchors);
+            closePendingBookmark(p);
+            addTo(container, p);
+            return;
+        }
+        if (block instanceof DocxDocumentModel.OrderedListBlock ordered) {
+            renderList(container, ordered.items(), anchors, true, listLevel, ordered.id());
+            return;
+        }
+        if (block instanceof DocxDocumentModel.UnorderedListBlock unordered) {
+            renderList(container, unordered.items(), anchors, false, listLevel, unordered.id());
+            return;
+        }
+        if (block instanceof DocxDocumentModel.DescriptionListBlock descriptionList) {
+            renderDescriptionList(container, descriptionList, anchors);
+            return;
+        }
+        if (block instanceof DocxDocumentModel.ListingBlock listing) {
+            renderListing(container, listing, anchors);
+            return;
+        }
+        if (block instanceof DocxDocumentModel.LiteralBlock literal) {
+            renderLiteral(container, literal, anchors);
+            return;
+        }
+        if (block instanceof DocxDocumentModel.ImageBlock image) {
+            renderImage(container, image, anchors);
+            return;
+        }
+        if (block instanceof DocxDocumentModel.TableBlock table) {
+            renderTable(container, table, anchors);
+            return;
+        }
+        if (block instanceof DocxDocumentModel.AdmonitionBlock admonition) {
+            renderAdmonition(container, admonition, anchors);
+            return;
+        }
+        if (block instanceof DocxDocumentModel.OpenBlock open) {
+            renderBlocks(container, open.children(), anchors, listLevel);
+            return;
+        }
+        if (block instanceof DocxDocumentModel.ExampleBlock example) {
+            renderExample(container, example, anchors, listLevel);
+            return;
+        }
+        if (block instanceof DocxDocumentModel.ThematicBreakBlock) {
+            P p = WML.createP();
+            addTextRun(p, "", null);
+            addTo(container, p);
+            return;
+        }
+        throw new IllegalArgumentException("Unsupported DOCX block: " + block.getClass().getName());
     }
 
     private void renderList(ContentAccessor container,
@@ -832,17 +864,43 @@ final class Docx4jWriter {
     private void appendInline(P paragraph,
                               DocxDocumentModel.Inline inline,
                               Map<String, DocxDocumentModel.AnchorTarget> anchors) throws Exception {
-        switch (inline) {
-            case DocxDocumentModel.TextInline text -> addTextRun(paragraph, text.text(), null);
-            case DocxDocumentModel.StrongInline strong -> appendStyledInlineChildren(paragraph, strong.children(), anchors, runProps(null, true, false, null, null, null));
-            case DocxDocumentModel.EmphasisInline emphasis -> appendStyledInlineChildren(paragraph, emphasis.children(), anchors, runProps(null, false, true, null, null, null));
-            case DocxDocumentModel.MonospaceInline mono -> addTextRun(paragraph, mono.text(), runProps(null, false, false, "Courier New", null, null));
-            case DocxDocumentModel.LineBreakInline ignored -> addLineBreak(paragraph);
-            case DocxDocumentModel.CalloutInline callout -> addTextRun(paragraph, "(" + callout.number() + ")", runProps(null, true, false, null, null, null));
-            case DocxDocumentModel.LinkInline link -> addExternalLink(paragraph, link, anchors);
-            case DocxDocumentModel.InternalXrefInline xref -> addInternalReference(paragraph, xref, anchors);
-            case DocxDocumentModel.FootnoteInline footnote -> addFootnoteReference(paragraph, footnote, anchors);
+        if (inline instanceof DocxDocumentModel.TextInline text) {
+            addTextRun(paragraph, text.text(), null);
+            return;
         }
+        if (inline instanceof DocxDocumentModel.StrongInline strong) {
+            appendStyledInlineChildren(paragraph, strong.children(), anchors, runProps(null, true, false, null, null, null));
+            return;
+        }
+        if (inline instanceof DocxDocumentModel.EmphasisInline emphasis) {
+            appendStyledInlineChildren(paragraph, emphasis.children(), anchors, runProps(null, false, true, null, null, null));
+            return;
+        }
+        if (inline instanceof DocxDocumentModel.MonospaceInline mono) {
+            addTextRun(paragraph, mono.text(), runProps(null, false, false, "Courier New", null, null));
+            return;
+        }
+        if (inline instanceof DocxDocumentModel.LineBreakInline) {
+            addLineBreak(paragraph);
+            return;
+        }
+        if (inline instanceof DocxDocumentModel.CalloutInline callout) {
+            addTextRun(paragraph, "(" + callout.number() + ")", runProps(null, true, false, null, null, null));
+            return;
+        }
+        if (inline instanceof DocxDocumentModel.LinkInline link) {
+            addExternalLink(paragraph, link, anchors);
+            return;
+        }
+        if (inline instanceof DocxDocumentModel.InternalXrefInline xref) {
+            addInternalReference(paragraph, xref, anchors);
+            return;
+        }
+        if (inline instanceof DocxDocumentModel.FootnoteInline footnote) {
+            addFootnoteReference(paragraph, footnote, anchors);
+            return;
+        }
+        throw new IllegalArgumentException("Unsupported DOCX inline: " + inline.getClass().getName());
     }
 
     private void appendStyledInlineChildren(P paragraph,
@@ -1223,16 +1281,26 @@ final class Docx4jWriter {
     private String plainText(List<DocxDocumentModel.Inline> inlines) {
         StringBuilder text = new StringBuilder();
         for (DocxDocumentModel.Inline inline : inlines) {
-            switch (inline) {
-                case DocxDocumentModel.TextInline t -> text.append(t.text());
-                case DocxDocumentModel.StrongInline strong -> text.append(plainText(strong.children()));
-                case DocxDocumentModel.EmphasisInline emphasis -> text.append(plainText(emphasis.children()));
-                case DocxDocumentModel.MonospaceInline mono -> text.append(mono.text());
-                case DocxDocumentModel.LinkInline link -> text.append(plainText(link.label()));
-                case DocxDocumentModel.InternalXrefInline xref -> text.append(plainText(xref.label()));
-                case DocxDocumentModel.FootnoteInline footnote -> text.append(plainText(footnote.content()));
-                case DocxDocumentModel.CalloutInline callout -> text.append(callout.number());
-                case DocxDocumentModel.LineBreakInline ignored -> text.append(' ');
+            if (inline instanceof DocxDocumentModel.TextInline t) {
+                text.append(t.text());
+            } else if (inline instanceof DocxDocumentModel.StrongInline strong) {
+                text.append(plainText(strong.children()));
+            } else if (inline instanceof DocxDocumentModel.EmphasisInline emphasis) {
+                text.append(plainText(emphasis.children()));
+            } else if (inline instanceof DocxDocumentModel.MonospaceInline mono) {
+                text.append(mono.text());
+            } else if (inline instanceof DocxDocumentModel.LinkInline link) {
+                text.append(plainText(link.label()));
+            } else if (inline instanceof DocxDocumentModel.InternalXrefInline xref) {
+                text.append(plainText(xref.label()));
+            } else if (inline instanceof DocxDocumentModel.FootnoteInline footnote) {
+                text.append(plainText(footnote.content()));
+            } else if (inline instanceof DocxDocumentModel.CalloutInline callout) {
+                text.append(callout.number());
+            } else if (inline instanceof DocxDocumentModel.LineBreakInline) {
+                text.append(' ');
+            } else {
+                throw new IllegalArgumentException("Unsupported DOCX inline: " + inline.getClass().getName());
             }
         }
         return text.toString();

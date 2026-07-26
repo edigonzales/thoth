@@ -12,7 +12,7 @@ Think of it as a lightweight, JVM-native alternative to Antora: you point it at 
 
 ### Prerequisites
 
-- Java 25 or later
+- Java 17 or later
 - Git (for accessing content repositories)
 
 ### Build

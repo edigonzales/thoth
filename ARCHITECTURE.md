@@ -356,7 +356,7 @@ Zentrale Exception-Klasse mit:
 
 ### Code-Stil
 
-- Java 25 Features nutzen
+- Java-17-kompatible Sprachfeatures nutzen
 - Records für immutable Datenmodelle
 - Sealed Classes wo sinnvoll
 - Pattern Matching

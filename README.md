@@ -166,7 +166,7 @@ content:
 For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Key decisions:
-- **Java 25** target platform
+- **Java 17** baseline (Java 17 or later)
 - **AsciidoctorJ** for rendering (not Asciidoctor.js)
 - **nav.yml** as navigation standard for Biblios
 - **Gradle multi-project** with clear module boundaries
@@ -204,12 +204,12 @@ See [thoth-biblios/README.md](thoth-biblios/README.md) for the full list.
 
 ### Java Version
 
-Both products require Java 25:
+Both products require Java 17 or later:
 
 ```bash
 java -version
-# If not Java 25:
-sdk use java 25.0.1-tem
+# If Java 17 or later is not active:
+sdk use java 17.0.12-tem
 ```
 
 ### Clean Build

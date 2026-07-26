@@ -15,7 +15,7 @@ Plain text. Real websites.
 
 ### Prerequisites
 
-- Java 25 or later
+- Java 17 or later
 
 ### Build
 
@@ -241,12 +241,12 @@ thoth-blog/
 
 ### Java Version
 
-Thoth Blog requires Java 25. If you see `UnsupportedClassVersionError`:
+Thoth Blog requires Java 17 or later. If you see `UnsupportedClassVersionError`:
 
 ```bash
 java -version
-# If not Java 25, use SDKMAN:
-sdk use java 25.0.1-tem
+# If Java 17 or later is not active, use SDKMAN:
+sdk use java 17.0.12-tem
 ```
 
 ### Build Failures
