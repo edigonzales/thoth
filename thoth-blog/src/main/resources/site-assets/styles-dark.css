@@ -772,7 +772,7 @@ hr {
 .post-content td {
   border-bottom: 1px solid rgba(49, 65, 86, 0.76);
   padding: 0.55rem 0.4rem;
-  text-align: left;
+  text-align: left !important;
 }
 
 .post-content th {
@@ -781,6 +781,16 @@ hr {
 
 .post-content td {
   color: var(--text-soft);
+}
+
+.post-content table p.tableblock {
+  margin: 9px 0;
+  text-align: left !important;
+}
+
+.post-content td.tableblock.halign-left.valign-top {
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
 }
 
 @media (max-width: 760px) {
