@@ -393,6 +393,18 @@ html:not([data-theme-mode]) .theme-toggle__icon--system {
   word-break: break-word;
 }
 
+.post-content table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.post-content th,
+.post-content td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.55rem 0.4rem;
+  text-align: left;
+}
+
 .post-content .line-through {
   text-decoration: line-through;
   text-decoration-thickness: 2px;

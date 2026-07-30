@@ -763,23 +763,23 @@ hr {
   margin: 2rem 0;
 }
 
-table {
+.post-content table {
   width: 100%;
   border-collapse: collapse;
 }
 
-th,
-td {
+.post-content th,
+.post-content td {
   border-bottom: 1px solid rgba(49, 65, 86, 0.76);
   padding: 0.55rem 0.4rem;
   text-align: left;
 }
 
-th {
+.post-content th {
   color: #f4f8fd;
 }
 
-td {
+.post-content td {
   color: var(--text-soft);
 }
 

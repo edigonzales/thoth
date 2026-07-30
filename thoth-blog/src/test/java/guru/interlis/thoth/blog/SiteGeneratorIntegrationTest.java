@@ -391,6 +391,11 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(lightCss.contains("#image-lightbox-close {"));
         assertTrue(lightCss.contains(".post-content p a {"));
         assertTrue(lightCss.contains(".post-content pre {\n  overflow: auto;\n  padding: 0.75rem;\n  border-radius: 0.55rem;\n  background: var(--code-bg);\n}"));
+        assertTrue(lightCss.contains(".post-content table {\n  width: 100%;\n  border-collapse: collapse;\n}"));
+        assertTrue(lightCss.contains(".post-content th,\n.post-content td {\n  border-bottom: 1px solid var(--border);\n  padding: 0.55rem 0.4rem;\n  text-align: left;\n}"));
+        assertFalse(lightCss.contains("\ntable {\n"));
+        assertFalse(lightCss.contains("\nth,\n"));
+        assertFalse(lightCss.contains("\ntd {\n"));
         assertTrue(lightCss.contains(".post-content ul li p,\n.post-content ol li p {\n  margin: 9px 0;\n}"));
         assertTrue(lightCss.contains("--nav-link: rgb(36, 38, 43);"));
         assertTrue(lightCss.contains("--nav-link-hover: rgb(36, 38, 43);"));
@@ -451,6 +456,13 @@ public class SiteGeneratorIntegrationTest {
         assertTrue(darkCss.contains(".post-footer-separator {"));
         assertTrue(darkCss.contains(".post-content :not(pre) > code {"));
         assertTrue(darkCss.contains(".post-content .line-through {\n  text-decoration: line-through;\n  text-decoration-thickness: 2px;\n}"));
+        assertTrue(darkCss.contains(".post-content table {\n  width: 100%;\n  border-collapse: collapse;\n}"));
+        assertTrue(darkCss.contains(".post-content th,\n.post-content td {\n  border-bottom: 1px solid rgba(49, 65, 86, 0.76);\n  padding: 0.55rem 0.4rem;\n  text-align: left;\n}"));
+        assertTrue(darkCss.contains(".post-content th {\n  color: #f4f8fd;\n}"));
+        assertTrue(darkCss.contains(".post-content td {\n  color: var(--text-soft);\n}"));
+        assertFalse(darkCss.contains("\ntable {\n"));
+        assertFalse(darkCss.contains("\nth,\n"));
+        assertFalse(darkCss.contains("\ntd {\n"));
         assertTrue(darkCss.contains("font-size: 0.95em;"));
         assertTrue(darkCss.contains("background-color: var(--code-inline-bg);"));
         assertTrue(darkCss.contains(".code-block-shell {\n  position: relative;\n  margin: 0.5em 0;\n}"));
