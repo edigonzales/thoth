@@ -521,15 +521,10 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-toggle-chevron--leaf {
 }
 
 .component-card-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.75rem;
     margin-bottom: 0.75rem;
 }
 
 .component-card h2 {
-    flex: 1 1 auto;
     min-width: 0;
     font-size: 1.25rem;
     line-height: 1.2;
@@ -538,13 +533,22 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-toggle-chevron--leaf {
     z-index: 0;
 }
 
-.component-card-label {
-    flex: 0 1 45%;
+.component-card-label-row {
+    display: flex;
+    justify-content: flex-end;
     min-width: 0;
-    margin-top: 0.1rem;
+    margin-bottom: 0.35rem;
+    position: relative;
+    top: -0.75rem;
+}
+
+.component-card-label {
+    min-width: 0;
+    max-width: 100%;
     color: var(--ng-500);
+    display: block;
     font-family: var(--font-navbar);
-    font-size: 0.7rem;
+    font-size: 0.6rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1.25;

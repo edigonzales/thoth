@@ -18,10 +18,12 @@
                        class="component-card-default-link"
                        aria-label="Open ${component.displayName} (${component.defaultVersion})"></a>
                     <div class="component-card-header">
-                        <h2>${component.displayName}</h2>
                         <#if component.cardLabel??>
-                            <span class="component-card-label">${component.cardLabel?html}</span>
+                            <div class="component-card-label-row">
+                                <span class="component-card-label">${component.cardLabel?html}</span>
+                            </div>
                         </#if>
+                        <h2>${component.displayName}</h2>
                     </div>
                     <p class="versions">
                         <#list component.versions as version>

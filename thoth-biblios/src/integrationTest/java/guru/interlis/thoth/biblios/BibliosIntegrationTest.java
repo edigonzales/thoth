@@ -131,6 +131,12 @@ class BibliosIntegrationTest {
         assertTrue(homePage.contains("Integration Test Docs"));
         assertTrue(homePage.contains("My Documentation"));
         assertTrue(homePage.contains("class=\"component-card-header\""));
+        int cardHeaderStart = homePage.indexOf("<div class=\"component-card-header\">");
+        int labelRowStart = homePage.indexOf("<div class=\"component-card-label-row\">");
+        int titleStart = homePage.indexOf("<h2>My Documentation</h2>");
+        assertTrue(cardHeaderStart >= 0);
+        assertTrue(labelRowStart > cardHeaderStart);
+        assertTrue(titleStart > labelRowStart);
         assertTrue(homePage.contains("class=\"component-card-label\">Documentation</span>"));
         assertTrue(homePage.contains("class=\"component-card\" style=\"background-color: #e8f1ff;\""));
         assertTrue(homePage.contains("class=\"brand-logo\""));
@@ -163,9 +169,13 @@ class BibliosIntegrationTest {
         String styles = Files.readString(outputRoot.resolve("site-assets/styles.css"));
         assertTrue(styles.contains(".content {"));
         assertTrue(styles.contains(".component-card-header {"));
-        assertTrue(styles.contains("font-size: 0.7rem;"));
+        assertTrue(styles.contains(".component-card-label-row {"));
+        assertTrue(styles.contains("justify-content: flex-end;"));
+        assertTrue(styles.contains("top: -0.75rem;"));
+        assertTrue(styles.contains("font-size: 0.6rem;"));
         assertTrue(styles.contains("font-weight: 700;"));
         assertTrue(styles.contains("letter-spacing: 0.08em;"));
+        assertTrue(styles.contains("color: var(--ng-500);"));
         assertTrue(styles.contains("text-transform: uppercase;"));
         assertTrue(styles.contains(".doc-content .imageblock > .title,\n.doc-content .listingblock > .title {"));
         assertTrue(styles.contains(".doc-content .imageblock > .content {\n    padding: 0;"));
