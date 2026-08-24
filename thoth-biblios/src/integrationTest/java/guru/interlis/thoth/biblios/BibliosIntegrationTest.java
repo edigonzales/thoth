@@ -57,6 +57,7 @@ class BibliosIntegrationTest {
             .withSource(new BibliosConfigBuilder.SourceEntry("""
                 - id: mydocs
                   display_name: My Documentation
+                  card_label: "Documentation"
                   card_background_color: "#e8f1ff"
                   url: file://%s
                   branches:
@@ -85,6 +86,7 @@ class BibliosIntegrationTest {
             DocComponent component = catalog.findById("mydocs");
             assertNotNull(component);
             assertEquals("My Documentation", component.displayName());
+            assertEquals("Documentation", component.cardLabel());
             assertEquals("#e8f1ff", component.cardBackgroundColor());
             assertEquals(1, component.versions().size());
 
@@ -128,6 +130,8 @@ class BibliosIntegrationTest {
         String homePage = Files.readString(outputRoot.resolve("index.html"));
         assertTrue(homePage.contains("Integration Test Docs"));
         assertTrue(homePage.contains("My Documentation"));
+        assertTrue(homePage.contains("class=\"component-card-header\""));
+        assertTrue(homePage.contains("class=\"component-card-label\">Documentation</span>"));
         assertTrue(homePage.contains("class=\"component-card\" style=\"background-color: #e8f1ff;\""));
         assertTrue(homePage.contains("class=\"brand-logo\""));
         assertTrue(homePage.contains("src=\"./site-assets/site-logo.svg\""));
@@ -158,6 +162,11 @@ class BibliosIntegrationTest {
 
         String styles = Files.readString(outputRoot.resolve("site-assets/styles.css"));
         assertTrue(styles.contains(".content {"));
+        assertTrue(styles.contains(".component-card-header {"));
+        assertTrue(styles.contains("font-size: 0.7rem;"));
+        assertTrue(styles.contains("font-weight: 700;"));
+        assertTrue(styles.contains("letter-spacing: 0.08em;"));
+        assertTrue(styles.contains("text-transform: uppercase;"));
         assertTrue(styles.contains(".doc-content .imageblock > .title,\n.doc-content .listingblock > .title {"));
         assertTrue(styles.contains(".doc-content .imageblock > .content {\n    padding: 0;"));
         assertTrue(styles.contains(".doc-content .imageblock img {\n    display: block;\n    max-width: 100%;\n    height: auto;"));
@@ -236,6 +245,7 @@ class BibliosIntegrationTest {
 
         String homePage = Files.readString(outputRoot.resolve("index.html"));
         assertTrue(homePage.contains("class=\"component-card-default-link\""));
+        assertFalse(homePage.contains("class=\"component-card-label\""));
         assertTrue(homePage.contains("href=\"./mydocs/main/\""));
         assertTrue(homePage.contains("class=\"version-tag\""));
         assertTrue(homePage.contains("href=\"./mydocs/v1.x/\""));

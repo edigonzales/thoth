@@ -60,6 +60,7 @@ class BibliosConfigParserTest {
         SourceConfig alpha = config.content().sources().get(0);
         assertEquals("alpha", alpha.id());
         assertEquals("Alpha Docs", alpha.displayName());
+        assertEquals("User Documentation", alpha.cardLabel());
         assertEquals("#e8f1ff", alpha.cardBackgroundColor());
         assertEquals("https://github.com/example/alpha.git", alpha.url());
         assertEquals("docs", alpha.startPath());
@@ -81,6 +82,7 @@ class BibliosConfigParserTest {
         SourceConfig beta = config.content().sources().get(1);
         assertEquals("beta", beta.id());
         assertEquals("Beta API", beta.displayName());
+        assertNull(beta.cardLabel());
         assertNull(beta.cardBackgroundColor());
         assertEquals(1, beta.branches().size());
         assertEquals("Current", beta.branches().get(0).displayVersion());
@@ -191,6 +193,25 @@ class BibliosConfigParserTest {
         assertTrue(ex.getMessage().contains("card_background_color"));
     }
 
+    @Test
+    void rejectsBlankCardLabel(@TempDir Path tempDir) throws IOException {
+        Path file = writeConfigWithCardLabel(tempDir, "\"   \"");
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+
+        assertTrue(ex.getMessage().contains("card_label"));
+    }
+
+    @Test
+    void rejectsNonStringCardLabel(@TempDir Path tempDir) throws IOException {
+        Path file = writeConfigWithCardLabel(tempDir, "123");
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+
+        assertTrue(ex.getMessage().contains("Expected string"));
+        assertTrue(ex.getMessage().contains("card_label"));
+    }
+
     private Path writeConfigWithCardBackgroundColor(Path tempDir, String value) throws IOException {
         String yaml = """
             site:
@@ -207,6 +228,26 @@ class BibliosConfigParserTest {
                     - name: main
             """.formatted(value);
         Path file = tempDir.resolve("card-color.yml");
+        Files.writeString(file, yaml);
+        return file;
+    }
+
+    private Path writeConfigWithCardLabel(Path tempDir, String value) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  card_label: %s
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """.formatted(value);
+        Path file = tempDir.resolve("card-label.yml");
         Files.writeString(file, yaml);
         return file;
     }

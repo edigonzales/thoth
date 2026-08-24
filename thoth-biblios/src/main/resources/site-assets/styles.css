@@ -520,11 +520,38 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-toggle-chevron--leaf {
     outline-offset: 2px;
 }
 
+.component-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
 .component-card h2 {
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 1.25rem;
     line-height: 1.2;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0;
     position: relative;
+    z-index: 0;
+}
+
+.component-card-label {
+    flex: 0 1 45%;
+    min-width: 0;
+    margin-top: 0.1rem;
+    color: var(--ng-500);
+    font-family: var(--font-navbar);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    position: relative;
+    text-align: right;
+    text-transform: uppercase;
     z-index: 0;
 }
 

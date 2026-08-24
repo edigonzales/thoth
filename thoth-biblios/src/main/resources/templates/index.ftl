@@ -17,7 +17,12 @@
                     <a href="${basePath}/${component.id}/${component.defaultVersion}/"
                        class="component-card-default-link"
                        aria-label="Open ${component.displayName} (${component.defaultVersion})"></a>
-                    <h2>${component.displayName}</h2>
+                    <div class="component-card-header">
+                        <h2>${component.displayName}</h2>
+                        <#if component.cardLabel??>
+                            <span class="component-card-label">${component.cardLabel?html}</span>
+                        </#if>
+                    </div>
                     <p class="versions">
                         <#list component.versions as version>
                             <a href="${basePath}/${component.id}/${version.version}/" class="version-tag">${version.displayVersion}</a>

@@ -317,6 +317,7 @@ public final class BibliosConfigParser {
         String defaultVersion = (String) sourceMap.get("default_version");
         String startPage = (String) sourceMap.get("start_page");
         String cardBackgroundColor = parseCardBackgroundColor(sourceMap, label);
+        String cardLabel = parseCardLabel(sourceMap, label);
         Object revnumber = parseSourceRevnumber(sourceMap, label);
         RenderMode renderMode = parseRenderMode(sourceMap, label);
         SidebarTocNumbersMode sidebarTocNumbers = parseSidebarTocNumbersMode(sourceMap, label);
@@ -365,7 +366,8 @@ public final class BibliosConfigParser {
             sidebarTocNumbers,
             pdf,
             docx,
-            cardBackgroundColor
+            cardBackgroundColor,
+            cardLabel
         );
     }
 
@@ -400,6 +402,32 @@ public final class BibliosConfigParser {
             return true;
         }
         return CSS_COLOR_NAMES.contains(color.toLowerCase(Locale.ROOT));
+    }
+
+    private String parseCardLabel(Map<String, Object> sourceMap, String label) {
+        if (!sourceMap.containsKey("card_label")) {
+            return null;
+        }
+
+        Object value = sourceMap.get("card_label");
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for '" + label + ".card_label', got: " +
+                    (value == null ? "null" : value.getClass().getSimpleName()),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+
+        String cardLabel = text.trim();
+        if (cardLabel.isEmpty()) {
+            throw new ThothBuildException(
+                "Invalid '" + label + ".card_label': value must not be blank",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return cardLabel;
     }
 
     private Object parseSourceRevnumber(Map<String, Object> sourceMap, String label) {

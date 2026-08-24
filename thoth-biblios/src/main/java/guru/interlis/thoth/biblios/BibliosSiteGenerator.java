@@ -1340,6 +1340,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("displayName", component.displayName());
         model.put("defaultVersion", component.defaultVersion());
         model.put("cardBackgroundColor", component.cardBackgroundColor());
+        model.put("cardLabel", component.cardLabel());
 
         List<Map<String, Object>> versions = new ArrayList<>();
         for (ComponentVersion v : component.versions()) {
