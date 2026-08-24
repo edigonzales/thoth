@@ -54,8 +54,19 @@ class BibliosIntegrationTest {
             .withSiteTitle("Integration Test Docs")
             .withSiteLogo("branding/logo.svg")
             .withOutputDir(outputRoot)
-            .withSingleSourceGitRepo(repoDir, "mydocs", "My Documentation",
-                "docs", "main", "main")
+            .withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: mydocs
+                  display_name: My Documentation
+                  card_background_color: "#e8f1ff"
+                  url: file://%s
+                  branches:
+                    - name: main
+                      display_version: main
+                  start_path: docs
+                  default_version: main
+                  navigation:
+                    file: nav.yml
+                """.formatted(repoDir.toString())))
             .writeTo(configFile);
 
         // 1. Parse config
@@ -74,6 +85,7 @@ class BibliosIntegrationTest {
             DocComponent component = catalog.findById("mydocs");
             assertNotNull(component);
             assertEquals("My Documentation", component.displayName());
+            assertEquals("#e8f1ff", component.cardBackgroundColor());
             assertEquals(1, component.versions().size());
 
             ComponentVersion version = component.getVersion("main");
@@ -116,6 +128,7 @@ class BibliosIntegrationTest {
         String homePage = Files.readString(outputRoot.resolve("index.html"));
         assertTrue(homePage.contains("Integration Test Docs"));
         assertTrue(homePage.contains("My Documentation"));
+        assertTrue(homePage.contains("class=\"component-card\" style=\"background-color: #e8f1ff;\""));
         assertTrue(homePage.contains("class=\"brand-logo\""));
         assertTrue(homePage.contains("src=\"./site-assets/site-logo.svg\""));
         assertTrue(homePage.contains("action=\"./search/\""));

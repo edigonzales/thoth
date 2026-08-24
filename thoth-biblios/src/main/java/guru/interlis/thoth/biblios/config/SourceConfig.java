@@ -21,6 +21,7 @@ public final class SourceConfig {
     private final SidebarTocNumbersMode sidebarTocNumbers;
     private final SourcePdfSection pdf;
     private final SourceDocxSection docx;
+    private final String cardBackgroundColor;
 
     public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage) {
@@ -54,6 +55,14 @@ public final class SourceConfig {
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage,
                         RenderMode renderMode, String masterFile, Object revnumber, SidebarTocNumbersMode sidebarTocNumbers,
                         SourcePdfSection pdf, SourceDocxSection docx) {
+        this(id, displayName, url, branches, startPath, defaultVersion, navigation, startPage,
+            renderMode, masterFile, revnumber, sidebarTocNumbers, pdf, docx, null);
+    }
+
+    public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
+                        String startPath, String defaultVersion, NavigationConfig navigation, String startPage,
+                        RenderMode renderMode, String masterFile, Object revnumber, SidebarTocNumbersMode sidebarTocNumbers,
+                        SourcePdfSection pdf, SourceDocxSection docx, String cardBackgroundColor) {
         this.id = Objects.requireNonNull(id, "source.id is required");
         this.displayName = Objects.requireNonNull(displayName, "source.display_name is required");
         this.url = Objects.requireNonNull(url, "source.url is required");
@@ -72,6 +81,7 @@ public final class SourceConfig {
         this.sidebarTocNumbers = sidebarTocNumbers != null ? sidebarTocNumbers : SidebarTocNumbersMode.OFF;
         this.pdf = pdf;
         this.docx = docx;
+        this.cardBackgroundColor = cardBackgroundColor;
 
         if (this.renderMode == RenderMode.SINGLE_PAGE && this.masterFile == null) {
             throw new IllegalArgumentException("source.master_file is required when source.render_mode is single_page");
@@ -132,6 +142,13 @@ public final class SourceConfig {
 
     public SourceDocxSection docx() {
         return docx;
+    }
+
+    /**
+     * Optional CSS background color for this source's card on the global home page.
+     */
+    public String cardBackgroundColor() {
+        return cardBackgroundColor;
     }
 
     @Override

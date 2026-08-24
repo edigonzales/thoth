@@ -17,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Parses biblios.yml into a BibliosConfig object.
@@ -35,6 +36,37 @@ public final class BibliosConfigParser {
         "appendix-refsig",
         "part-signifier",
         "part-refsig"
+    );
+    private static final Pattern HEX_COLOR_PATTERN = Pattern.compile(
+        "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+    );
+    private static final Pattern FUNCTIONAL_COLOR_PATTERN = Pattern.compile(
+        "(?i)^(?:rgb|rgba|hsl|hsla)\\(\\s*[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:%|deg|grad|rad|turn)?"
+            + "(?:\\s*,\\s*|\\s+)[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)%?"
+            + "(?:\\s*,\\s*|\\s+)[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)%?"
+            + "(?:\\s*(?:,|/)\\s*[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)%?)?\\s*\\)$"
+    );
+    private static final Set<String> CSS_COLOR_NAMES = Set.of(
+        "aliceblue", "antiquewhite", "aqua", "aquamarine", "azure", "beige", "bisque", "black",
+        "blanchedalmond", "blue", "blueviolet", "brown", "burlywood", "cadetblue", "chartreuse",
+        "chocolate", "coral", "cornflowerblue", "cornsilk", "crimson", "cyan", "darkblue", "darkcyan",
+        "darkgoldenrod", "darkgray", "darkgrey", "darkgreen", "darkkhaki", "darkmagenta", "darkolivegreen",
+        "darkorange", "darkorchid", "darkred", "darksalmon", "darkseagreen", "darkslateblue", "darkslategray",
+        "darkslategrey", "darkturquoise", "darkviolet", "deeppink", "deepskyblue", "dimgray", "dimgrey",
+        "dodgerblue", "firebrick", "floralwhite", "forestgreen", "fuchsia", "gainsboro", "ghostwhite",
+        "gold", "goldenrod", "gray", "grey", "green", "greenyellow", "honeydew", "hotpink", "indianred",
+        "indigo", "ivory", "khaki", "lavender", "lavenderblush", "lawngreen", "lemonchiffon", "lightblue",
+        "lightcoral", "lightcyan", "lightgoldenrodyellow", "lightgray", "lightgrey", "lightgreen", "lightpink",
+        "lightsalmon", "lightseagreen", "lightskyblue", "lightslategray", "lightslategrey", "lightsteelblue",
+        "lightyellow", "lime", "limegreen", "linen", "magenta", "maroon", "mediumaquamarine", "mediumblue",
+        "mediumorchid", "mediumpurple", "mediumseagreen", "mediumslateblue", "mediumspringgreen", "mediumturquoise",
+        "mediumvioletred", "midnightblue", "mintcream", "mistyrose", "moccasin", "navajowhite", "navy", "oldlace",
+        "olive", "olivedrab", "orange", "orangered", "orchid", "palegoldenrod", "palegreen", "paleturquoise",
+        "palevioletred", "papayawhip", "peachpuff", "peru", "pink", "plum", "powderblue", "purple",
+        "rebeccapurple", "red", "rosybrown", "royalblue", "saddlebrown", "salmon", "sandybrown", "seagreen",
+        "seashell", "sienna", "silver", "skyblue", "slateblue", "slategray", "slategrey", "snow", "springgreen",
+        "steelblue", "tan", "teal", "thistle", "tomato", "transparent", "turquoise", "violet", "wheat", "white",
+        "whitesmoke", "yellow", "yellowgreen", "currentcolor"
     );
 
     private final Load yaml;
@@ -284,6 +316,7 @@ public final class BibliosConfigParser {
         String startPath = (String) sourceMap.get("start_path");
         String defaultVersion = (String) sourceMap.get("default_version");
         String startPage = (String) sourceMap.get("start_page");
+        String cardBackgroundColor = parseCardBackgroundColor(sourceMap, label);
         Object revnumber = parseSourceRevnumber(sourceMap, label);
         RenderMode renderMode = parseRenderMode(sourceMap, label);
         SidebarTocNumbersMode sidebarTocNumbers = parseSidebarTocNumbersMode(sourceMap, label);
@@ -331,8 +364,42 @@ public final class BibliosConfigParser {
             revnumber,
             sidebarTocNumbers,
             pdf,
-            docx
+            docx,
+            cardBackgroundColor
         );
+    }
+
+    private String parseCardBackgroundColor(Map<String, Object> sourceMap, String label) {
+        if (!sourceMap.containsKey("card_background_color")) {
+            return null;
+        }
+
+        Object value = sourceMap.get("card_background_color");
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for '" + label + ".card_background_color', got: " +
+                    (value == null ? "null" : value.getClass().getSimpleName()),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+
+        String color = text.trim();
+        if (color.isEmpty() || !isSafeCssColor(color)) {
+            throw new ThothBuildException(
+                "Invalid '" + label + ".card_background_color': expected a CSS color value",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return color;
+    }
+
+    private boolean isSafeCssColor(String color) {
+        if (HEX_COLOR_PATTERN.matcher(color).matches() || FUNCTIONAL_COLOR_PATTERN.matcher(color).matches()) {
+            return true;
+        }
+        return CSS_COLOR_NAMES.contains(color.toLowerCase(Locale.ROOT));
     }
 
     private Object parseSourceRevnumber(Map<String, Object> sourceMap, String label) {

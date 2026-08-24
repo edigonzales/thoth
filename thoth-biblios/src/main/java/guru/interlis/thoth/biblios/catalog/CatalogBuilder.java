@@ -138,7 +138,13 @@ public final class CatalogBuilder implements AutoCloseable {
             effectiveDefaultVersion = configuredDefaultVersion;
         }
 
-        return new DocComponent(source.id(), source.displayName(), effectiveDefaultVersion, versions);
+        return new DocComponent(
+            source.id(),
+            source.displayName(),
+            effectiveDefaultVersion,
+            versions,
+            source.cardBackgroundColor()
+        );
     }
 
     private ComponentVersion buildVersion(SourceConfig source, BranchConfig branch, Path workTree, UiSection ui) throws IOException {

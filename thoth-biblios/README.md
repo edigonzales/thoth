@@ -45,6 +45,7 @@ content:
   sources:
     - id: mydocs
       display_name: My Documentation
+      card_background_color: "#e8f1ff"
       url: file:///path/to/your/docs-repo
       branches:
         - name: main
@@ -340,6 +341,7 @@ Each entry defines a Git repository as a documentation source.
 |-----|----------|-------------|
 | `id` | Yes | Technical identifier for this documentation (used in URLs: `/<id>/<version>/`) |
 | `display_name` | Yes | Human-readable name shown in the UI and switchers |
+| `card_background_color` | No | CSS background color for this source's card on the global start page. Supports hex, RGB/RGBA, HSL/HSLA, and CSS color names. The default theme is used when omitted. |
 | `url` | Yes | Git repository URL. Supports `https://`, `ssh://`, and `file://` protocols |
 | `branches` | Yes | List of branches to publish as versions (see below) |
 | `start_path` | Yes | Relative path inside the repo where documentation root is located |

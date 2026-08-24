@@ -60,6 +60,7 @@ class BibliosConfigParserTest {
         SourceConfig alpha = config.content().sources().get(0);
         assertEquals("alpha", alpha.id());
         assertEquals("Alpha Docs", alpha.displayName());
+        assertEquals("#e8f1ff", alpha.cardBackgroundColor());
         assertEquals("https://github.com/example/alpha.git", alpha.url());
         assertEquals("docs", alpha.startPath());
         assertEquals("main", alpha.defaultVersion());
@@ -80,6 +81,7 @@ class BibliosConfigParserTest {
         SourceConfig beta = config.content().sources().get(1);
         assertEquals("beta", beta.id());
         assertEquals("Beta API", beta.displayName());
+        assertNull(beta.cardBackgroundColor());
         assertEquals(1, beta.branches().size());
         assertEquals("Current", beta.branches().get(0).displayVersion());
         assertEquals(RenderMode.SPLIT, beta.renderMode());
@@ -133,6 +135,80 @@ class BibliosConfigParserTest {
 
         ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
         assertTrue(ex.getMessage().contains("display_name"));
+    }
+
+    @Test
+    void parsesSupportedCssCardBackgroundColors(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  card_background_color: "rgb(255, 244, 230)"
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("card-color.yml");
+
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+
+        assertEquals("rgb(255, 244, 230)", config.content().sources().get(0).cardBackgroundColor());
+    }
+
+    @Test
+    void rejectsBlankCardBackgroundColor(@TempDir Path tempDir) throws IOException {
+        Path file = writeConfigWithCardBackgroundColor(tempDir, "\"   \"");
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+
+        assertTrue(ex.getMessage().contains("card_background_color"));
+    }
+
+    @Test
+    void rejectsNonStringCardBackgroundColor(@TempDir Path tempDir) throws IOException {
+        Path file = writeConfigWithCardBackgroundColor(tempDir, "123");
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+
+        assertTrue(ex.getMessage().contains("Expected string"));
+        assertTrue(ex.getMessage().contains("card_background_color"));
+    }
+
+    @Test
+    void rejectsInvalidCardBackgroundColor(@TempDir Path tempDir) throws IOException {
+        Path file = writeConfigWithCardBackgroundColor(tempDir, "\"rgb(255, 244)\"");
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+
+        assertTrue(ex.getMessage().contains("Invalid"));
+        assertTrue(ex.getMessage().contains("card_background_color"));
+    }
+
+    private Path writeConfigWithCardBackgroundColor(Path tempDir, String value) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  card_background_color: %s
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """.formatted(value);
+        Path file = tempDir.resolve("card-color.yml");
+        Files.writeString(file, yaml);
+        return file;
     }
 
     @Test

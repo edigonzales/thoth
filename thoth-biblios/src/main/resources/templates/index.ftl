@@ -13,7 +13,7 @@
 
         <div class="components-grid">
             <#list catalog.components as component>
-                <article class="component-card">
+                <article class="component-card"<#if component.cardBackgroundColor??> style="background-color: ${component.cardBackgroundColor?html};"</#if>>
                     <a href="${basePath}/${component.id}/${component.defaultVersion}/"
                        class="component-card-default-link"
                        aria-label="Open ${component.displayName} (${component.defaultVersion})"></a>
