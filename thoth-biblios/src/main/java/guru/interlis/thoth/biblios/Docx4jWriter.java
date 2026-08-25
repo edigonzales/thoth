@@ -1369,7 +1369,7 @@ final class Docx4jWriter {
         String normalized = style != null ? style.trim().toLowerCase(Locale.ROOT) : "";
         return switch (normalized) {
             case "tip" -> "E8F5E9";
-            case "important" -> "FFF8E1";
+            case "important" -> "F5F0FF";
             case "warning" -> "FFF3E0";
             case "caution" -> "FDECEA";
             default -> "EEF4FF";

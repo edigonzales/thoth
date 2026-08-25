@@ -1030,6 +1030,70 @@ body[data-single-page-mode="true"] .sidebar-nav .nav-toggle-chevron--leaf {
     margin-bottom: 0.4rem;
 }
 
+.doc-content .admonitionblock.important {
+    margin: 1.25rem 0;
+    background: #F5F0FF;
+    border: 1px solid #D8C8FA;
+    border-radius: 0.875rem;
+}
+
+.doc-content .admonitionblock.important > table,
+.doc-content .admonitionblock.important > table > tbody,
+.doc-content .admonitionblock.important > table > tbody > tr {
+    display: block;
+    width: 100%;
+}
+
+.doc-content .admonitionblock.important > table > tbody > tr > td {
+    display: block;
+    border: 0;
+    padding: 0;
+}
+
+.doc-content .admonitionblock.important td.icon {
+    padding: 1.15rem 1.35rem 0;
+}
+
+.doc-content .admonitionblock.important td.icon i.icon-important,
+.doc-content .admonitionblock.important td.icon .title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: #6B3FB5;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
+    font-style: normal;
+}
+
+.doc-content .admonitionblock.important td.icon i.icon-important::before,
+.doc-content .admonitionblock.important td.icon .title::before {
+    content: "";
+    display: inline-block;
+    width: 1.35rem;
+    height: 1.35rem;
+    flex-shrink: 0;
+    background-color: #8B5CF6;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-exclamation-circle' viewBox='0 0 16 16'%3E%3Cpath d='M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16'/%3E%3Cpath d='M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 4.995a.905.905 0 1 1 1.8 0l-.35 4.5a.55.55 0 0 1-1.1 0z'/%3E%3C/svg%3E");
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-exclamation-circle' viewBox='0 0 16 16'%3E%3Cpath d='M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16'/%3E%3Cpath d='M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 4.995a.905.905 0 1 1 1.8 0l-.35 4.5a.55.55 0 0 1-1.1 0z'/%3E%3C/svg%3E");
+}
+
+.doc-content .admonitionblock.important td.content {
+    padding: 0.8rem 1.35rem 1.3rem;
+}
+
+.doc-content .admonitionblock.important td.content > .title {
+    margin-bottom: 0.4rem;
+}
+
 .doc-content i.conum {
     font-family: var(--font-conum);
     display: inline-flex;

@@ -501,6 +501,14 @@ class BibliosE2ETest {
         assertions.assertFileContains("site-assets/styles.css", "class='bi bi-lightbulb'");
         assertions.assertFileContains("site-assets/styles.css", "M2 6a6 6 0 1 1 10.174 4.31");
         assertions.assertFileContains("site-assets/styles.css", "M7 14.5h2v.5a1 1 0 0 1-2 0z");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.important {");
+        assertions.assertFileContains("site-assets/styles.css", "#F5F0FF");
+        assertions.assertFileContains("site-assets/styles.css", "#D8C8FA");
+        assertions.assertFileContains("site-assets/styles.css", "#6B3FB5");
+        assertions.assertFileContains("site-assets/styles.css", "background-color: #8B5CF6");
+        assertions.assertFileContains("site-assets/styles.css", "class='bi bi-exclamation-circle'");
+        assertions.assertFileContains("site-assets/styles.css", "M7.002 11a1 1 0 1 1 2 0");
+        assertions.assertFileContains("site-assets/styles.css", ".doc-content .admonitionblock.important td.icon .title::before");
     }
 
     /**
