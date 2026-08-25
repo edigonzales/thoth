@@ -22,17 +22,17 @@
                                 class="nav-toggle"
                                 aria-expanded="true"
                                 aria-controls="${childrenId}"
-                                aria-label="Toggle subsections for ${item.title?html}">
+                                aria-label="Toggle subsections for ${(item.plainTitle)!item.title?html}">
                             <span class="nav-toggle-chevron" aria-hidden="true"></span>
                         </button>
                         <#if item.page?has_content>
                             <a href="${basePath}${item.route}"
                                class="nav-link<#if (currentPagePath!'__none__') == item.page> active</#if><#if (item.chapter)!false> chapter-link</#if>"
-                               <#if item.chapterId?? && item.chapterId?has_content>data-chapter-id="${item.chapterId}" data-chapter-title="${(item.chapterTitle)!item.title}"</#if>>
-                                ${item.title}
+                               <#if item.chapterId?? && item.chapterId?has_content>data-chapter-id="${item.chapterId}" data-chapter-title="${((item.plainChapterTitle)!item.plainTitle)!item.title?html}"</#if>>
+                                ${(item.plainTitle)!item.title?html}
                             </a>
                         <#else>
-                            <span class="nav-group">${item.title}</span>
+                            <span class="nav-group">${(item.plainTitle)!item.title?html}</span>
                         </#if>
                     </div>
                 <#elseif hasEntryWrapper && item.page?has_content>
@@ -45,18 +45,18 @@
                         </button>
                         <a href="${basePath}${item.route}"
                            class="nav-link<#if (currentPagePath!'__none__') == item.page> active</#if><#if (item.chapter)!false> chapter-link</#if>"
-                           <#if item.chapterId?? && item.chapterId?has_content>data-chapter-id="${item.chapterId}" data-chapter-title="${(item.chapterTitle)!item.title}"</#if>>
-                            ${item.title}
+                           <#if item.chapterId?? && item.chapterId?has_content>data-chapter-id="${item.chapterId}" data-chapter-title="${((item.plainChapterTitle)!item.plainTitle)!item.title?html}"</#if>>
+                            ${(item.plainTitle)!item.title?html}
                         </a>
                     </div>
                 <#elseif item.page?has_content>
                     <a href="${basePath}${item.route}"
                        class="nav-link<#if (currentPagePath!'__none__') == item.page> active</#if><#if (item.chapter)!false> chapter-link</#if>"
-                       <#if item.chapterId?? && item.chapterId?has_content>data-chapter-id="${item.chapterId}" data-chapter-title="${(item.chapterTitle)!item.title}"</#if>>
-                        ${item.title}
+                       <#if item.chapterId?? && item.chapterId?has_content>data-chapter-id="${item.chapterId}" data-chapter-title="${((item.plainChapterTitle)!item.plainTitle)!item.title?html}"</#if>>
+                        ${(item.plainTitle)!item.title?html}
                     </a>
                 <#else>
-                    <span class="nav-group">${item.title}</span>
+                    <span class="nav-group">${(item.plainTitle)!item.title?html}</span>
                 </#if>
                 <#if hasChildren>
                     <#if isCollapsible>

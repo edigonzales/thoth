@@ -9,6 +9,8 @@ import java.util.Objects;
 public final class NavItem {
     private final String title;
     private final String rawTitle;
+    private final String plainTitle;
+    private final String plainRawTitle;
     private final String page;
     private final List<NavItem> children;
 
@@ -19,6 +21,8 @@ public final class NavItem {
     public NavItem(String title, String page, List<NavItem> children, String rawTitle) {
         this.title = Objects.requireNonNull(title, "nav item title is required");
         this.rawTitle = rawTitle != null && !rawTitle.isBlank() ? rawTitle : title;
+        this.plainTitle = NavigationText.plainText(this.title);
+        this.plainRawTitle = NavigationText.plainText(this.rawTitle);
         this.page = page;
         this.children = children != null ? List.copyOf(children) : List.of();
     }
@@ -35,6 +39,21 @@ public final class NavItem {
      */
     public String rawTitle() {
         return rawTitle;
+    }
+
+    /**
+     * Visible title without rendered inline HTML markup.
+     */
+    public String plainTitle() {
+        return plainTitle;
+    }
+
+    /**
+     * Visible raw title without rendered inline HTML markup or presentation-time
+     * TOC number prefixes.
+     */
+    public String plainRawTitle() {
+        return plainRawTitle;
     }
 
     /**

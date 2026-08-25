@@ -538,6 +538,34 @@ public final class TestRepoBuilder {
     }
 
     /**
+     * Create single-page docs with inline formatting in a chapter title.
+     */
+    public TestRepoBuilder withSinglePageDocsWithFormattedChapter() throws Exception {
+        Files.createDirectories(repoDir);
+
+        try (Git git = Git.init().setDirectory(repoDir.toFile()).setInitialBranch(initialBranch).call()) {
+            configureUser(git);
+
+            Path docsDir = repoDir.resolve("docs");
+            Files.createDirectories(docsDir);
+
+            Files.writeString(docsDir.resolve("master.adoc"), """
+                = Reference Manual
+                :doctype: book
+
+                == Gemeinsames `shared/Jenkinsfile` *fett* _kursiv_ link:https://example.org[Link]
+
+                Inhalt des gemeinsamen Kapitels.
+                """);
+
+            git.add().addFilepattern("docs/").call();
+            git.commit().setMessage("Add formatted chapter title").call();
+        }
+
+        return this;
+    }
+
+    /**
      * Create a repo for single-page mode with an unnumbered chapter subtree.
      */
     public TestRepoBuilder withSinglePageDocsIncludingUnnumberedChapter() throws Exception {

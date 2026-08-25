@@ -14,6 +14,7 @@ import guru.interlis.thoth.biblios.catalog.*;
 import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.RenderMode;
 import guru.interlis.thoth.biblios.config.VersionSwitchMode;
+import guru.interlis.thoth.biblios.nav.NavigationText;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -1399,6 +1400,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         for (guru.interlis.thoth.biblios.nav.NavItem item : items) {
             Map<String, Object> m = new HashMap<>();
             m.put("title", item.title());
+            m.put("plainTitle", item.plainTitle());
             m.put("page", item.page());
             if (item.page() != null) {
                 String route = routeBySourcePath.get(item.page());
@@ -1425,6 +1427,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
                 ? item.rawTitle()
                 : displayTitle;
             m.put("title", displayTitle);
+            m.put("plainTitle", item.plainTitle());
             m.put("group", item.isGroup());
 
             if (item.page() != null && !item.page().isBlank()) {
@@ -1433,6 +1436,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
                 m.put("chapter", true);
                 m.put("chapterId", chapterId);
                 m.put("chapterTitle", chapterTitle);
+                m.put("plainChapterTitle", item.plainRawTitle());
                 m.put("route", baseRoute + "#" + chapterId);
             } else {
                 m.put("chapter", false);
@@ -1451,6 +1455,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         for (DocPage.Breadcrumb crumb : breadcrumbs) {
             Map<String, Object> m = new HashMap<>();
             m.put("title", crumb.title());
+            m.put("plainTitle", NavigationText.plainText(crumb.title()));
             m.put("route", crumb.route());
             result.add(m);
         }

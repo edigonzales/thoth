@@ -313,6 +313,45 @@ class BibliosE2ETest {
     }
 
     @Test
+    void singlePageNavigationUsesPlainTextForFormattedChapterTitles() throws Exception {
+        Path repoDir = tempDir.resolve("single-page-formatted-title-repo");
+        Files.createDirectories(repoDir);
+        setupOutputDirs();
+
+        new TestRepoBuilder(repoDir).withSinglePageDocsWithFormattedChapter();
+
+        BibliosConfig config = new BibliosConfigBuilder()
+            .withSiteTitle("Single Page Formatted Title Portal")
+            .withOutputDir(outputRoot)
+            .withSidebarTocDepth(3)
+            .withContentToc("off")
+            .withSinglePageSourceGitRepoWithTocNumbers(repoDir, "mydocs", "My Documentation",
+                "docs", "main", "master.adoc", "on", "main")
+            .writeTo(configFile);
+
+        buildAndGenerate(config);
+
+        var document = Jsoup.parse(Files.readString(outputRoot.resolve("mydocs/main/index.html")));
+        var chapterHeading = document.selectFirst(".doc-content h2");
+        assertNotNull(chapterHeading);
+        assertEquals("shared/Jenkinsfile", chapterHeading.select("code").text());
+
+        var breadcrumb = document.selectFirst("#chapter-breadcrumb-current");
+        assertNotNull(breadcrumb);
+        assertEquals("Gemeinsames shared/Jenkinsfile fett kursiv Link", breadcrumb.text());
+        assertTrue(breadcrumb.select("code").isEmpty());
+        assertFalse(breadcrumb.text().contains("<code>"));
+
+        var tocLink = document.selectFirst(".sidebar-nav a.chapter-link");
+        assertNotNull(tocLink);
+        assertEquals("1. Gemeinsames shared/Jenkinsfile fett kursiv Link", tocLink.text());
+        assertTrue(tocLink.select("code").isEmpty());
+        assertFalse(tocLink.text().contains("<code>"));
+        assertEquals("Gemeinsames shared/Jenkinsfile fett kursiv Link", tocLink.attr("data-chapter-title"));
+        assertTrue(tocLink.attr("href").contains("#"));
+    }
+
+    @Test
     void singlePageModeShowsAppendixRoleButHidesOtherUnnumberedChaptersFromSidebar() throws Exception {
         Path repoDir = tempDir.resolve("single-page-unnumbered-repo");
         Files.createDirectories(repoDir);

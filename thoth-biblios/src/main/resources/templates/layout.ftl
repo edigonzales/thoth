@@ -136,21 +136,21 @@
                 <#if chapterBreadcrumbEnabled>
                     <#assign rootCrumb = breadcrumbs[0]>
                     <#if rootCrumb.route?has_content>
-                        <a href="${basePath}${rootCrumb.route}" id="chapter-breadcrumb-root">${rootCrumb.title}</a>
+                        <a href="${basePath}${rootCrumb.route}" id="chapter-breadcrumb-root">${(rootCrumb.plainTitle)!rootCrumb.title?html}</a>
                     <#else>
-                        <span class="current" id="chapter-breadcrumb-root">${rootCrumb.title}</span>
+                        <span class="current" id="chapter-breadcrumb-root">${(rootCrumb.plainTitle)!rootCrumb.title?html}</span>
                     </#if>
                     <span class="separator">/</span>
                     <span id="chapter-breadcrumb-trail">
-                        <span class="current" id="chapter-breadcrumb-current">${breadcrumbs[breadcrumbs?size - 1].title}</span>
+                        <span class="current" id="chapter-breadcrumb-current">${(breadcrumbs[breadcrumbs?size - 1].plainTitle)!breadcrumbs[breadcrumbs?size - 1].title?html}</span>
                     </span>
                 <#else>
                     <#list breadcrumbs as crumb>
                         <#if crumb_index gt 0><span class="separator">/</span></#if>
                         <#if crumb.route?has_content>
-                            <a href="${basePath}${crumb.route}">${crumb.title}</a>
+                            <a href="${basePath}${crumb.route}">${(crumb.plainTitle)!crumb.title?html}</a>
                         <#else>
-                            <span class="current">${crumb.title}</span>
+                            <span class="current">${(crumb.plainTitle)!crumb.title?html}</span>
                         </#if>
                     </#list>
                 </#if>
