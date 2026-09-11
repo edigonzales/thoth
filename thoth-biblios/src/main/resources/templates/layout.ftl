@@ -81,11 +81,20 @@
                     <label for="doc-switch">Documentation:</label>
                     <select id="doc-switch" onchange="window.location.href=this.value">
                         <option value="" disabled <#if !currentComponentId?has_content>selected</#if>>Select documentation</option>
-                        <#list docSwitcher as doc>
-                            <option value="${basePath}/${doc.id}/${doc.defaultVersion}/"
-                                <#if currentComponentId?has_content && currentComponentId == doc.id>selected</#if>>
-                                ${doc.displayName}
-                            </option>
+                        <#local selectedDocSeen = false>
+                        <#list docSwitcher as entry>
+                            <#if entry.documents??>
+                                <optgroup label="${entry.title?html}">
+                                <#local documents = entry.documents>
+                            <#else>
+                                <#local documents = [entry]>
+                            </#if>
+                            <#list documents as doc>
+                                <#local selectDoc = !selectedDocSeen && currentComponentId?has_content && currentComponentId == doc.id>
+                                <option value="${basePath}/${doc.id}/${doc.defaultVersion}/"<#if selectDoc> selected</#if>>${doc.displayName?html}</option>
+                                <#if selectDoc><#local selectedDocSeen = true></#if>
+                            </#list>
+                            <#if entry.documents??></optgroup></#if>
                         </#list>
                     </select>
                 </nav>

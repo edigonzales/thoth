@@ -143,8 +143,7 @@ public final class CatalogBuilder implements AutoCloseable {
             source.displayName(),
             effectiveDefaultVersion,
             versions,
-            source.cardBackgroundColor(),
-            source.cardLabel()
+            source.cardBackgroundColor()
         );
     }
 

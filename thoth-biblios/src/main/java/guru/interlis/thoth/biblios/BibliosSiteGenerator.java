@@ -266,6 +266,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         Map<String, Object> model = createCommonModel(outputFile);
         model.put("siteDescription", config.site().url());
         model.put("catalog", catalogToModel());
+        model.put("docSwitcher", buildDocSwitcher());
 
         String html = renderTemplate("index.ftl", model);
         writeOutput(outputFile, html);
@@ -1341,7 +1342,6 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("displayName", component.displayName());
         model.put("defaultVersion", component.defaultVersion());
         model.put("cardBackgroundColor", component.cardBackgroundColor());
-        model.put("cardLabel", component.cardLabel());
 
         List<Map<String, Object>> versions = new ArrayList<>();
         for (ComponentVersion v : component.versions()) {
@@ -1492,14 +1492,38 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         return normalized;
     }
 
+    /**
+     * Shared presentation order for home cards and the documentation switcher.
+     * The catalog itself stays flat so content and exports are never duplicated.
+     */
     private List<Map<String, Object>> buildDocSwitcher() {
+        if (config.content().groups().isEmpty()) {
+            return catalog.components().stream().map(this::componentToModel).toList();
+        }
         List<Map<String, Object>> result = new ArrayList<>();
-        for (DocComponent c : catalog.components()) {
-            Map<String, Object> m = new HashMap<>();
-            m.put("id", c.id());
-            m.put("displayName", c.displayName());
-            m.put("defaultVersion", c.defaultVersion());
-            result.add(m);
+        Set<String> assigned = new HashSet<>();
+        for (var group : config.content().groups()) {
+            List<Map<String, Object>> documents = new ArrayList<>();
+            for (String id : group.sources()) {
+                assigned.add(id);
+                DocComponent component = catalog.findById(id);
+                if (component != null) {
+                    documents.add(componentToModel(component));
+                }
+            }
+            if (!documents.isEmpty()) {
+                result.add(Map.of("title", group.title(), "documents", documents));
+            }
+        }
+        List<Map<String, Object>> remaining = new ArrayList<>();
+        for (var source : config.content().sources()) {
+            DocComponent component = catalog.findById(source.id());
+            if (!assigned.contains(source.id()) && component != null) {
+                remaining.add(componentToModel(component));
+            }
+        }
+        if (!remaining.isEmpty()) {
+            result.add(Map.of("title", "Weitere", "documents", remaining));
         }
         return result;
     }

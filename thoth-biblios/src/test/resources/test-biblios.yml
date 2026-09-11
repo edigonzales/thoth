@@ -22,7 +22,6 @@ content:
   sources:
     - id: alpha
       display_name: Alpha Docs
-      card_label: "User Documentation"
       card_background_color: "#e8f1ff"
       url: https://github.com/example/alpha.git
       branches:

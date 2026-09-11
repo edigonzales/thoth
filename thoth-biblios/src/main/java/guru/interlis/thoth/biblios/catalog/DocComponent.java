@@ -12,7 +12,6 @@ public final class DocComponent {
     private final String defaultVersion;
     private final List<ComponentVersion> versions;
     private final String cardBackgroundColor;
-    private final String cardLabel;
 
     public DocComponent(String id, String displayName, String defaultVersion, List<ComponentVersion> versions) {
         this(id, displayName, defaultVersion, versions, null);
@@ -20,11 +19,6 @@ public final class DocComponent {
 
     public DocComponent(String id, String displayName, String defaultVersion, List<ComponentVersion> versions,
                         String cardBackgroundColor) {
-        this(id, displayName, defaultVersion, versions, cardBackgroundColor, null);
-    }
-
-    public DocComponent(String id, String displayName, String defaultVersion, List<ComponentVersion> versions,
-                        String cardBackgroundColor, String cardLabel) {
         this.id = Objects.requireNonNull(id, "component id is required");
         this.displayName = Objects.requireNonNull(displayName, "component display name is required");
         this.defaultVersion = defaultVersion;
@@ -34,7 +28,6 @@ public final class DocComponent {
         }
         this.versions = List.copyOf(versions);
         this.cardBackgroundColor = cardBackgroundColor;
-        this.cardLabel = cardLabel;
     }
 
     public String id() {
@@ -54,13 +47,6 @@ public final class DocComponent {
      */
     public String cardBackgroundColor() {
         return cardBackgroundColor;
-    }
-
-    /**
-     * Optional free-text label for this component's card on the global home page.
-     */
-    public String cardLabel() {
-        return cardLabel;
     }
 
     public List<ComponentVersion> versions() {

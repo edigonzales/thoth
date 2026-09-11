@@ -45,7 +45,6 @@ content:
   sources:
     - id: mydocs
       display_name: My Documentation
-      card_label: "Benutzer"
       card_background_color: "#e8f1ff"
       url: file:///path/to/your/docs-repo
       branches:
@@ -334,6 +333,34 @@ DOCX generation is only executed when the CLI build includes `--format docx` and
 | `features.toc` | No | Add Word TOC field. Default: `true` |
 | `features.change_log` | No | Add placeholder section for changelog. Default: `false` |
 
+#### `content.groups` – Documentation Groups
+
+Optionally group the home-page cards and documentation dropdown using source IDs:
+
+```yaml
+content:
+  groups:
+    - title: Grundlagen
+      sources: [glossar, datenintegration]
+    - title: Entwicklung
+      sources: [glossar, lokaler-stack, jenkins-dev]
+  sources:
+    # Existing source definitions with matching IDs
+```
+
+Groups and their documents follow the order above. Each home-page group has a
+heading, a horizontal separator and its own responsive card grid. The dropdown
+uses non-selectable group headings. A document can appear in multiple groups;
+its URLs, generated content, search entries and exports are not duplicated.
+
+Unassigned documents appear last under **Weitere**, in source order.
+If `groups` is absent or `[]`, both the cards and dropdown remain ungrouped,
+without headings, separators or **Weitere**.
+
+Titles must be non-blank plain text. Unknown source IDs, empty groups, and
+duplicate IDs within one group are configuration errors. Groups with no
+available documents are omitted from the generated UI.
+
 #### `content.sources` – Content Sources
 
 Each entry defines a Git repository as a documentation source.
@@ -342,7 +369,6 @@ Each entry defines a Git repository as a documentation source.
 |-----|----------|-------------|
 | `id` | Yes | Technical identifier for this documentation (used in URLs: `/<id>/<version>/`) |
 | `display_name` | Yes | Human-readable name shown in the UI and switchers |
-| `card_label` | No | Optional free-text label shown in uppercase, right-aligned in its own line above the source title on the global start page. Use it for values such as `Benutzer`, `Administration`, or `Entwickler`. |
 | `card_background_color` | No | CSS background color for this source's card on the global start page. Supports hex, RGB/RGBA, HSL/HSLA, and CSS color names. The default theme is used when omitted. |
 | `url` | Yes | Git repository URL. Supports `https://`, `ssh://`, and `file://` protocols |
 | `branches` | Yes | List of branches to publish as versions (see below) |

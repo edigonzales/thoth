@@ -217,9 +217,50 @@ public final class BibliosConfigParser {
             }
         }
 
-        ContentSection content = new ContentSection(sources);
+        ContentSection content;
+        try {
+            content = new ContentSection(sources, parseGroups(contentMap));
+        } catch (IllegalArgumentException e) {
+            throw new ThothBuildException("Invalid content.groups: " + e.getMessage(),
+                ThothBuildException.ErrorSeverity.FATAL, "config");
+        }
 
         return new BibliosConfig(site, output, ui, pdf, docx, content);
+    }
+
+    private List<ContentGroup> parseGroups(Map<String, Object> contentMap) {
+        if (!contentMap.containsKey("groups")) {
+            return List.of();
+        }
+        Object value = contentMap.get("groups");
+        if (!(value instanceof List<?> entries)) {
+            throw new IllegalArgumentException("content.groups must be a list");
+        }
+        List<ContentGroup> groups = new ArrayList<>();
+        for (int i = 0; i < entries.size(); i++) {
+            String label = "content.groups[" + i + "]";
+            if (!(entries.get(i) instanceof Map<?, ?>)) {
+                throw new IllegalArgumentException(label + " must be a mapping");
+            }
+            Map<String, Object> entry = castMap(entries.get(i), label);
+            Object title = entry.get("title");
+            if (!(title instanceof String text) || text.isBlank()) {
+                throw new IllegalArgumentException(label + ".title must be a non-blank string");
+            }
+            Object sourceIds = entry.get("sources");
+            if (!(sourceIds instanceof List<?> ids)) {
+                throw new IllegalArgumentException(label + ".sources must be a list");
+            }
+            List<String> sources = new ArrayList<>();
+            for (Object id : ids) {
+                if (!(id instanceof String sourceId) || sourceId.isBlank()) {
+                    throw new IllegalArgumentException(label + ".sources must contain non-blank string IDs");
+                }
+                sources.add(sourceId);
+            }
+            groups.add(new ContentGroup(text, sources));
+        }
+        return groups;
     }
 
     private String parseSiteLogo(Map<String, Object> siteMap, Path configPath) {
@@ -317,7 +358,6 @@ public final class BibliosConfigParser {
         String defaultVersion = (String) sourceMap.get("default_version");
         String startPage = (String) sourceMap.get("start_page");
         String cardBackgroundColor = parseCardBackgroundColor(sourceMap, label);
-        String cardLabel = parseCardLabel(sourceMap, label);
         Object revnumber = parseSourceRevnumber(sourceMap, label);
         RenderMode renderMode = parseRenderMode(sourceMap, label);
         SidebarTocNumbersMode sidebarTocNumbers = parseSidebarTocNumbersMode(sourceMap, label);
@@ -366,8 +406,7 @@ public final class BibliosConfigParser {
             sidebarTocNumbers,
             pdf,
             docx,
-            cardBackgroundColor,
-            cardLabel
+            cardBackgroundColor
         );
     }
 
@@ -402,32 +441,6 @@ public final class BibliosConfigParser {
             return true;
         }
         return CSS_COLOR_NAMES.contains(color.toLowerCase(Locale.ROOT));
-    }
-
-    private String parseCardLabel(Map<String, Object> sourceMap, String label) {
-        if (!sourceMap.containsKey("card_label")) {
-            return null;
-        }
-
-        Object value = sourceMap.get("card_label");
-        if (!(value instanceof String text)) {
-            throw new ThothBuildException(
-                "Expected string for '" + label + ".card_label', got: " +
-                    (value == null ? "null" : value.getClass().getSimpleName()),
-                ThothBuildException.ErrorSeverity.FATAL,
-                "config"
-            );
-        }
-
-        String cardLabel = text.trim();
-        if (cardLabel.isEmpty()) {
-            throw new ThothBuildException(
-                "Invalid '" + label + ".card_label': value must not be blank",
-                ThothBuildException.ErrorSeverity.FATAL,
-                "config"
-            );
-        }
-        return cardLabel;
     }
 
     private Object parseSourceRevnumber(Map<String, Object> sourceMap, String label) {
