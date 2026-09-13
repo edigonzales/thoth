@@ -8,9 +8,9 @@ description = 'Thoth Biblios Server - authenticated documentation portal'
 
 java {
     toolchain {
+        // Any Java 25 JDK can compile and test the server. Native builds need a
+        // GraalVM installation, provided via JAVA_HOME or GRAALVM_HOME.
         languageVersion = JavaLanguageVersion.of(25)
-        // Build (and native-compile) with a GraalVM toolchain, e.g. 25.x from SDKMAN.
-        vendor = JvmVendorSpec.GRAAL_VM
     }
 }
 

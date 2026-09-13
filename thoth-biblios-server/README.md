@@ -32,10 +32,12 @@ JVM (development):
 ./gradlew :thoth-biblios-server:bootRun --args="--biblios.package-dir=build/package --biblios.access-config=access.yml"
 ```
 
-Native binary (production; must be built for the target OS/architecture):
+Native binary (production; must be built for the target OS/architecture).
+Requires a GraalVM 25 JDK: either start Gradle with `JAVA_HOME` pointing to it
+or set `GRAALVM_HOME`.
 
 ```bash
-./gradlew :thoth-biblios-server:nativeCompile
+GRAALVM_HOME=/path/to/graalvm-25 ./gradlew :thoth-biblios-server:nativeCompile
 BIBLIOS_PACKAGE=build/package BIBLIOS_ACCESS_CONFIG=access.yml \
   thoth-biblios-server/build/native/nativeCompile/thoth-biblios-server
 ```

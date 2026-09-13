@@ -85,7 +85,7 @@ jobs:
           cache: 'gradle'
 
       - name: Build native server binary
-        run: ./gradlew --no-daemon :thoth-biblios-server:nativeCompile
+        run: GRAALVM_HOME="$JAVA_HOME" ./gradlew --no-daemon :thoth-biblios-server:nativeCompile
 
       - name: Generate smoke package
         run: ./gradlew --no-daemon :thoth-biblios-server:generateSmokePackage
