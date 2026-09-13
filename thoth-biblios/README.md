@@ -108,6 +108,51 @@ java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
 
 3. The site is generated in `build/site/`. Open `build/site/index.html` in your browser.
 
+### Access-protected documentation
+
+A documentation source can reference an access policy. The policy rules live in a
+separate `access.yml` next to `biblios.yml` (or at `--access-config <path>`):
+
+```yaml
+# biblios.yml
+content:
+  sources:
+    - id: agi-betrieb
+      access_policy: agi-betrieb
+      # ... existing source configuration
+```
+
+```yaml
+# access.yml
+default: deny
+policies:
+  public:
+    mode: public
+  agi-betrieb:
+    mode: restricted
+    allow:
+      groups:
+        - provider: entra-kanton
+          id: "<group object id>"
+      users:
+        - provider: entra-kanton
+          id: "<user object id>"
+```
+
+A regular `build` refuses to export access-protected sources. Use
+`--public-export` to generate a consistent public-only site, or `--package <dir>`
+to write a private publication package for `thoth-biblios-server`:
+
+```bash
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
+  --config biblios.yml \
+  --package build/package
+```
+
+The package contains pre-rendered page fragments, all servable files, the search
+data and a manifest that maps every path to its documentation. The server enforces
+the policies and assembles navigation, switchers and search per user.
+
 ### Development Server
 
 For local preview with auto-rebuild on file changes:

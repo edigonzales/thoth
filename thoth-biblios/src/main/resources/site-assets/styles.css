@@ -1259,3 +1259,25 @@ mark.search-highlight {
         min-width: 0;
     }
 }
+
+.site-header .logout-form {
+    display: flex;
+    align-items: center;
+    margin-left: 0.75rem;
+}
+
+.site-header .logout-button {
+    padding: 0.45rem 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font-size: 0.875rem;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.site-header .logout-button:hover {
+    background: rgba(255, 255, 255, 0.12);
+}

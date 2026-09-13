@@ -1,0 +1,16 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    container_name: biblios-keycloak
+    command:
+      - start-dev
+      - --import-realm
+      - --http-port=8090
+      - --hostname=http://localhost:8090
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: local-dev-only
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - ./realm-biblios-dev.json:/opt/keycloak/data/import/realm-biblios-dev.json:ro

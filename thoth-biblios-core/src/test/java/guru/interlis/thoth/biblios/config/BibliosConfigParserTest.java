@@ -1341,6 +1341,81 @@ class BibliosConfigParserTest {
         assertTrue(ex.getMessage().contains("on"));
     }
 
+    @Test
+    void parsesAccessPolicyReference(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: agi-betrieb
+                  display_name: Betrieb
+                  url: https://example.git
+                  branches:
+                    - name: main
+                  access_policy: agi-betrieb
+                - id: public-docs
+                  display_name: Public
+                  url: https://example.git
+                  branches:
+                    - name: main
+            """;
+        Path file = tempDir.resolve("access-policy.yml");
+        Files.writeString(file, yaml);
+
+        BibliosConfig config = parser.parse(file);
+        assertEquals("agi-betrieb", config.content().sources().get(0).accessPolicy());
+        assertNull(config.content().sources().get(1).accessPolicy());
+    }
+
+    @Test
+    void rejectsInvalidAccessPolicyName(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+                  access_policy: "has space"
+            """;
+        Path file = tempDir.resolve("invalid-access-policy.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("access_policy"));
+    }
+
+    @Test
+    void rejectsNonStringAccessPolicy(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+            site:
+              title: Test
+            output:
+              dir: build
+            content:
+              sources:
+                - id: test
+                  display_name: Test
+                  url: https://example.git
+                  branches:
+                    - name: main
+                  access_policy: 42
+            """;
+        Path file = tempDir.resolve("non-string-access-policy.yml");
+        Files.writeString(file, yaml);
+
+        ThothBuildException ex = assertThrows(ThothBuildException.class, () -> parser.parse(file));
+        assertTrue(ex.getMessage().contains("access_policy"));
+    }
+
     private Path resourcePath(String name) {
         return Path.of(getClass().getClassLoader().getResource(name).getPath());
     }

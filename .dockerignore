@@ -1,0 +1,9 @@
+.git
+.gradle
+build
+**/build
+.demo
+.demo-ili-lab
+.thoth
+.idea
+.vscode

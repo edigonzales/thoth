@@ -141,6 +141,31 @@ class ThothBibliosCliOptionParsingTest {
     }
 
     @Test
+    void buildParsesPublicExportAndAccessConfig() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        CommandLine.ParseResult parseResult = cli.parseArgs(
+            "build",
+            "--config", "biblios.yml",
+            "--public-export",
+            "--access-config", "security/access.yml"
+        );
+
+        assertTrue(parseResult.subcommand().hasMatchedOption("--public-export"));
+        assertTrue(parseResult.subcommand().hasMatchedOption("--access-config"));
+    }
+
+    @Test
+    void buildLeavesPublicExportDisabledByDefault() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        CommandLine.ParseResult parseResult = cli.parseArgs(
+            "build",
+            "--config", "biblios.yml"
+        );
+
+        assertFalse(parseResult.subcommand().hasMatchedOption("--public-export"));
+    }
+
+    @Test
     void serveParsesUseLocalWorkingTreeFlag() {
         CommandLine cli = new CommandLine(new ThothBibliosCli());
         CommandLine.ParseResult parseResult = cli.parseArgs(

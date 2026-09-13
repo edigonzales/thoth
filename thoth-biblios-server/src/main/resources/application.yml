@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: thoth-biblios-server
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: ${BIBLIOS_CLIENT_ID:biblios}
+            client-secret: ${BIBLIOS_CLIENT_SECRET:local-dev-only}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid,profile,email
+        provider:
+          # Explicit endpoints (no OIDC discovery at startup). Works offline and in native images.
+          keycloak:
+            authorization-uri: ${BIBLIOS_ISSUER_URI:http://localhost:8090/realms/biblios-dev}/protocol/openid-connect/auth
+            token-uri: ${BIBLIOS_ISSUER_URI:http://localhost:8090/realms/biblios-dev}/protocol/openid-connect/token
+            jwk-set-uri: ${BIBLIOS_ISSUER_URI:http://localhost:8090/realms/biblios-dev}/protocol/openid-connect/certs
+            user-info-uri: ${BIBLIOS_ISSUER_URI:http://localhost:8090/realms/biblios-dev}/protocol/openid-connect/userinfo
+            user-name-attribute: preferred_username
+  # Portal resources are served exclusively through the publication package
+  # (manifest + access checks); disable Spring Boot's default static mappings.
+  web:
+    resources:
+      add-mappings: false
+
+server:
+  port: ${BIBLIOS_PORT:8080}
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: ${BIBLIOS_SESSION_TIMEOUT:8h}
+      cookie:
+        name: BIBLIOS_SESSION
+        http-only: true
+        same-site: lax
+        # Set to true when serving behind a TLS-terminating reverse proxy.
+        secure: ${BIBLIOS_SECURE_COOKIE:false}
+
+biblios:
+  package-dir: ${BIBLIOS_PACKAGE:build/package}
+  access-config: ${BIBLIOS_ACCESS_CONFIG:access.yml}
+  # Groups are only accepted for this long after login; then the user must log in again.
+  max-identity-age: ${BIBLIOS_MAX_IDENTITY_AGE:60m}
+  provider: ${BIBLIOS_PROVIDER:keycloak-local}
+  subject-claim: ${BIBLIOS_SUBJECT_CLAIM:sub}
+  groups-claim: ${BIBLIOS_GROUPS_CLAIM:groups}
+  registration-id: ${BIBLIOS_REGISTRATION_ID:keycloak}
+
+logging:
+  level:
+    org.springframework.security: INFO

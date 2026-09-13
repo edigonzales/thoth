@@ -127,6 +127,12 @@
                     <span>Active doc</span>
                 </label>
             </form>
+            <#if (showLogout!false)>
+            <form class="logout-form" action="${logoutUrl!'/logout'}" method="post">
+                <input type="hidden" name="${csrfParameterName!'_csrf'}" value="${csrfToken!''}">
+                <button type="submit" class="logout-button">Sign out</button>
+            </form>
+            </#if>
         </div>
     </header>
 

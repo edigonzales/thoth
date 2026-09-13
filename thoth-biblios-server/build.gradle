@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.1'
+    id 'org.graalvm.buildtools.native' version '1.1.12'
+}
+
+description = 'Thoth Biblios Server - authenticated documentation portal'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+        // Build (and native-compile) with a GraalVM toolchain, e.g. 25.x from SDKMAN.
+        vendor = JvmVendorSpec.GRAAL_VM
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+}
+
+dependencies {
+    implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.1')
+
+    implementation project(':thoth-biblios-core')
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+    implementation 'org.freemarker:freemarker:2.3.34'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.testcontainers:testcontainers'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// The server never renders AsciiDoc or touches Git; keep the generator stack
+// (AsciidoctorJ, JRuby, JGit, docx4j) out of the classpath and the native image.
+configurations.configureEach {
+    exclude group: 'org.asciidoctor'
+    exclude group: 'org.jruby'
+    exclude group: 'org.eclipse.jgit'
+    exclude group: 'org.docx4j'
+}
+
+springBoot {
+    mainClass = 'guru.interlis.thoth.biblios.server.BibliosServerApplication'
+}
+
+tasks.register('generateSmokePackage', JavaExec) {
+    group = 'verification'
+    description = 'Writes a small publication package used by the native smoke test.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'guru.interlis.thoth.biblios.server.SmokePackageMain'
+    args = [layout.buildDirectory.dir('smoke-package').get().asFile.absolutePath]
+}
+
+graalvmNative {
+    toolchainDetection = true
+    binaries {
+        main {
+            imageName = 'thoth-biblios-server'
+            buildArgs.add('--no-fallback')
+        }
+    }
+}

@@ -15,6 +15,9 @@ import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.RenderMode;
 import guru.interlis.thoth.biblios.config.VersionSwitchMode;
 import guru.interlis.thoth.biblios.nav.NavigationText;
+import guru.interlis.thoth.biblios.publication.PublicationCatalogWriter;
+import guru.interlis.thoth.biblios.publication.PublicationPackageWriter;
+import guru.interlis.thoth.biblios.view.SiteViewModelFactory;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -96,6 +99,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private final Path templateOverrideRoot;
     private final Path assetOverrideRoot;
     private final Configuration freemarker;
+    private final SiteViewModelFactory view;
+    private final PublicationPackageWriter packageWriter;
     private String siteLogo;
 
     public BibliosSiteGenerator(BibliosConfig config, SiteCatalog catalog, Path outputRoot) {
@@ -103,13 +108,20 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     }
 
     public BibliosSiteGenerator(BibliosConfig config, SiteCatalog catalog, Path outputRoot, Path configPath) {
+        this(config, catalog, outputRoot, configPath, null);
+    }
+
+    public BibliosSiteGenerator(BibliosConfig config, SiteCatalog catalog, Path outputRoot, Path configPath,
+                                PublicationPackageWriter packageWriter) {
         this.config = config;
         this.catalog = catalog;
         this.outputRoot = outputRoot;
+        this.packageWriter = packageWriter;
         this.configDirectory = resolveConfigDirectory(configPath);
         this.templateOverrideRoot = configDirectory != null ? configDirectory.resolve(TEMPLATE_OVERRIDES_DIR_NAME) : null;
         this.assetOverrideRoot = configDirectory != null ? configDirectory.resolve(ASSET_OVERRIDES_DIR_NAME) : null;
         this.siteLogo = resolveConfiguredLogoReference();
+        this.view = new SiteViewModelFactory(config, catalog);
 
         // Initialize FreeMarker
         freemarker = new Configuration(Configuration.VERSION_2_3_34);
@@ -210,6 +222,10 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         }
 
         System.out.println("[info] Site generation complete.");
+
+        if (packageWriter != null) {
+            packageWriter.writeCatalog(PublicationCatalogWriter.write(config, catalog, siteLogo, view));
+        }
     }
 
     /**
@@ -265,8 +281,8 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         Path outputFile = Path.of("index.html");
         Map<String, Object> model = createCommonModel(outputFile);
         model.put("siteDescription", config.site().url());
-        model.put("catalog", catalogToModel());
-        model.put("docSwitcher", buildDocSwitcher());
+        model.put("catalog", view.catalogModel());
+        model.put("docSwitcher", view.docSwitcher());
 
         String html = renderTemplate("index.ftl", model);
         writeOutput(outputFile, html);
@@ -275,8 +291,9 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private void generateSearchPage() throws IOException {
         Path outputFile = Path.of("search/index.html");
         Map<String, Object> model = createCommonModel(outputFile);
-        model.put("docSwitcher", buildDocSwitcher());
-        model.put("searchIndexScriptHref", routeHref(basePathForOutput(outputFile), "/search-index.js"));
+        model.put("docSwitcher", view.docSwitcher());
+        model.put("searchIndexScriptHref",
+            SiteViewModelFactory.routeHref(SiteViewModelFactory.basePathForOutput(outputFile), "/search-index.js"));
 
         String html = renderTemplate("search.ftl", model);
         writeOutput(outputFile, html);
@@ -302,13 +319,13 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         }
 
         Map<String, Object> model = createCommonModel(outputFile);
-        model.put("component", componentToModel(component));
-        model.put("currentVersion", defaultVersion != null ? versionToModel(defaultVersion) : Map.of());
+        model.put("component", view.componentModel(component));
+        model.put("currentVersion", defaultVersion != null ? view.versionModel(defaultVersion) : Map.of());
         model.put("currentComponentId", component.id());
         model.put("currentVersionStr", defaultVersion != null ? defaultVersion.version() : component.defaultVersion());
         model.put("navigation", null);
-        model.put("docSwitcher", buildDocSwitcher());
-        model.put("versionSwitcher", buildVersionSwitcher(component));
+        model.put("docSwitcher", view.docSwitcher());
+        model.put("versionSwitcher", view.versionSwitcher(component));
 
         String html = renderTemplate("component.ftl", model);
         writeOutput(outputFile, html);
@@ -337,25 +354,30 @@ public final class BibliosSiteGenerator implements AutoCloseable {
 
         String contentHtml = rewriteContentLinks(page, version, outputFile);
         contentHtml = prepareInterlisLabMarkup(contentHtml, outputFile);
+        if (packageWriter != null) {
+            packageWriter.recordPage(page.route(), component.id(), contentHtml);
+        }
 
         Map<String, Object> model = createCommonModel(outputFile);
-        model.put("page", pageToModel(page, contentHtml));
+        model.put("page", view.pageModel(page, contentHtml));
         model.put("currentComponentId", component.id());
         model.put("currentVersionStr", version.version());
-        model.put("currentVersion", versionToModel(version));
+        model.put("currentVersion", view.versionModel(version));
         model.put("currentPagePath", page.sourcePath());
         model.put(
             "navigation",
             version.navigation() != null
-                ? (singlePageMode ? singlePageNavToModel(page.route(), version) : navToModel(component.id(), version))
+                ? (singlePageMode
+                    ? view.singlePageNavigationModel(page.route(), version)
+                    : view.navigationModel(component.id(), version))
                 : null
         );
-        model.put("docSwitcher", buildDocSwitcher());
-        model.put("versionSwitcher", buildVersionSwitcher(component, page.sourcePath()));
-        model.put("breadcrumbs", breadcrumbsToModel(page.breadcrumbs()));
+        model.put("docSwitcher", view.docSwitcher());
+        model.put("versionSwitcher", view.versionSwitcher(component, page.sourcePath()));
+        model.put("breadcrumbs", view.breadcrumbsModel(page.breadcrumbs()));
         model.put("singlePageMode", singlePageMode);
         model.put("chapterBreadcrumbEnabled", singlePageMode);
-        model.put("initialChapterId", singlePageMode ? singlePageInitialChapterId(version.navigation()) : "");
+        model.put("initialChapterId", singlePageMode ? view.singlePageInitialChapterId(version.navigation()) : "");
         model.put("editUrl", page.editUrl());
         model.put("sourceUrl", page.sourceUrl());
         model.put("showEditLink", config.ui() != null && config.ui().showEditLink());
@@ -363,10 +385,10 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         model.put("interlisLabEnabled", page.usesInterlisLab() || InterlisLabHtmlSupport.hasInterlisLab(contentHtml));
 
         if (page.prev() != null) {
-            model.put("prevPage", pageToModel(page.prev()));
+            model.put("prevPage", view.pageModel(page.prev()));
         }
         if (page.next() != null) {
-            model.put("nextPage", pageToModel(page.next()));
+            model.put("nextPage", view.pageModel(page.next()));
         }
 
         String html = renderTemplate("page.ftl", model);
@@ -596,7 +618,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
             return html != null ? html : "";
         }
 
-        String ili2cJarUrl = assetHref(basePathForOutput(outputFile), "site-assets/interlis-lab/ili2c.jar");
+        String ili2cJarUrl = SiteViewModelFactory.assetHref(SiteViewModelFactory.basePathForOutput(outputFile), "site-assets/interlis-lab/ili2c.jar");
         Document document = Jsoup.parseBodyFragment(html);
         boolean changed = false;
         for (Element lab : document.select("interlis-lab")) {
@@ -612,7 +634,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
 
     private String rewriteContentHref(String href, DocPage currentPage, ComponentVersion version,
                                       Map<String, DocPage> pagesBySourcePath, Path currentOutputFile) {
-        if (href == null || href.isBlank() || href.startsWith("#") || isExternalHref(href)) {
+        if (href == null || href.isBlank() || href.startsWith("#") || SiteViewModelFactory.isExternalHref(href)) {
             return href;
         }
 
@@ -769,18 +791,6 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         return false;
     }
 
-    private boolean isExternalHref(String href) {
-        String normalized = href.trim().toLowerCase(Locale.ROOT);
-        return normalized.startsWith("http://")
-            || normalized.startsWith("https://")
-            || normalized.startsWith("mailto:")
-            || normalized.startsWith("data:")
-            || normalized.startsWith("javascript:")
-            || normalized.startsWith("tel:")
-            || normalized.startsWith("file:")
-            || normalized.startsWith("//");
-    }
-
     private HrefParts splitHref(String href) {
         int queryIndex = href.indexOf('?');
         int hashIndex = href.indexOf('#');
@@ -854,9 +864,9 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         for (Element chapter : searchableSections(body)) {
             int level = sectionLevel(chapter);
             Element heading = sectionHeading(chapter);
-            String chapterId = normalizeChapterId(chapter.id());
+            String chapterId = view.normalizeChapterId(chapter.id());
             if (chapterId.isBlank() && heading != null) {
-                chapterId = normalizeChapterId(heading.id());
+                chapterId = view.normalizeChapterId(heading.id());
             }
             if (chapterId.isBlank()) {
                 continue;
@@ -1023,7 +1033,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
         copyAsset(assetsDest, "search.js");
         copyAsset(assetsDest, "interlis-lab/interlis-lab.js");
         copyAsset(assetsDest, "interlis-lab/ili2c.jar");
-        if (uiSyntaxHighlightingEnabled()) {
+        if (view.syntaxHighlightingEnabled()) {
             copyAsset(assetsDest, "prism-overrides.css");
             copyPrismAssets(assetsDest);
             copyPrismCustomComponents(assetsDest);
@@ -1033,68 +1043,7 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     }
 
     private Map<String, Object> createCommonModel(Path outputFile) {
-        String basePath = basePathForOutput(outputFile);
-        Map<String, Object> model = new HashMap<>();
-        model.put("siteTitle", config.site().title());
-        model.put("siteLogo", resolveMaybeLocalHref(basePath, siteLogo));
-        model.put("basePath", basePath);
-        model.put("siteRootHref", siteRootHref(basePath));
-        model.put("searchPageHref", routeHref(basePath, "/search/"));
-        model.put("searchIndexUrl", routeHref(basePath, "/search-index.json"));
-        model.put("locale", config.site().defaultLanguage());
-        model.put("searchLanguageMode", uiSearchLanguageMode());
-        model.put("syntaxHighlightingEnabled", uiSyntaxHighlightingEnabled());
-        model.put("prismCustomComponentUrls", uiPrismCustomComponentHrefs(basePath));
-        model.put("interlisLabEnabled", false);
-        model.put("interlisLabScriptHref", assetHref(basePath, "site-assets/interlis-lab/interlis-lab.js"));
-        return model;
-    }
-
-    private String basePathForOutput(Path outputFile) {
-        Path parent = outputFile != null ? outputFile.getParent() : null;
-        if (parent == null || parent.getNameCount() == 0) {
-            return ".";
-        }
-        return String.join("/", Collections.nCopies(parent.getNameCount(), ".."));
-    }
-
-    private String siteRootHref(String basePath) {
-        return basePath + "/";
-    }
-
-    private String routeHref(String basePath, String route) {
-        String normalizedRoute = route == null || route.isBlank() ? "/" : route;
-        if (!normalizedRoute.startsWith("/")) {
-            normalizedRoute = "/" + normalizedRoute;
-        }
-        if ("/".equals(normalizedRoute)) {
-            return siteRootHref(basePath);
-        }
-        return basePath + normalizedRoute;
-    }
-
-    private String assetHref(String basePath, String assetPath) {
-        String normalizedAssetPath = assetPath == null ? "" : assetPath.trim();
-        if (normalizedAssetPath.isEmpty()) {
-            return siteRootHref(basePath);
-        }
-        if (normalizedAssetPath.startsWith("/")) {
-            normalizedAssetPath = normalizedAssetPath.substring(1);
-        }
-        return routeHref(basePath, "/" + normalizedAssetPath);
-    }
-
-    private String resolveMaybeLocalHref(String basePath, String href) {
-        if (href == null || href.isBlank()) {
-            return href;
-        }
-        if (isExternalHref(href) || href.startsWith("#")) {
-            return href;
-        }
-        if (href.startsWith("/")) {
-            return routeHref(basePath, href);
-        }
-        return href;
+        return view.commonModel(SiteViewModelFactory.basePathForOutput(outputFile), siteLogo);
     }
 
     private void copyAsset(Path assetsDest, String relativePath) throws IOException {
@@ -1267,33 +1216,6 @@ public final class BibliosSiteGenerator implements AutoCloseable {
     private record HrefParts(String path, String suffix) {
     }
 
-    private String uiSearchLanguageMode() {
-        if (config.ui() == null || config.ui().searchLanguageMode() == null) {
-            return "multilingual_safe";
-        }
-        return config.ui().searchLanguageMode().configValue();
-    }
-
-    private boolean uiSyntaxHighlightingEnabled() {
-        if (config.ui() == null || config.ui().syntaxHighlightingMode() == null) {
-            return true;
-        }
-        return config.ui().syntaxHighlightingMode().isEnabled();
-    }
-
-    private List<String> uiPrismCustomComponentHrefs(String basePath) {
-        if (!uiSyntaxHighlightingEnabled() || config.ui() == null || config.ui().prismCustomComponents().isEmpty()) {
-            return List.of();
-        }
-        List<String> urls = new ArrayList<>();
-        for (String rawPath : config.ui().prismCustomComponents()) {
-            Path source = Path.of(rawPath);
-            String fileName = source.getFileName().toString();
-            urls.add(assetHref(basePath, "site-assets/prism/custom/" + fileName));
-        }
-        return List.copyOf(urls);
-    }
-
     // Template rendering
 
     private String renderTemplate(String name, Map<String, Object> model) {
@@ -1322,254 +1244,6 @@ public final class BibliosSiteGenerator implements AutoCloseable {
             }
         }
         Files.writeString(target, content, StandardCharsets.UTF_8);
-    }
-
-    // Model converters
-
-    private Map<String, Object> catalogToModel() {
-        Map<String, Object> model = new HashMap<>();
-        List<Map<String, Object>> components = new ArrayList<>();
-        for (DocComponent c : catalog.components()) {
-            components.add(componentToModel(c));
-        }
-        model.put("components", components);
-        return model;
-    }
-
-    private Map<String, Object> componentToModel(DocComponent component) {
-        Map<String, Object> model = new HashMap<>();
-        model.put("id", component.id());
-        model.put("displayName", component.displayName());
-        model.put("defaultVersion", component.defaultVersion());
-        model.put("cardBackgroundColor", component.cardBackgroundColor());
-
-        List<Map<String, Object>> versions = new ArrayList<>();
-        for (ComponentVersion v : component.versions()) {
-            versions.add(versionToModel(v));
-        }
-        model.put("versions", versions);
-        return model;
-    }
-
-    private Map<String, Object> versionToModel(ComponentVersion version) {
-        Map<String, Object> model = new HashMap<>();
-        model.put("version", version.version());
-        model.put("displayVersion", version.displayVersion());
-        model.put("branchName", version.branchName());
-        return model;
-    }
-
-    private Map<String, Object> pageToModel(DocPage page) {
-        return pageToModel(page, page.html());
-    }
-
-    private Map<String, Object> pageToModel(DocPage page, String html) {
-        Map<String, Object> model = new HashMap<>();
-        model.put("componentId", page.componentId());
-        model.put("version", page.version());
-        model.put("sourcePath", page.sourcePath());
-        model.put("pageId", page.pageId());
-        model.put("title", page.title());
-        model.put("navTitle", page.navTitle());
-        model.put("route", page.route());
-        model.put("html", html != null ? html : "");
-        return model;
-    }
-
-    private Map<String, Object> navToModel(String componentId, ComponentVersion version) {
-        Map<String, Object> model = new HashMap<>();
-        Map<String, String> routeBySourcePath = new HashMap<>();
-        for (DocPage page : version.pages()) {
-            routeBySourcePath.put(page.sourcePath(), page.route());
-        }
-        model.put("items", navItemsToModel(componentId, version, version.navigation().items(), routeBySourcePath));
-        return model;
-    }
-
-    private Map<String, Object> singlePageNavToModel(String baseRoute, ComponentVersion version) {
-        Map<String, Object> model = new HashMap<>();
-        model.put("items", singlePageNavItemsToModel(baseRoute, version.navigation().items()));
-        model.put("singlePage", true);
-        return model;
-    }
-
-    private List<Map<String, Object>> navItemsToModel(String componentId, ComponentVersion version,
-                                                      List<guru.interlis.thoth.biblios.nav.NavItem> items,
-                                                      Map<String, String> routeBySourcePath) {
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (guru.interlis.thoth.biblios.nav.NavItem item : items) {
-            Map<String, Object> m = new HashMap<>();
-            m.put("title", item.title());
-            m.put("plainTitle", item.plainTitle());
-            m.put("page", item.page());
-            if (item.page() != null) {
-                String route = routeBySourcePath.get(item.page());
-                if (route == null) {
-                    route = navFallbackRoute(componentId, version, item.page());
-                }
-                m.put("route", route);
-            }
-            if (item.children() != null && !item.children().isEmpty()) {
-                m.put("children", navItemsToModel(componentId, version, item.children(), routeBySourcePath));
-            }
-            m.put("group", item.isGroup());
-            result.add(m);
-        }
-        return result;
-    }
-
-    private List<Map<String, Object>> singlePageNavItemsToModel(String baseRoute, List<guru.interlis.thoth.biblios.nav.NavItem> items) {
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (guru.interlis.thoth.biblios.nav.NavItem item : items) {
-            Map<String, Object> m = new HashMap<>();
-            String displayTitle = item.title();
-            String chapterTitle = item.rawTitle() != null && !item.rawTitle().isBlank()
-                ? item.rawTitle()
-                : displayTitle;
-            m.put("title", displayTitle);
-            m.put("plainTitle", item.plainTitle());
-            m.put("group", item.isGroup());
-
-            if (item.page() != null && !item.page().isBlank()) {
-                String chapterId = normalizeChapterId(item.page());
-                m.put("page", chapterId);
-                m.put("chapter", true);
-                m.put("chapterId", chapterId);
-                m.put("chapterTitle", chapterTitle);
-                m.put("plainChapterTitle", item.plainRawTitle());
-                m.put("route", baseRoute + "#" + chapterId);
-            } else {
-                m.put("chapter", false);
-            }
-
-            if (item.children() != null && !item.children().isEmpty()) {
-                m.put("children", singlePageNavItemsToModel(baseRoute, item.children()));
-            }
-            result.add(m);
-        }
-        return result;
-    }
-
-    private List<Map<String, Object>> breadcrumbsToModel(List<DocPage.Breadcrumb> breadcrumbs) {
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (DocPage.Breadcrumb crumb : breadcrumbs) {
-            Map<String, Object> m = new HashMap<>();
-            m.put("title", crumb.title());
-            m.put("plainTitle", NavigationText.plainText(crumb.title()));
-            m.put("route", crumb.route());
-            result.add(m);
-        }
-        return result;
-    }
-
-    private String singlePageInitialChapterId(guru.interlis.thoth.biblios.nav.NavTree nav) {
-        if (nav == null || nav.items() == null) {
-            return "";
-        }
-        return firstChapterId(nav.items());
-    }
-
-    private String firstChapterId(List<guru.interlis.thoth.biblios.nav.NavItem> items) {
-        for (guru.interlis.thoth.biblios.nav.NavItem item : items) {
-            if (item.page() != null && !item.page().isBlank()) {
-                return normalizeChapterId(item.page());
-            }
-            if (item.children() != null && !item.children().isEmpty()) {
-                String nested = firstChapterId(item.children());
-                if (!nested.isBlank()) {
-                    return nested;
-                }
-            }
-        }
-        return "";
-    }
-
-    private String normalizeChapterId(String raw) {
-        String normalized = raw == null ? "" : raw.trim();
-        while (normalized.startsWith("#")) {
-            normalized = normalized.substring(1);
-        }
-        return normalized;
-    }
-
-    /**
-     * Shared presentation order for home cards and the documentation switcher.
-     * The catalog itself stays flat so content and exports are never duplicated.
-     */
-    private List<Map<String, Object>> buildDocSwitcher() {
-        if (config.content().groups().isEmpty()) {
-            return catalog.components().stream().map(this::componentToModel).toList();
-        }
-        List<Map<String, Object>> result = new ArrayList<>();
-        Set<String> assigned = new HashSet<>();
-        for (var group : config.content().groups()) {
-            List<Map<String, Object>> documents = new ArrayList<>();
-            for (String id : group.sources()) {
-                assigned.add(id);
-                DocComponent component = catalog.findById(id);
-                if (component != null) {
-                    documents.add(componentToModel(component));
-                }
-            }
-            if (!documents.isEmpty()) {
-                result.add(Map.of("title", group.title(), "documents", documents));
-            }
-        }
-        List<Map<String, Object>> remaining = new ArrayList<>();
-        for (var source : config.content().sources()) {
-            DocComponent component = catalog.findById(source.id());
-            if (!assigned.contains(source.id()) && component != null) {
-                remaining.add(componentToModel(component));
-            }
-        }
-        if (!remaining.isEmpty()) {
-            result.add(Map.of("title", "Weitere", "documents", remaining));
-        }
-        return result;
-    }
-
-    private List<Map<String, Object>> buildVersionSwitcher(DocComponent component) {
-        return buildVersionSwitcher(component, null);
-    }
-
-    private List<Map<String, Object>> buildVersionSwitcher(DocComponent component, String currentPageSourcePath) {
-        List<Map<String, Object>> result = new ArrayList<>();
-        VersionSwitchMode mode = config.ui() != null ? config.ui().versionSwitchMode() : VersionSwitchMode.START_PAGE;
-        for (ComponentVersion v : component.versions()) {
-            Map<String, Object> m = new HashMap<>();
-            m.put("version", v.version());
-            m.put("displayVersion", v.displayVersion());
-
-            // Equivalent page mode: map source-path across versions, fallback to version root.
-            if (mode == VersionSwitchMode.EQUIVALENT_PAGE && currentPageSourcePath != null) {
-                var targetPage = v.findPageBySourcePath(currentPageSourcePath);
-                if (targetPage != null) {
-                    m.put("route", targetPage.route());
-                } else {
-                    m.put("route", versionRootRoute(component.id(), v.version()));
-                }
-            } else {
-                m.put("route", versionRootRoute(component.id(), v.version()));
-            }
-
-            result.add(m);
-        }
-        return result;
-    }
-
-    private String versionRootRoute(String componentId, String version) {
-        return "/" + componentId + "/" + version + "/";
-    }
-
-    private String navFallbackRoute(String componentId, ComponentVersion version, String sourcePath) {
-        String normalizedPath = sourcePath.replace('\\', '/');
-        if (normalizedPath.endsWith(".adoc")) {
-            normalizedPath = normalizedPath.substring(0, normalizedPath.length() - 5);
-        }
-        if (normalizedPath.equals(version.startPage().replace('\\', '/').replaceFirst("\\.adoc$", ""))) {
-            return versionRootRoute(componentId, version.version());
-        }
-        return versionRootRoute(componentId, version.version()) + normalizedPath + "/";
     }
 
     private String escapeJson(String text) {

@@ -16,11 +16,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
         with:
-          distribution: temurin
           java-version: '25'
+          distribution: 'graalvm'
+          cache: 'gradle'
 
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
@@ -68,3 +69,45 @@ jobs:
       - name: Build when not a snapshot
         if: steps.version.outputs.is_snapshot != 'true'
         run: ./gradlew --no-daemon assemble
+
+  native-server:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: 'graalvm'
+          cache: 'gradle'
+
+      - name: Build native server binary
+        run: ./gradlew --no-daemon :thoth-biblios-server:nativeCompile
+
+      - name: Generate smoke package
+        run: ./gradlew --no-daemon :thoth-biblios-server:generateSmokePackage
+
+      - name: Smoke test native binary
+        run: |
+          set -euo pipefail
+          BIBLIOS_PORT=8080 \
+          BIBLIOS_PACKAGE=thoth-biblios-server/build/smoke-package/package \
+          BIBLIOS_ACCESS_CONFIG=thoth-biblios-server/build/smoke-package/access.yml \
+          ./thoth-biblios-server/build/native/nativeCompile/thoth-biblios-server &
+          SERVER_PID=$!
+          for i in $(seq 1 100); do
+            if curl -sf http://localhost:8080/ > /dev/null; then break; fi
+            sleep 0.3
+          done
+          curl -sf http://localhost:8080/ | grep -q "Access Test Portal"
+          curl -sf -o /dev/null http://localhost:8080/api/search-index
+          kill "$SERVER_PID"
+
+      - name: Upload native binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: thoth-biblios-server-linux-amd64
+          path: thoth-biblios-server/build/native/nativeCompile/thoth-biblios-server

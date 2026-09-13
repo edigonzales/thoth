@@ -6,10 +6,37 @@ Thoth ist eine Produktfamilie von JVM-basierten Static-Site-Generatoren für Asc
 
 ```
 thoth/
-├── thoth-core/      Gemeinsame technische Infrastruktur
-├── thoth-blog/      Blog-spezifisches Produkt
-└── thoth-biblios/   Multi-Repo-Dokumentationsgenerator
+├── thoth-core/           Gemeinsame technische Infrastruktur
+├── thoth-blog/           Blog-spezifisches Produkt
+├── thoth-biblios-core/   Biblios-Konfiguration, Katalog, Access-Modell, View-Verträge
+├── thoth-biblios/        Multi-Repo-Dokumentationsgenerator (Build, PDF/DOCX)
+└── thoth-biblios-server/ Authentifiziertes Dokumentationsportal (OIDC, nativ)
 ```
+
+## Zugriffsschutz und Serverbetrieb
+
+Biblios kann einzelne Dokumentationen (Quelle mit allen Versionen, Seiten und
+Dateien) unter eine Zugriffsrichtlinie stellen:
+
+- `access_policy` an einer Quelle in `biblios.yml` referenziert eine Richtlinie.
+- `access.yml` (getrennt, vom Portalbetrieb gepflegt) definiert `default: deny`
+  sowie Richtlinien mit `mode: public | authenticated | restricted` und
+  `allow.groups`/`allow.users` je `{provider, id}`. Identitäten werden über
+  Provider + Subject (Entra: `oid`) verglichen, nie über E-Mail-Adressen.
+- Der Build verweigert einen normalen Export, wenn geschützte Quellen vorhanden
+  sind (`--public-export` erzeugt eine konsistente rein öffentliche Site).
+- `build --package <dir>` erzeugt ein privates Publikationspaket:
+  `manifest.json` (Pfad → Dokumentation), `pages/` (Fragmente ohne Rahmen),
+  `files/` (alle auslieferbaren Dateien), `search-index.json` (intern).
+- `thoth-biblios-server` lädt das Paket, rendert Rahmen, Navigation, Switcher und
+  Suche benutzerbezogen über dieselben FreeMarker-Templates und liefert Dateien
+  ausschließlich über das Manifest aus (unbekannt oder intern ⇒ 404).
+- Sitzungen: OIDC-Login mit serverseitiger Session; geschützte Deep-Links werden
+  gespeichert und nach dem Login wieder angesteuert. Gruppen gelten höchstens
+  `biblios.max-identity-age` lang, danach ist eine neue Anmeldung nötig.
+- `access.yml` wird bei Änderung neu gelesen (ohne Neustart); ungültige Updates
+  werden ignoriert und die letzte gültige Fassung bleibt aktiv (fail closed).
+- Abmelden erfolgt über ein POST-Formular mit CSRF-Token im Portalrahmen.
 
 ## Modulstruktur
 

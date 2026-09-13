@@ -22,6 +22,7 @@ public final class SourceConfig {
     private final SourcePdfSection pdf;
     private final SourceDocxSection docx;
     private final String cardBackgroundColor;
+    private final String accessPolicy;
 
     public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage) {
@@ -63,6 +64,14 @@ public final class SourceConfig {
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage,
                         RenderMode renderMode, String masterFile, Object revnumber, SidebarTocNumbersMode sidebarTocNumbers,
                         SourcePdfSection pdf, SourceDocxSection docx, String cardBackgroundColor) {
+        this(id, displayName, url, branches, startPath, defaultVersion, navigation, startPage,
+            renderMode, masterFile, revnumber, sidebarTocNumbers, pdf, docx, cardBackgroundColor, null);
+    }
+
+    public SourceConfig(String id, String displayName, String url, List<BranchConfig> branches,
+                        String startPath, String defaultVersion, NavigationConfig navigation, String startPage,
+                        RenderMode renderMode, String masterFile, Object revnumber, SidebarTocNumbersMode sidebarTocNumbers,
+                        SourcePdfSection pdf, SourceDocxSection docx, String cardBackgroundColor, String accessPolicy) {
         this.id = Objects.requireNonNull(id, "source.id is required");
         this.displayName = Objects.requireNonNull(displayName, "source.display_name is required");
         this.url = Objects.requireNonNull(url, "source.url is required");
@@ -82,6 +91,7 @@ public final class SourceConfig {
         this.pdf = pdf;
         this.docx = docx;
         this.cardBackgroundColor = cardBackgroundColor;
+        this.accessPolicy = accessPolicy != null && !accessPolicy.isBlank() ? accessPolicy.trim() : null;
 
         if (this.renderMode == RenderMode.SINGLE_PAGE && this.masterFile == null) {
             throw new IllegalArgumentException("source.master_file is required when source.render_mode is single_page");
@@ -149,6 +159,14 @@ public final class SourceConfig {
      */
     public String cardBackgroundColor() {
         return cardBackgroundColor;
+    }
+
+    /**
+     * Name of the access policy that protects this documentation, as defined in
+     * {@code access.yml}. {@code null} when the source has no explicit policy.
+     */
+    public String accessPolicy() {
+        return accessPolicy;
     }
 
     @Override

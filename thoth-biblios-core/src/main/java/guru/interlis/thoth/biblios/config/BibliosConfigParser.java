@@ -40,6 +40,9 @@ public final class BibliosConfigParser {
     private static final Pattern HEX_COLOR_PATTERN = Pattern.compile(
         "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
     );
+    private static final Pattern ACCESS_POLICY_PATTERN = Pattern.compile(
+        "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    );
     private static final Pattern FUNCTIONAL_COLOR_PATTERN = Pattern.compile(
         "(?i)^(?:rgb|rgba|hsl|hsla)\\(\\s*[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:%|deg|grad|rad|turn)?"
             + "(?:\\s*,\\s*|\\s+)[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)%?"
@@ -358,6 +361,7 @@ public final class BibliosConfigParser {
         String defaultVersion = (String) sourceMap.get("default_version");
         String startPage = (String) sourceMap.get("start_page");
         String cardBackgroundColor = parseCardBackgroundColor(sourceMap, label);
+        String accessPolicy = parseAccessPolicy(sourceMap, label);
         Object revnumber = parseSourceRevnumber(sourceMap, label);
         RenderMode renderMode = parseRenderMode(sourceMap, label);
         SidebarTocNumbersMode sidebarTocNumbers = parseSidebarTocNumbersMode(sourceMap, label);
@@ -406,8 +410,33 @@ public final class BibliosConfigParser {
             sidebarTocNumbers,
             pdf,
             docx,
-            cardBackgroundColor
+            cardBackgroundColor,
+            accessPolicy
         );
+    }
+
+    private String parseAccessPolicy(Map<String, Object> sourceMap, String label) {
+        if (!sourceMap.containsKey("access_policy")) {
+            return null;
+        }
+        Object value = sourceMap.get("access_policy");
+        if (!(value instanceof String text)) {
+            throw new ThothBuildException(
+                "Expected string for '" + label + ".access_policy', got: " +
+                    (value == null ? "null" : value.getClass().getSimpleName()),
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        String policyName = text.trim();
+        if (policyName.isEmpty() || !ACCESS_POLICY_PATTERN.matcher(policyName).matches()) {
+            throw new ThothBuildException(
+                "Invalid '" + label + ".access_policy': expected a policy name matching [A-Za-z0-9][A-Za-z0-9._-]*",
+                ThothBuildException.ErrorSeverity.FATAL,
+                "config"
+            );
+        }
+        return policyName;
     }
 
     private String parseCardBackgroundColor(Map<String, Object> sourceMap, String label) {

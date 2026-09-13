@@ -2,10 +2,14 @@ package guru.interlis.thoth.biblios;
 
 import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.BibliosConfigParser;
+import guru.interlis.thoth.biblios.access.AccessPolicyResolver;
+import guru.interlis.thoth.biblios.access.AccessRules;
+import guru.interlis.thoth.biblios.access.AccessRulesParser;
 import guru.interlis.thoth.biblios.catalog.CatalogBuilder;
 import guru.interlis.thoth.biblios.catalog.DocComponent;
 import guru.interlis.thoth.biblios.catalog.SiteCatalog;
 import guru.interlis.thoth.biblios.config.SourceConfig;
+import guru.interlis.thoth.biblios.publication.PublicationPackageWriter;
 import guru.interlis.thoth.core.InputWatcher;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -75,6 +79,47 @@ public final class ThothBibliosCli implements Callable<Integer> {
         return configDirectory.resolve(configuredOutput).normalize();
     }
 
+    /**
+     * Resolve the access configuration path: explicit {@code --access-config} wins,
+     * otherwise {@code access.yml} next to {@code biblios.yml}.
+     */
+    static Path resolveAccessConfigPath(Path configPath, Path override) {
+        if (override != null) {
+            return override.toAbsolutePath().normalize();
+        }
+        Path configFile = configPath.toAbsolutePath().normalize();
+        Path configDirectory = configFile.getParent();
+        if (configDirectory == null) {
+            configDirectory = Path.of(".").toAbsolutePath().normalize();
+        }
+        return configDirectory.resolve("access.yml").normalize();
+    }
+
+    /**
+     * Load access rules. When no explicit path is given, a missing default file means
+     * "no access configuration" and all sources stay public (backward compatible).
+     */
+    static AccessRules loadAccessRules(Path configPath, Path accessConfigOverride) {
+        AccessRulesParser accessParser = new AccessRulesParser();
+        Path accessConfigPath = resolveAccessConfigPath(configPath, accessConfigOverride);
+        if (accessConfigOverride != null) {
+            return accessParser.parse(accessConfigPath);
+        }
+        return accessParser.parseOptional(accessConfigPath).orElseGet(AccessRules::defaultPublic);
+    }
+
+    /**
+     * Working directory for the local Git cache. Defaults to {@code .thoth/cache};
+     * can be overridden with the {@code thoth.work.dir} system property.
+     */
+    static Path resolveWorkRoot() {
+        String override = System.getProperty("thoth.work.dir");
+        if (override != null && !override.isBlank()) {
+            return Path.of(override.trim()).toAbsolutePath().normalize();
+        }
+        return Path.of(".thoth/cache");
+    }
+
     @Command(name = "build", description = "Builds the documentation site")
     static final class BuildCommand implements Callable<Integer> {
         private enum BuildFormat {
@@ -129,6 +174,24 @@ public final class ThothBibliosCli implements Callable<Integer> {
         )
         private List<String> docxVersions = new ArrayList<>();
 
+        @Option(
+            names = "--access-config",
+            description = "Path to access.yml (default: access.yml next to biblios.yml)."
+        )
+        private Path accessConfig;
+
+        @Option(
+            names = "--public-export",
+            description = "Export only publicly readable documentation. Without this flag the build fails when access policies protect sources."
+        )
+        private boolean publicExport;
+
+        @Option(
+            names = "--package",
+            description = "Write a publication package (manifest, page fragments, servable files) for thoth-biblios-server to this directory."
+        )
+        private Path packageOutput;
+
         @Override
         public Integer call() throws Exception {
             System.out.println("[info] thoth-biblios build");
@@ -164,27 +227,77 @@ public final class ThothBibliosCli implements Callable<Integer> {
             BibliosConfig bibliosConfig = parser.parse(config);
             System.out.println("[info] Loaded config: " + bibliosConfig.site().title());
 
+            // Resolve access rules and fail closed when protected sources are present
+            AccessRules accessRules = loadAccessRules(config, accessConfig);
+            AccessPolicyResolver accessResolver = new AccessPolicyResolver(accessRules);
+            accessResolver.validate(bibliosConfig.content().sources());
+            boolean nonPublicSources = accessResolver.hasNonPublicSources(bibliosConfig.content().sources());
+            if (nonPublicSources && !publicExport) {
+                System.err.println("[error] Access-protected documentation configured: "
+                    + String.join(", ", accessResolver.nonPublicSourceIds(bibliosConfig.content().sources())));
+                System.err.println("[error] A regular static export would expose protected content.");
+                System.err.println("[error] Use --public-export to build a public-only site, or use thoth-biblios-server.");
+                return 2;
+            }
+            if (publicExport) {
+                bibliosConfig = accessResolver.publicOnly(bibliosConfig);
+                System.out.println("[info] Public export: "
+                    + bibliosConfig.content().sources().size() + " public source(s).");
+            }
+
             // Resolve output path
             Path outputDir = resolveOutputDir(config, bibliosConfig, output);
             System.out.println("[info] output: " + outputDir);
+            Path packageDir;
+            try {
+                packageDir = resolvePackageDir(outputDir);
+            } catch (IllegalArgumentException e) {
+                System.err.println("[error] " + e.getMessage());
+                return 2;
+            }
             if (clean) {
                 bibliosConfig = overrideClean(bibliosConfig);
             }
 
             // Build catalog
-            Path workRoot = Path.of(".thoth/cache");
+            Path workRoot = resolveWorkRoot();
             try (CatalogBuilder catalogBuilder = new CatalogBuilder(bibliosConfig, workRoot, true)) {
                 SiteCatalog catalog = catalogBuilder.build();
                 System.out.println("[info] Catalog built: " + catalog.components().size() + " components");
 
                 // Generate site
-                try (BibliosSiteGenerator generator = new BibliosSiteGenerator(bibliosConfig, catalog, outputDir, config)) {
+                PublicationPackageWriter packageWriter = packageDir != null
+                    ? new PublicationPackageWriter(packageDir, outputDir, catalog)
+                    : null;
+                if (packageWriter != null) {
+                    packageWriter.begin();
+                }
+                try (BibliosSiteGenerator generator = new BibliosSiteGenerator(
+                    bibliosConfig, catalog, outputDir, config, packageWriter
+                )) {
                     generator.generate(generateHtml, generatePdf, selectedPdfVersions(), generateDocx, selectedDocxVersions());
+                }
+                if (packageWriter != null) {
+                    packageWriter.finish();
                 }
             }
 
             System.out.println("[done] Build finished.");
             return 0;
+        }
+
+        private Path resolvePackageDir(Path outputDir) {
+            if (packageOutput == null) {
+                return null;
+            }
+            Path resolved = packageOutput.toAbsolutePath().normalize();
+            Path normalizedOutput = outputDir.toAbsolutePath().normalize();
+            if (resolved.startsWith(normalizedOutput) || normalizedOutput.startsWith(resolved)) {
+                throw new IllegalArgumentException(
+                    "--package directory must not overlap the site output directory ("
+                        + normalizedOutput + "). Choose a separate directory.");
+            }
+            return resolved;
         }
 
         private BibliosConfig overrideClean(BibliosConfig cfg) {
@@ -278,6 +391,12 @@ public final class ThothBibliosCli implements Callable<Integer> {
         )
         private boolean useLocalWorkingTree;
 
+        @Option(
+            names = "--access-config",
+            description = "Path to access.yml (default: access.yml next to biblios.yml). Used for validation and warnings only; the dev server does not enforce access rules."
+        )
+        private Path accessConfig;
+
         private record ServeState(
             Path configFile,
             BibliosConfig config,
@@ -312,7 +431,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
                 System.out.println("[info] local working tree mode: enabled");
             }
 
-            Path workRoot = Path.of(".thoth/cache");
+            Path workRoot = resolveWorkRoot();
             AtomicBoolean rebuilding = new AtomicBoolean(false);
             AtomicReference<ServeState> serveState = new AtomicReference<>();
             AtomicReference<List<InputWatcher>> sourceWatchers = new AtomicReference<>(List.of());
@@ -487,6 +606,13 @@ public final class ThothBibliosCli implements Callable<Integer> {
                                        boolean forceCleanOutput) throws Exception {
             BibliosConfigParser parser = new BibliosConfigParser();
             BibliosConfig bibliosConfig = parser.parse(configPath);
+            AccessPolicyResolver accessResolver = new AccessPolicyResolver(loadAccessRules(configPath, accessConfig));
+            accessResolver.validate(bibliosConfig.content().sources());
+            if (accessResolver.hasNonPublicSources(bibliosConfig.content().sources())) {
+                System.out.println("[warn] Access-protected documentation configured ("
+                    + String.join(", ", accessResolver.nonPublicSourceIds(bibliosConfig.content().sources()))
+                    + "); the dev server does not enforce access rules. Use thoth-biblios-server for protected operation.");
+            }
             Path outputDir = ThothBibliosCli.resolveOutputDir(configPath, bibliosConfig, outputOverride);
 
             System.out.println("[info] Building site...");

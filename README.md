@@ -8,6 +8,8 @@ Thoth is a family of JVM-based static site generators for AsciiDoc content.
 |---------|---------|--------|
 | **`thoth-blog`** | Static site generator for AsciiDoc blogs | Production-ready |
 | **`thoth-biblios`** | Multi-repo documentation site generator with versioning | MVP complete |
+| **`thoth-biblios-core`** | Biblios configuration, catalog and access model, shared view contracts | New |
+| **`thoth-biblios-server`** | Authenticated Biblios portal (OIDC, per-documentation access policies) | New |
 | **`thoth-core`** | Shared technical infrastructure | Production-ready |
 
 ## Quick Start
@@ -45,6 +47,32 @@ Multi-repo documentation site generator with versioning support. Think of it as 
 ./gradlew :thoth-biblios:build
 java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar --help
 ```
+
+### thoth-biblios-core
+
+Biblios configuration (`biblios.yml`, `access.yml`), catalog model, access model and the shared
+FreeMarker view contracts used by both the static generator and the server.
+
+### thoth-biblios-server
+
+Authenticated documentation portal. The build produces a private publication package
+(`--package`), the server renders navigation, switchers and search per user and enforces
+per-documentation access policies (OIDC, e.g. Entra ID or Keycloak).
+
+```bash
+# Build a site plus publication package (protected sources require --public-export)
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
+  --config biblios.yml --package build/package
+
+# Run the server (JVM)
+./gradlew :thoth-biblios-server:bootRun --args="--biblios.package-dir=build/package"
+
+# Or build a native binary
+./gradlew :thoth-biblios-server:nativeCompile
+```
+
+Local Keycloak for development: `docker compose -f dev/keycloak/docker-compose.yml up -d`
+(see [dev/keycloak/README.md](dev/keycloak/README.md)).
 
 ### thoth-core
 

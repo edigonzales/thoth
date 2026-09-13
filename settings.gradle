@@ -2,4 +2,6 @@ rootProject.name = 'thoth'
 
 include 'thoth-core'
 include 'thoth-blog'
+include 'thoth-biblios-core'
 include 'thoth-biblios'
+include 'thoth-biblios-server'

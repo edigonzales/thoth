@@ -1,0 +1,121 @@
+{
+  "realm": "biblios-dev",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "clients": [
+    {
+      "clientId": "biblios",
+      "name": "Thoth Biblios Server (local)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "local-dev-only",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/login/oauth2/code/keycloak",
+        "http://localhost:*/login/oauth2/code/keycloak"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ],
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "acr",
+        "basic"
+      ],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "name": "agi-betrieb",
+      "path": "/agi-betrieb"
+    },
+    {
+      "name": "projektteam",
+      "path": "/projektteam"
+    }
+  ],
+  "users": [
+    {
+      "username": "anna",
+      "enabled": true,
+      "email": "anna@example.org",
+      "firstName": "Anna",
+      "lastName": "Muster",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "anna",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/agi-betrieb"
+      ]
+    },
+    {
+      "username": "ben",
+      "enabled": true,
+      "email": "ben@example.org",
+      "firstName": "Ben",
+      "lastName": "Beispiel",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ben",
+          "temporary": false
+        }
+      ],
+      "groups": []
+    },
+    {
+      "username": "claudia",
+      "enabled": true,
+      "email": "claudia@example.org",
+      "firstName": "Claudia",
+      "lastName": "Demo",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "claudia",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/projektteam"
+      ]
+    }
+  ]
+}
