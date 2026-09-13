@@ -168,8 +168,8 @@ class KeycloakLoginE2ETest {
 
     private static Path findRealmFile() {
         for (String candidate : new String[] {
-            "../dev/keycloak/realm-biblios-dev.json",
-            "dev/keycloak/realm-biblios-dev.json"
+            "../dev/keycloak/import/realm-biblios-dev.json",
+            "dev/keycloak/import/realm-biblios-dev.json"
         }) {
             Path path = Path.of(candidate).toAbsolutePath().normalize();
             if (Files.exists(path)) {

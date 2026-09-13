@@ -53,7 +53,7 @@ class PortalAccessTest {
     private static RequestPostProcessor groupMember() {
         return oidcLogin().idToken(token -> token
             .subject("anna")
-            .claim("groups", List.of("group-internal")));
+            .claim("groups", List.of("agi-betrieb")));
     }
 
     private static RequestPostProcessor authenticatedWithoutGroup() {

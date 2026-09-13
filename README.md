@@ -64,15 +64,19 @@ per-documentation access policies (OIDC, e.g. Entra ID or Keycloak).
 java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
   --config biblios.yml --package build/package
 
-# Run the server (JVM)
-./gradlew :thoth-biblios-server:bootRun --args="--biblios.package-dir=build/package"
+# Run the server (JVM, local development profile on port 8091)
+./gradlew :thoth-biblios-server:bootJar
+java -jar thoth-biblios-server/build/libs/thoth-biblios-server-<version>.jar \
+  --spring.profiles.active=dev \
+  --biblios.package-dir=build/package --biblios.access-config=build/access.yml
 
 # Or build a native binary
-./gradlew :thoth-biblios-server:nativeCompile
+GRAALVM_HOME=/path/to/graalvm-25 ./gradlew :thoth-biblios-server:nativeCompile
 ```
 
-Local Keycloak for development: `docker compose -f dev/keycloak/docker-compose.yml up -d`
-(see [dev/keycloak/README.md](dev/keycloak/README.md)).
+Local development: Keycloak runs as a container (port 8090), the server as a
+Java application (port 8091). The complete walkthrough is in
+[dev/keycloak/README.md](dev/keycloak/README.md).
 
 ### thoth-core
 

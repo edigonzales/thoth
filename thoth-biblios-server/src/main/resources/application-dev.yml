@@ -1,0 +1,5 @@
+# Local development profile: Keycloak runs in Docker (dev/keycloak/docker-compose.yml)
+# and the Biblios server as a plain Java application. Port 8091 is used because
+# 8080/8081 may already be taken by other local stacks. See dev/keycloak/README.md.
+server:
+  port: 8091

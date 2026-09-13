@@ -26,11 +26,24 @@ The package contains:
 
 ## 2. Run the server
 
-JVM (development):
+JVM as a plain Java application (recommended for local development; needs Java 25):
 
 ```bash
-./gradlew :thoth-biblios-server:bootRun --args="--biblios.package-dir=build/package --biblios.access-config=access.yml"
+./gradlew :thoth-biblios-server:bootJar
+~/.sdkman/candidates/java/25.0.3-tem/bin/java \
+  -jar thoth-biblios-server/build/libs/thoth-biblios-server-0.0.1-SNAPSHOT.jar \
+  --spring.profiles.active=dev \
+  --biblios.package-dir=build/package \
+  --biblios.access-config=access.yml
 ```
+
+The `dev` profile only sets the port to **8091** (8080/8081 are often occupied
+by other local stacks). Without a profile the server uses port 8080. See
+[dev/keycloak/README.md](../dev/keycloak/README.md) for the full Keycloak +
+Java application walkthrough.
+
+Alternative via Gradle: `./gradlew :thoth-biblios-server:bootRun
+--args="--spring.profiles.active=dev --biblios.package-dir=... --biblios.access-config=..."`.
 
 Native binary (production; must be built for the target OS/architecture).
 Requires a GraalVM 25 JDK: either start Gradle with `JAVA_HOME` pointing to it
@@ -38,7 +51,7 @@ or set `GRAALVM_HOME`.
 
 ```bash
 GRAALVM_HOME=/path/to/graalvm-25 ./gradlew :thoth-biblios-server:nativeCompile
-BIBLIOS_PACKAGE=build/package BIBLIOS_ACCESS_CONFIG=access.yml \
+BIBLIOS_PORT=8091 BIBLIOS_PACKAGE=build/package BIBLIOS_ACCESS_CONFIG=access.yml \
   thoth-biblios-server/build/native/nativeCompile/thoth-biblios-server
 ```
 
@@ -84,14 +97,31 @@ Identities are matched by provider + subject (Entra ID: `oid`), never by e-mail.
 
 ## 4. Local Keycloak
 
+Keycloak runs as a container on port **8090**, the server as a Java application
+on port **8091** (both free of typical local stacks).
+
 ```bash
 docker compose -f dev/keycloak/docker-compose.yml up -d
+
+# Test package with a public and a protected documentation
+./gradlew :thoth-biblios-server:generateSmokePackage
+./gradlew :thoth-biblios-server:bootJar
+
+~/.sdkman/candidates/java/25.0.3-tem/bin/java \
+  -jar thoth-biblios-server/build/libs/thoth-biblios-server-0.0.1-SNAPSHOT.jar \
+  --spring.profiles.active=dev \
+  --biblios.package-dir=thoth-biblios-server/build/smoke-package/package \
+  --biblios.access-config=thoth-biblios-server/build/smoke-package/access.yml
 ```
 
 Realm `biblios-dev`, client `biblios` (secret `local-dev-only`), test users
 `anna` (group `agi-betrieb`), `ben` (no group) and `claudia` (group
-`projektteam`). The dev server default issuer is `http://localhost:8090/realms/biblios-dev`.
-See [dev/keycloak/README.md](../dev/keycloak/README.md).
+`projektteam`). The issuer is `http://localhost:8090/realms/biblios-dev` and the
+client only accepts the concrete callback URLs, not port wildcards.
+
+The complete walkthrough (ports, users, redirect URIs, hot-reload and
+identity-age experiments) is in
+[dev/keycloak/README.md](../dev/keycloak/README.md).
 
 ## 5. Entra ID
 
@@ -165,7 +195,7 @@ Notes:
 ./gradlew :thoth-biblios-server:e2eTest
 ```
 
-The E2E test starts Keycloak from `dev/keycloak/realm-biblios-dev.json` in a
+The E2E test starts Keycloak from `dev/keycloak/import/realm-biblios-dev.json` in a
 container, performs the authorization code flow for `anna` and `ben` and checks
 the resulting access decisions. It is skipped automatically when Docker is not
 available.

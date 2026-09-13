@@ -13,4 +13,5 @@ services:
     ports:
       - "127.0.0.1:8090:8090"
     volumes:
-      - ./realm-biblios-dev.json:/opt/keycloak/data/import/realm-biblios-dev.json:ro
+      # Directory mount (single-file bind mounts are cached inconsistently by Docker Desktop).
+      - ./import:/opt/keycloak/data/import:ro

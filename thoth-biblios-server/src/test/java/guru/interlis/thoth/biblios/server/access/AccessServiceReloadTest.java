@@ -36,7 +36,7 @@ class AccessServiceReloadTest {
         PublicationPackage publicationPackage = new PublicationPackage(properties, objectMapper);
         AccessService service = new AccessService(publicationPackage, properties);
         PrincipalIdentity member = PrincipalIdentity.of("keycloak-local", "anna", "Anna",
-            Set.of(new SubjectRef("keycloak-local", "group-internal")));
+            Set.of(new SubjectRef("keycloak-local", "agi-betrieb")));
 
         assertFalse(service.canAccessSource("internal-docs", null));
         assertTrue(service.canAccessSource("internal-docs", member));
@@ -66,7 +66,7 @@ class AccessServiceReloadTest {
                 allow:
                   groups:
                     - provider: keycloak-local
-                      id: group-internal
+                      id: agi-betrieb
             """);
         assertFalse(service.canAccessSource("internal-docs", null));
         assertTrue(service.canAccessSource("internal-docs", member));

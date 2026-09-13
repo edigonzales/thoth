@@ -112,7 +112,7 @@ public final class PackageTestFixture {
                 allow:
                   groups:
                     - provider: keycloak-local
-                      id: group-internal
+                      id: agi-betrieb
             """);
         return new Fixture(packageDir, accessConfig);
     }
