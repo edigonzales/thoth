@@ -32,6 +32,17 @@ public class BibliosServerProperties {
     /** Spring Security registration id used for login redirects. */
     private String registrationId = "keycloak";
 
+    /** Exact expected ID-token issuer; required independently of endpoint configuration. */
+    private String issuerUri;
+
+    public String getIssuerUri() {
+        return issuerUri;
+    }
+
+    public void setIssuerUri(String issuerUri) {
+        this.issuerUri = issuerUri;
+    }
+
     public Path getPackageDir() {
         return packageDir;
     }

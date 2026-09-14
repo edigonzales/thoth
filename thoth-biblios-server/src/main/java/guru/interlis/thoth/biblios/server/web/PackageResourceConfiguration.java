@@ -18,7 +18,7 @@ public class PackageResourceConfiguration {
 
     @Bean
     public ResourceHttpRequestHandler packageFileRequestHandler(PublicationPackage publicationPackage) {
-        ResourceHttpRequestHandler handler = new ResourceHttpRequestHandler();
+        ResourceHttpRequestHandler handler = new AuthorizedFileRequestHandler();
         handler.setLocations(List.of(new FileSystemResource(
             publicationPackage.root().resolve("files").toString() + "/")));
         return handler;

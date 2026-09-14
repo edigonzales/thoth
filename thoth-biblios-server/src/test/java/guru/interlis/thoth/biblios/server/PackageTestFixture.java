@@ -23,7 +23,18 @@ import java.util.Map;
  */
 public final class PackageTestFixture {
 
+    public static final String ISSUER = "http://localhost:8090/realms/biblios-dev";
+
     private PackageTestFixture() {
+    }
+
+    public static org.springframework.security.oauth2.client.registration.ClientRegistration registration(String id) {
+        return org.springframework.security.oauth2.client.registration.ClientRegistration.withRegistrationId(id)
+            .clientId("test-client").authorizationGrantType(
+                org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE)
+            .redirectUri("http://localhost/login/oauth2/code/" + id).scope("openid")
+            .authorizationUri("http://localhost/auth").tokenUri("http://localhost/token")
+            .jwkSetUri("http://localhost/keys").build();
     }
 
     public record Fixture(Path packageDir, Path accessConfig) {

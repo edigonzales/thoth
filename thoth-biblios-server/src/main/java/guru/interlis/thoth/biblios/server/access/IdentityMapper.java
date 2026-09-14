@@ -30,7 +30,9 @@ public class IdentityMapper {
         }
         Map<String, Object> claims = user.getClaims();
         Object subjectValue = claims.get(properties.getSubjectClaim());
-        String subject = subjectValue != null ? subjectValue.toString() : user.getSubject();
+        if (!(subjectValue instanceof String subject) || subject.isBlank()) {
+            return null;
+        }
         Set<SubjectRef> groups = new LinkedHashSet<>();
         Object groupsValue = claims.get(properties.getGroupsClaim());
         if (groupsValue instanceof Iterable<?> iterable) {

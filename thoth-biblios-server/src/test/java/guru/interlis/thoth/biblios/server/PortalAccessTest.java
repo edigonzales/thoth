@@ -19,6 +19,8 @@ import java.util.List;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -51,13 +53,13 @@ class PortalAccessTest {
     MockMvc mockMvc;
 
     private static RequestPostProcessor groupMember() {
-        return oidcLogin().idToken(token -> token
-            .subject("anna")
+        return oidcLogin().clientRegistration(PackageTestFixture.registration("keycloak")).idToken(token -> token
+            .claim("iss", PackageTestFixture.ISSUER).subject("anna")
             .claim("groups", List.of("agi-betrieb")));
     }
 
     private static RequestPostProcessor authenticatedWithoutGroup() {
-        return oidcLogin().idToken(token -> token.subject("ben"));
+        return oidcLogin().clientRegistration(PackageTestFixture.registration("keycloak")).idToken(token -> token.claim("iss", PackageTestFixture.ISSUER).subject("ben"));
     }
 
     @Test
@@ -85,16 +87,16 @@ class PortalAccessTest {
     }
 
     @Test
-    void anonymousProtectedPageRedirectsToLogin() throws Exception {
+    void anonymousProtectedPageIsHidden() throws Exception {
         mockMvc.perform(get("/internal-docs/main/"))
-            .andExpect(status().isFound())
-            .andExpect(header().string("Location", "/oauth2/authorization/keycloak"));
+            .andExpect(status().isNotFound())
+            .andExpect(header().doesNotExist("Location"));
     }
 
     @Test
     void authenticatedWithoutGroupIsForbidden() throws Exception {
         mockMvc.perform(get("/internal-docs/main/").with(authenticatedWithoutGroup()))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
     }
 
     @Test
@@ -105,10 +107,10 @@ class PortalAccessTest {
     }
 
     @Test
-    void anonymousProtectedComponentLandingRedirectsToLogin() throws Exception {
+    void anonymousProtectedComponentLandingIsHidden() throws Exception {
         mockMvc.perform(get("/internal-docs/"))
-            .andExpect(status().isFound())
-            .andExpect(header().string("Location", "/oauth2/authorization/keycloak"));
+            .andExpect(status().isNotFound())
+            .andExpect(header().doesNotExist("Location"));
     }
 
     @Test
@@ -141,11 +143,11 @@ class PortalAccessTest {
     @Test
     void protectedFileRequiresTheGroup() throws Exception {
         mockMvc.perform(get("/internal-docs/main/secret.txt"))
-            .andExpect(status().isFound())
-            .andExpect(header().string("Location", "/oauth2/authorization/keycloak"));
+            .andExpect(status().isNotFound())
+            .andExpect(header().doesNotExist("Location"));
 
         mockMvc.perform(get("/internal-docs/main/secret.txt").with(authenticatedWithoutGroup()))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
 
         mockMvc.perform(get("/internal-docs/main/secret.txt").with(groupMember()))
             .andExpect(status().isOk())
@@ -166,7 +168,7 @@ class PortalAccessTest {
     @Test
     void headRequestsAreCheckedAsWell() throws Exception {
         mockMvc.perform(head("/internal-docs/main/secret.txt"))
-            .andExpect(status().isFound());
+            .andExpect(status().isNotFound());
         mockMvc.perform(head("/internal-docs/main/secret.txt").with(groupMember()))
             .andExpect(status().isOk())
             .andExpect(header().string("Accept-Ranges", "bytes"));
@@ -181,6 +183,14 @@ class PortalAccessTest {
     }
 
     @Test
+    void logoutReturnsToPublicPortalWithoutImmediatelyStartingAnotherLogin() throws Exception {
+        var session = new org.springframework.mock.web.MockHttpSession();
+        mockMvc.perform(post("/logout").session(session).with(groupMember()).with(csrf()))
+            .andExpect(status().isFound()).andExpect(header().string("Location", "/"));
+        org.junit.jupiter.api.Assertions.assertTrue(session.isInvalid());
+    }
+
+    @Test
     void anonymousHomeHasNoLogoutForm() throws Exception {
         mockMvc.perform(get("/"))
             .andExpect(status().isOk())
@@ -188,13 +198,28 @@ class PortalAccessTest {
     }
 
     @Test
-    void expiredIdentityForcesNewLogin() throws Exception {
+    void expiredIdentityHidesProtectedContent() throws Exception {
         long expiredTimestamp = System.currentTimeMillis() - 7_200_000L;
         mockMvc.perform(get("/internal-docs/main/")
                 .with(groupMember())
                 .sessionAttr(PortalSession.AUTHENTICATED_AT_ATTRIBUTE, expiredTimestamp))
-            .andExpect(status().isFound())
-            .andExpect(header().string("Location", "/oauth2/authorization/keycloak"));
+            .andExpect(status().isNotFound())
+            .andExpect(header().doesNotExist("Location"));
+    }
+
+    @Test
+    void expiredIdentityOnPublicPageDoesNotGetRecreatedDuringRendering() throws Exception {
+        mockMvc.perform(get("/public-docs/main/").with(groupMember())
+                .sessionAttr(PortalSession.AUTHENTICATED_AT_ATTRIBUTE, System.currentTimeMillis() - 7_200_000L))
+            .andExpect(status().isOk())
+            .andExpect(content().string(not(containsString("Internal Docs"))))
+            .andExpect(content().string(containsString("class=\"login-link\"")));
+    }
+
+    @Test
+    void anonymousPortalOffersExplicitLogin() throws Exception {
+        mockMvc.perform(get("/")).andExpect(status().isOk())
+            .andExpect(content().string(containsString("class=\"login-link\" href=\"/login\"")));
     }
 
     @Test

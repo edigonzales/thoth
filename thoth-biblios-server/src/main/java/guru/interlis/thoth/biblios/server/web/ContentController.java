@@ -2,7 +2,6 @@ package guru.interlis.thoth.biblios.server.web;
 
 import guru.interlis.thoth.biblios.access.PrincipalIdentity;
 import guru.interlis.thoth.biblios.server.access.AccessService;
-import guru.interlis.thoth.biblios.server.config.BibliosServerProperties;
 import guru.interlis.thoth.biblios.server.publication.PublicationPackage;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,13 +10,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.resource.ResourceHttpRequestHandler;
 
 import java.io.IOException;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,52 +34,52 @@ public class ContentController {
     private final AccessService accessService;
     private final PublicationPackage publicationPackage;
     private final PortalSession portalSession;
-    private final BibliosServerProperties properties;
     private final ResourceHttpRequestHandler fileRequestHandler;
-    private final RequestCache requestCache;
 
     public ContentController(PortalFrames frames, AccessService accessService,
                              PublicationPackage publicationPackage, PortalSession portalSession,
-                             BibliosServerProperties properties,
-                             ResourceHttpRequestHandler packageFileRequestHandler,
-                             RequestCache requestCache) {
+                             ResourceHttpRequestHandler packageFileRequestHandler) {
         this.frames = frames;
         this.accessService = accessService;
         this.publicationPackage = publicationPackage;
         this.portalSession = portalSession;
-        this.properties = properties;
         this.fileRequestHandler = packageFileRequestHandler;
-        this.requestCache = requestCache;
     }
 
     @GetMapping("/**")
     public void handle(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
         throws Exception {
-        String path = requestPath(request);
-        PublicationPackage.PageLocation location = publicationPackage.page(path);
-        if (location == null && !path.endsWith("/")) {
-            location = publicationPackage.page(path + "/");
-            if (location != null) {
-                redirect(response, path + "/");
-                return;
-            }
+        final String path;
+        try {
+            path = PortalRequestPath.from(request);
+        } catch (IllegalArgumentException e) {
+            response.sendError(HttpStatus.BAD_REQUEST.value());
+            return;
         }
+        PrincipalIdentity principal = portalSession.principal(request, authentication);
+        PublicationPackage.PageLocation location = publicationPackage.page(path);
         if (location == null) {
-            String defaultRoute = publicationPackage.defaultPageRouteForVersionRoot(path);
-            if (defaultRoute != null) {
-                redirect(response, defaultRoute);
+            var target = publicationPackage.defaultPageRouteForVersionRoot(path);
+            if (target != null) {
+                if (!accessService.canAccessSource(target.sourceId(), principal)) {
+                    DocumentationNotFound.write(request, response);
+                    return;
+                }
+                redirect(response, target.route());
                 return;
             }
         }
 
-        PortalFrames.FrameSession session = portalSession.frameSession(request, authentication);
-        PrincipalIdentity principal = session.principal();
         if (location != null) {
             if (!accessService.canAccessSource(location.componentId(), principal)) {
-                denied(request, response, principal);
+                DocumentationNotFound.write(request, response);
                 return;
             }
-            writeHtml(response, frames.page(location, session));
+            if (!path.endsWith("/")) {
+                redirect(response, path + "/");
+                return;
+            }
+            writeHtml(response, frames.page(location, portalSession.frameSessionForPrincipal(request, principal)));
             return;
         }
 
@@ -91,17 +88,23 @@ public class ContentController {
         if (entry.isEmpty()
             || !"file".equals(entry.get().kind())
             || "internal".equals(entry.get().scope())) {
-            notFound(response);
+            DocumentationNotFound.write(request, response);
             return;
         }
         boolean shared = "shared".equals(entry.get().scope());
         if (!shared && !accessService.canAccessSource(entry.get().source(), principal)) {
-            denied(request, response, principal);
+            DocumentationNotFound.write(request, response);
             return;
         }
-        Path file = publicationPackage.resolvePackagePath("files/" + target);
+        final Path file;
+        try {
+            file = publicationPackage.resolveFilePath(target);
+        } catch (IllegalArgumentException | IOException e) {
+            DocumentationNotFound.write(request, response);
+            return;
+        }
         if (!Files.isRegularFile(file)) {
-            notFound(response);
+            DocumentationNotFound.write(request, response);
             return;
         }
         if (shared) {
@@ -110,7 +113,13 @@ public class ContentController {
             response.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
             response.setHeader(HttpHeaders.VARY, "Cookie");
         }
-        fileRequestHandler.handleRequest(request, response);
+        request.setAttribute(AuthorizedFile.ATTRIBUTE,
+            new AuthorizedFile(entry.get(), new FileSystemResource(file)));
+        try {
+            fileRequestHandler.handleRequest(request, response);
+        } finally {
+            request.removeAttribute(AuthorizedFile.ATTRIBUTE);
+        }
     }
 
     private void writeHtml(HttpServletResponse response, String html) throws IOException {
@@ -122,42 +131,8 @@ public class ContentController {
         response.getWriter().write(html);
     }
 
-    private void denied(HttpServletRequest request, HttpServletResponse response, PrincipalIdentity principal)
-        throws IOException {
-        if (principal == null) {
-            requestCache.saveRequest(request, response);
-            redirect(response, "/oauth2/authorization/" + properties.getRegistrationId());
-            return;
-        }
-        response.setStatus(HttpStatus.FORBIDDEN.value());
-        response.setContentType(MediaType.TEXT_HTML_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write(
-            "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><title>Access denied</title></head>"
-                + "<body><h1>Access denied</h1><p>You do not have permission to read this documentation.</p>"
-                + "<p><a href=\"/\">Back to the portal</a></p></body></html>");
-    }
-
-    private void notFound(HttpServletResponse response) throws IOException {
-        response.setStatus(HttpStatus.NOT_FOUND.value());
-        response.setContentType(MediaType.TEXT_HTML_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write(
-            "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><title>Not found</title></head>"
-                + "<body><h1>Not found</h1></body></html>");
-    }
-
     private void redirect(HttpServletResponse response, String location) throws IOException {
         response.setStatus(HttpStatus.FOUND.value());
         response.setHeader(HttpHeaders.LOCATION, location);
-    }
-
-    private String requestPath(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        String context = request.getContextPath();
-        if (context != null && !context.isEmpty() && path.startsWith(context)) {
-            path = path.substring(context.length());
-        }
-        return URLDecoder.decode(path, StandardCharsets.UTF_8);
     }
 }

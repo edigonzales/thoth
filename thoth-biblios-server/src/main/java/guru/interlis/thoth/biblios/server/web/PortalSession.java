@@ -65,7 +65,11 @@ public class PortalSession {
      * Build the frame session (principal plus logout/CSRF data) for a request.
      */
     public PortalFrames.FrameSession frameSession(HttpServletRequest request, Authentication authentication) {
-        PrincipalIdentity principal = principal(request, authentication);
+        return frameSessionForPrincipal(request, principal(request, authentication));
+    }
+
+    /** Reuse the request's already age-checked identity without resolving it again. */
+    public PortalFrames.FrameSession frameSessionForPrincipal(HttpServletRequest request, PrincipalIdentity principal) {
         Object attribute = request.getAttribute(CsrfToken.class.getName());
         CsrfToken csrf = attribute instanceof CsrfToken token ? token : null;
         return new PortalFrames.FrameSession(

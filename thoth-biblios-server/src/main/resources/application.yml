@@ -40,12 +40,16 @@ server:
 
 biblios:
   package-dir: ${BIBLIOS_PACKAGE:build/package}
+  # Mandatory, also for public portals. Loss/unreadability denies all documentation.
   access-config: ${BIBLIOS_ACCESS_CONFIG:access.yml}
   # Groups are only accepted for this long after login; then the user must log in again.
   max-identity-age: ${BIBLIOS_MAX_IDENTITY_AGE:60m}
+  # Exact expected token issuer; does not enable OIDC discovery at startup.
+  issuer-uri: ${BIBLIOS_ISSUER_URI:http://localhost:8090/realms/biblios-dev}
   provider: ${BIBLIOS_PROVIDER:keycloak-local}
   subject-claim: ${BIBLIOS_SUBJECT_CLAIM:sub}
   groups-claim: ${BIBLIOS_GROUPS_CLAIM:groups}
+  # The sole permitted login registration; others cannot start/complete a login.
   registration-id: ${BIBLIOS_REGISTRATION_ID:keycloak}
 
 logging:

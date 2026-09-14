@@ -17,15 +17,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/**
- * Evaluates the access rules against the current principal.
- *
- * <p>The rules file is re-read when its modification time changes, so grants can
- * be changed without a rebuild or restart. Invalid updates are ignored and the
- * last valid rules stay active (fail closed). Configuration errors at startup
- * abort the server: a policy referenced by the catalog but missing in
- * {@code access.yml} must never silently become public.</p>
- */
+/** Loads a complete rules snapshot on each decision, denying all on invalid or unavailable rules. */
 @Component
 public class AccessService {
     private static final Logger log = LoggerFactory.getLogger(AccessService.class);
@@ -35,8 +27,12 @@ public class AccessService {
     private final Set<String> requiredPolicies = new LinkedHashSet<>();
     private final AccessRulesParser parser = new AccessRulesParser();
 
-    private volatile AccessPolicyEvaluator evaluator;
-    private volatile long lastModified = Long.MIN_VALUE;
+    private enum Status { VALID, INVALID, UNAVAILABLE }
+
+    private record Snapshot(AccessPolicyEvaluator evaluator, String content, Status status) { }
+
+    // Accessed only while reloadRules holds this service's monitor.
+    private Snapshot snapshot;
 
     public AccessService(PublicationPackage publicationPackage, BibliosServerProperties properties) {
         this.publicationPackage = publicationPackage;
@@ -51,7 +47,7 @@ public class AccessService {
     }
 
     public boolean canAccessSource(String sourceId, PrincipalIdentity principal) {
-        ensureFresh();
+        AccessPolicyEvaluator evaluator = reloadRules(false).evaluator();
         if (!publicationPackage.hasSource(sourceId)) {
             return false;
         }
@@ -59,7 +55,7 @@ public class AccessService {
     }
 
     public boolean isSourcePublic(String sourceId) {
-        ensureFresh();
+        AccessPolicyEvaluator evaluator = reloadRules(false).evaluator();
         if (!publicationPackage.hasSource(sourceId)) {
             return false;
         }
@@ -67,7 +63,7 @@ public class AccessService {
     }
 
     public Set<String> allowedSourceIds(PrincipalIdentity principal) {
-        ensureFresh();
+        AccessPolicyEvaluator evaluator = reloadRules(false).evaluator();
         Set<String> allowed = new LinkedHashSet<>();
         for (PackageCatalog.SourceEntry source : publicationPackage.catalog().sources()) {
             if (evaluator.canAccess(source.accessPolicy(), principal)) {
@@ -77,46 +73,51 @@ public class AccessService {
         return allowed;
     }
 
-    private void ensureFresh() {
-        reloadRules(false);
-    }
-
-    private synchronized void reloadRules(boolean initial) {
-        final long modified;
+    private synchronized Snapshot reloadRules(boolean initial) {
+        final String content;
         try {
-            modified = Files.exists(accessConfigPath)
-                ? Files.getLastModifiedTime(accessConfigPath).toMillis()
-                : -1L;
-        } catch (IOException e) {
-            log.warn("Could not check access configuration {}: {}", accessConfigPath, e.getMessage());
-            return;
+            content = Files.readString(accessConfigPath);
+        } catch (IOException | SecurityException e) {
+            if (initial) {
+                throw new IllegalStateException("Access configuration must exist and be readable: "
+                    + accessConfigPath, e);
+            }
+            if (snapshot.status() != Status.UNAVAILABLE) {
+                log.error("Access configuration unavailable; denying all documentation: {}", accessConfigPath, e);
+            }
+            snapshot = denied(null, Status.UNAVAILABLE);
+            return snapshot;
         }
-        if (modified == lastModified && evaluator != null) {
-            return;
+        if (snapshot != null && snapshot.status() != Status.UNAVAILABLE && content.equals(snapshot.content())) {
+            return snapshot;
         }
         try {
-            AccessRules rules = parser.parseOptional(accessConfigPath).orElseGet(AccessRules::defaultPublic);
+            AccessRules rules = parser.parseString(content);
             for (String required : requiredPolicies) {
                 if (rules.policy(required) == null) {
                     throw new IllegalStateException(
                         "access.yml does not define policy '" + required + "' referenced by the catalog");
                 }
             }
-            this.evaluator = new AccessPolicyEvaluator(rules);
-            this.lastModified = modified;
-            if (!initial) {
+            Snapshot previous = snapshot;
+            snapshot = new Snapshot(new AccessPolicyEvaluator(rules), content, Status.VALID);
+            if (previous != null && previous.status() != Status.VALID) {
+                log.info("Access configuration restored; documentation policies active again: {}", accessConfigPath);
+            } else if (!initial) {
                 log.info("Reloaded access configuration from {}", accessConfigPath);
             }
         } catch (RuntimeException e) {
-            // Keep the last valid rules and do not retry until the file changes again.
-            this.lastModified = modified;
             if (initial) {
-                throw e instanceof IllegalStateException illegal
-                    ? illegal
-                    : new IllegalStateException(
-                        "Invalid access configuration " + accessConfigPath + ": " + e.getMessage(), e);
+                throw new IllegalStateException(
+                    "Invalid access configuration " + accessConfigPath + ": " + e.getMessage(), e);
             }
-            log.warn("Ignoring invalid access configuration {}: {}", accessConfigPath, e.getMessage());
+            snapshot = denied(content, Status.INVALID);
+            log.error("Invalid access configuration; denying all documentation: {}: {}", accessConfigPath, e.getMessage());
         }
+        return snapshot;
+    }
+
+    private static Snapshot denied(String content, Status status) {
+        return new Snapshot(new AccessPolicyEvaluator(AccessRules.denyAll()), content, status);
     }
 }

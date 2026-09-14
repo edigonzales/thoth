@@ -72,7 +72,7 @@ public final class SourceConfig {
                         String startPath, String defaultVersion, NavigationConfig navigation, String startPage,
                         RenderMode renderMode, String masterFile, Object revnumber, SidebarTocNumbersMode sidebarTocNumbers,
                         SourcePdfSection pdf, SourceDocxSection docx, String cardBackgroundColor, String accessPolicy) {
-        this.id = Objects.requireNonNull(id, "source.id is required");
+        this.id = SourceId.validate(id);
         this.displayName = Objects.requireNonNull(displayName, "source.display_name is required");
         this.url = Objects.requireNonNull(url, "source.url is required");
         Objects.requireNonNull(branches, "source.branches is required");

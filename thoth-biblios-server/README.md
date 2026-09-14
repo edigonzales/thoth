@@ -69,7 +69,7 @@ Docker: `docker build -f thoth-biblios-server/Dockerfile -t thoth-biblios-server
 | `biblios.groups-claim` | `BIBLIOS_GROUPS_CLAIM` | `groups` | group memberships |
 | `biblios.registration-id` | `BIBLIOS_REGISTRATION_ID` | `keycloak` | Spring Security registration |
 | `BIBLIOS_SESSION_TIMEOUT` | | `8h` | servlet session timeout |
-| `BIBLIOS_ISSUER_URI` | | `http://localhost:8090/realms/biblios-dev` | OIDC issuer |
+| `biblios.issuer-uri` | `BIBLIOS_ISSUER_URI` | `http://localhost:8090/realms/biblios-dev` | exact expected ID-token issuer |
 
 The OIDC client is configured in `application.yml`; authorization and token
 endpoints are explicit, so the server starts without contacting the provider.
@@ -94,6 +94,88 @@ policies:
 
 Documentation sources reference policies via `access_policy` in `biblios.yml`.
 Identities are matched by provider + subject (Entra ID: `oid`), never by e-mail.
+The configured subject claim must be a nonempty string; a missing `oid`, for example,
+does not fall back to `sub`.
+
+The server requires a readable, valid `access.yml` at startup. An explicitly public
+installation without named policies can use:
+
+```yaml
+default: public
+```
+
+If the file disappears or becomes unreadable at runtime, all documentation is
+denied, including previously public pages and attachments. Navigation and search
+contain no documentation; shared theme assets remain available. Direct requests
+receive the same generic 404 as unknown targets, for all visitors. Restoring a fully
+valid file restores the configured permissions automatically, even when its
+modification timestamp is unchanged. The server logs entry into and recovery from
+this deny-all state.
+
+Readable malformed updates also deny all documentation immediately, including
+when a policy still referenced by the package is removed. There is no grace period
+or fallback to previous grants. Only a fully valid file restores access.
+
+The complete UTF-8 content is read on each access decision and compared with the
+last checked content. Changes apply even with identical timestamps and file sizes;
+unchanged invalid content is not repeatedly parsed or logged. Publish rule updates
+atomically (write a new file, then rename it) to avoid temporary invalid states.
+Revocation applies to the next access decision; transfers already underway are not
+retroactively interrupted.
+
+### Expected OIDC issuer
+
+`biblios.issuer-uri` is required and must exactly match the ID token's `iss`,
+including any trailing slash. It must be an absolute HTTP(S) URI with a host and
+without user information, query or fragment. The value is not normalized.
+`BIBLIOS_ISSUER_URI` continues to configure both the default Keycloak endpoints and
+the expected issuer. Other providers must explicitly set `biblios.issuer-uri`.
+
+The decoder adds this check to Spring's existing signature, audience, time and
+OIDC validation. A selected registration that already declares an issuer must
+agree with this value or startup fails. Explicit endpoints remain supported;
+setting `biblios.issuer-uri` does not trigger discovery or a JWK fetch at startup.
+
+Existing sessions with a missing or different ID-token issuer no longer grant
+documentation access and require a new login. There is no switch to disable this
+validation and no multi-tenant issuer allowlist.
+
+### Hidden documentation and explicit login
+
+A documentation 404 means "not present or not visible to this visitor". Components,
+versions, pages and files use the same generic response for unknown and unauthorized
+targets, whether or not the visitor is signed in. Redirects to a component's slash
+URL or a version's start page happen only after authorization. HEAD, Range and
+conditional requests cannot expose file metadata before that check.
+
+Every documentation 404 has a **Sign in** link, including unknown targets. Choosing
+it starts `/login?returnTo=...`; the validated local path and query are saved for one
+successful login. The target is then requested again and its permissions rechecked;
+an unknown target or an unauthorized user still receives 404. No target is saved
+merely by requesting a missing/hidden page. General portal login links return to `/`.
+External URLs and login/logout/OAuth2 return targets are rejected in favor of the
+portal start page. Logout continues to return to the portal without starting a login.
+
+This intentionally changes unauthorized documentation responses from 302/403 to 404.
+HTTP clients that previously relied on automatic login redirects or a 403 distinction
+must adapt. Existing public knowledge of document names cannot be retracted, and
+this does not promise indistinguishable response times. Package and policy schemas
+are unchanged; there is no switch to restore the old distinguishable responses.
+
+### Upgrade requirements
+
+- Supply an explicit `access.yml`, including for entirely public portals.
+- Select an existing client with `biblios.registration-id`. Only this registration
+  may start or complete a login; other configured registrations return 404, and
+  their existing sessions grant no documentation access. `/login` redirects to the
+  selected provider. `biblios.provider` names that selected provider in policies.
+- Source IDs must be single, nonempty path segments, excluding `.`, `..`, `/`, and
+  `\`. The ID `site-assets` is reserved, regardless of letter case. Rename any
+  such documentation and rebuild its package before upgrading; its URLs change.
+  Existing packages with the reserved ID or invalid shared mappings are rejected.
+- The publication package format is unchanged. Shared entries must be beneath
+  `site-assets/` and must not carry a source assignment. Static builds retain their
+  existing behavior when no access file is present.
 
 ## 4. Local Keycloak
 
@@ -126,8 +208,10 @@ identity-age experiments) is in
 ## 5. Entra ID
 
 No Entra tenant is required for development, but the server is prepared for it.
-Add a second registration to the server configuration (or an external
-`application-entra.yml`) and point the portal at it:
+Add an Entra registration to the server configuration (or an external
+`application-entra.yml`) and select it as the portal's sole permitted login.
+The existing Keycloak registration can remain configured, but its login endpoints
+and existing sessions will no longer grant access:
 
 ```yaml
 spring:
@@ -151,6 +235,7 @@ spring:
 
 biblios:
   registration-id: entra
+  issuer-uri: https://login.microsoftonline.com/<tenant-id>/v2.0
   provider: entra-kanton
   subject-claim: oid
   groups-claim: groups
@@ -171,19 +256,25 @@ Notes:
 ## 6. Security behavior
 
 - Every served file must exist in the manifest; unknown or internal paths are 404.
+  URI paths are decoded once, preserving `+`. The resource authorized from the
+  manifest is the exact resource served, including for HEAD and Range requests.
 - Protected files, page frames and the search index require the access policy of
-  their documentation; anonymous visitors are redirected to the provider and
-  return to the requested page after login.
+  their documentation. Unknown and unauthorized documentation targets both return
+  404; visitors explicitly choose the login link to sign in and return to the target.
 - Protected responses use `Cache-Control: private, no-store` and `Vary: Cookie`;
   shared assets are cacheable for 5 minutes.
 - Range requests, HEAD and conditional requests are handled by Spring's resource
   handling after the access check.
-- `access.yml` is re-read when it changes (no restart). Invalid updates are
-  ignored and the last valid rules stay active.
+- `access.yml` is mandatory. Missing, unreadable or invalid rules deny all
+  documentation until a fully valid file returns. Changes are detected from file
+  contents, independently of timestamp and size.
+- ID tokens and existing sessions must match `biblios.issuer-uri` exactly; standard
+  signature, time and audience validation remains active.
 - Group memberships are accepted for at most `biblios.max-identity-age`; after
   that the session is invalidated and the user logs in again.
 - Configuration errors at startup (unknown policy references) abort the server.
-- Authenticated visitors get a logout form (POST with CSRF token).
+- Authenticated visitors get a logout form (POST with CSRF token), returning to
+  the public portal without starting another OIDC login.
 
 ## 7. Tests
 

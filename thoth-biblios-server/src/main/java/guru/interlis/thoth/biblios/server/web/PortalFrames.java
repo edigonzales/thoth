@@ -154,6 +154,8 @@ public class PortalFrames {
         boolean csrfAvailable = session != null
             && session.csrfParameterName() != null
             && session.csrfToken() != null;
+        model.put("showLogin", !authenticated);
+        model.put("loginUrl", "/login");
         model.put("showLogout", authenticated && csrfAvailable);
         model.put("logoutUrl", "/logout");
         if (csrfAvailable) {

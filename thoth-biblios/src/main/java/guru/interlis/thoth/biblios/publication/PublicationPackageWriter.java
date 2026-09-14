@@ -1,6 +1,7 @@
 package guru.interlis.thoth.biblios.publication;
 
 import guru.interlis.thoth.biblios.catalog.DocComponent;
+import guru.interlis.thoth.biblios.config.SourceId;
 import guru.interlis.thoth.biblios.catalog.SiteCatalog;
 import guru.interlis.thoth.core.ThothBuildException;
 
@@ -47,7 +48,7 @@ public final class PublicationPackageWriter {
         this.outputRoot = outputRoot.toAbsolutePath().normalize();
         this.catalog = catalog;
         for (DocComponent component : catalog.components()) {
-            componentIds.add(component.id());
+            componentIds.add(SourceId.validate(component.id()));
         }
     }
 

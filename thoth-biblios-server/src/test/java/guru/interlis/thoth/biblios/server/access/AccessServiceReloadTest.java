@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Access rules are re-read when {@code access.yml} changes; invalid updates are
- * ignored while the last valid rules stay active.
+ * denied until fully valid rules are restored.
  */
 class AccessServiceReloadTest {
 
@@ -53,8 +53,8 @@ class AccessServiceReloadTest {
             "changed rules must apply without restart");
 
         writeAccessConfig(fixture.accessConfig(), "policies: [broken");
-        assertTrue(service.canAccessSource("internal-docs", null),
-            "invalid rules must not change the effective permissions");
+        assertFalse(service.canAccessSource("internal-docs", null),
+            "invalid rules must immediately revoke access");
 
         writeAccessConfig(fixture.accessConfig(), """
             default: deny
@@ -97,8 +97,10 @@ class AccessServiceReloadTest {
         return properties;
     }
 
+    private long nextModified = System.currentTimeMillis() + 1000;
+
     private void writeAccessConfig(Path path, String content) throws Exception {
         Files.writeString(path, content);
-        Files.setLastModifiedTime(path, FileTime.fromMillis(System.currentTimeMillis() + 1000));
+        Files.setLastModifiedTime(path, FileTime.fromMillis(nextModified++));
     }
 }

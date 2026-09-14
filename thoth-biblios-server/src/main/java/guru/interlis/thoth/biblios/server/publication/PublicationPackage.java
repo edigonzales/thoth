@@ -1,6 +1,7 @@
 package guru.interlis.thoth.biblios.server.publication;
 
 import guru.interlis.thoth.biblios.server.config.BibliosServerProperties;
+import guru.interlis.thoth.biblios.config.SourceId;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -45,13 +46,22 @@ public class PublicationPackage {
         this.searchIndex = readList(objectMapper, root.resolve("search-index.json"), SearchIndexEntry.class);
 
         for (ManifestDocument.Entry entry : manifest.entries()) {
+            if ("shared".equals(entry.scope())) {
+                Path sharedPath = Path.of(entry.path()).normalize();
+                if (!entry.path().startsWith("site-assets/") || entry.source() != null
+                    || !sharedPath.startsWith(Path.of("site-assets"))
+                    || entry.path().contains("\\") || entry.path().contains("/../")
+                    || entry.path().endsWith("/..")) {
+                    throw new IllegalArgumentException("Invalid shared manifest entry: " + entry.path());
+                }
+            }
             fileEntries.put(entry.path(), entry);
         }
         for (PackageCatalog.SourceEntry source : catalog.sources()) {
-            sourcePolicies.put(source.id(), source.accessPolicy());
+            sourcePolicies.put(SourceId.validate(source.id()), source.accessPolicy());
         }
         for (PackageCatalog.ComponentEntry component : catalog.components()) {
-            componentsById.put(component.id(), component);
+            componentsById.put(SourceId.validate(component.id()), component);
             for (PackageCatalog.VersionEntry version : component.versions()) {
                 for (PackageCatalog.PageEntry page : version.pages()) {
                     pagesByRoute.put(normalizeRoute(page.route()),
@@ -112,17 +122,19 @@ public class PublicationPackage {
      * Default page route for a version root such as {@code /docs/main/}, if the
      * route is a version root and has pages.
      */
-    public String defaultPageRouteForVersionRoot(String route) {
+    public VersionRedirect defaultPageRouteForVersionRoot(String route) {
         String normalized = normalizeRoute(route);
         for (PackageCatalog.ComponentEntry component : componentsById.values()) {
             for (PackageCatalog.VersionEntry version : component.versions()) {
                 if (normalizeRoute(version.route()).equals(normalized) && version.defaultPageRoute() != null) {
-                    return version.defaultPageRoute();
+                    return new VersionRedirect(component.id(), version.defaultPageRoute());
                 }
             }
         }
         return null;
     }
+
+    public record VersionRedirect(String sourceId, String route) { }
 
     public Path resolvePackagePath(String relativePath) {
         Path candidate = root.resolve(relativePath).normalize();
@@ -130,6 +142,20 @@ public class PublicationPackage {
             throw new IllegalArgumentException("Unsafe package path: " + relativePath);
         }
         return candidate;
+    }
+
+    /** Resolve only inside the servable files directory, including filesystem containment. */
+    public Path resolveFilePath(String target) throws IOException {
+        Path filesRoot = root.resolve("files").toRealPath();
+        Path candidate = filesRoot.resolve(target).normalize();
+        if (!candidate.startsWith(filesRoot)) {
+            throw new IllegalArgumentException("Unsafe file path");
+        }
+        Path real = candidate.toRealPath();
+        if (!real.startsWith(filesRoot)) {
+            throw new IllegalArgumentException("File resolves outside package files");
+        }
+        return real;
     }
 
     public String readFragment(String relativePath) {

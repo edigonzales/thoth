@@ -94,6 +94,7 @@ class KeycloakLoginE2ETest {
         registry.add("server.port", () -> APP_PORT);
         registry.add("biblios.package-dir", () -> packageDir.toString());
         registry.add("biblios.access-config", () -> accessConfig.toString());
+        registry.add("biblios.issuer-uri", () -> issuer);
         registry.add("biblios.provider", () -> "keycloak-local");
         registry.add("biblios.registration-id", () -> "keycloak");
         registry.add("spring.security.oauth2.client.provider.keycloak.authorization-uri",
@@ -133,12 +134,22 @@ class KeycloakLoginE2ETest {
     }
 
     @Test
+    void unknownTargetStaysNotFoundAfterExplicitLogin() throws Exception {
+        var client = new OidcTestClient(baseUrl());
+        var page = client.loginAndGet("anna", "anna", "/unknown+docs/%C3%BCber%20space/?q=one%2Btwo&x=1");
+        assertEquals(404, page.statusCode());
+        assertEquals("/unknown+docs/über space/", page.uri().getPath());
+        assertEquals("q=one%2Btwo&x=1", page.uri().getRawQuery());
+        assertTrue(page.body().contains("class=\"login-link\""));
+    }
+
+    @Test
     void authenticatedUserWithoutGroupIsDenied() throws Exception {
         OidcTestClient client = new OidcTestClient(baseUrl());
 
         HttpResponse<String> page = client.loginAndGet("ben", "ben", "/internal-docs/main/");
 
-        assertEquals(403, page.statusCode(), page.body());
+        assertEquals(404, page.statusCode(), page.body());
 
         HttpResponse<String> home = client.getPath("/");
         assertEquals(200, home.statusCode());

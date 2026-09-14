@@ -127,6 +127,9 @@
                     <span>Active doc</span>
                 </label>
             </form>
+            <#if (showLogin!false)>
+            <a class="login-link" href="${(loginUrl!'/login')?html}">Sign in</a>
+            </#if>
             <#if (showLogout!false)>
             <form class="logout-form" action="${logoutUrl!'/logout'}" method="post">
                 <input type="hidden" name="${csrfParameterName!'_csrf'}" value="${csrfToken!''}">

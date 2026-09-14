@@ -39,11 +39,19 @@ final class OidcTestClient {
     /**
      * Performs a full login and returns the response of the requested path.
      */
-    HttpResponse<String> loginAndGet(String username, String password, String path) throws Exception {        HttpResponse<String> response = get(baseUrl + path);
+    HttpResponse<String> loginAndGet(String username, String password, String path) throws Exception {
+        HttpResponse<String> response = get(baseUrl + path);
 
-        String loginStart = location(response);
+        if (response.statusCode() != 404) {
+            throw new IllegalStateException("Expected a generic 404 before explicit login: " + response.statusCode());
+        }
+        var link = Pattern.compile("class=\"login-link\" href=\"([^\"]+)\"").matcher(response.body());
+        if (!link.find()) throw new IllegalStateException("No explicit login link on 404 page");
+        String loginStart = unescape(link.group(1));
         response = get(resolve(baseUrl, loginStart));
 
+        // /login stores the local target, then redirects to the selected registration.
+        response = get(resolve(baseUrl, location(response)));
         String authorizationEndpoint = location(response);
         response = get(authorizationEndpoint);
 
