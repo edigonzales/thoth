@@ -120,7 +120,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
         return Path.of(".thoth/cache");
     }
 
-    @Command(name = "build", description = "Builds the documentation site")
+    @Command(name = "build", mixinStandardHelpOptions = true, description = "Builds the documentation site")
     static final class BuildCommand implements Callable<Integer> {
         private enum BuildFormat {
             HTML("html"),
@@ -149,6 +149,12 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
         @Option(names = "--output", description = "Output directory (overrides config)")
         private Path output;
+
+        @Option(
+            names = "--use-local-working-tree",
+            description = "For local sources, render the currently checked-out branch directly from the local working tree"
+        )
+        private boolean useLocalWorkingTree;
 
         @Option(names = "--clean", description = "Delete output directory before build")
         private boolean clean;
@@ -261,7 +267,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
             // Build catalog
             Path workRoot = resolveWorkRoot();
-            try (CatalogBuilder catalogBuilder = new CatalogBuilder(bibliosConfig, workRoot, true)) {
+            try (CatalogBuilder catalogBuilder = new CatalogBuilder(bibliosConfig, workRoot, true, useLocalWorkingTree, config)) {
                 SiteCatalog catalog = catalogBuilder.build();
                 System.out.println("[info] Catalog built: " + catalog.components().size() + " components");
 

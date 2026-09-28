@@ -10,6 +10,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ThothBibliosCliOptionParsingTest {
 
     @Test
+    void buildParsesLocalWorkingTree() {
+        CommandLine cli = new CommandLine(new ThothBibliosCli());
+        assertTrue(cli.parseArgs("build", "--config", "biblios.yml", "--use-local-working-tree")
+            .subcommand().hasMatchedOption("--use-local-working-tree"));
+        assertFalse(cli.parseArgs("build", "--config", "biblios.yml")
+            .subcommand().hasMatchedOption("--use-local-working-tree"));
+    }
+
+    @Test
     void buildParsesFormatPdf() {
         CommandLine cli = new CommandLine(new ThothBibliosCli());
         CommandLine.ParseResult parseResult = cli.parseArgs(

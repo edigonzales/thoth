@@ -1143,3 +1143,12 @@ The JAR is available at:
 ```
 thoth-biblios/build/libs/thoth-biblios-<version>-all.jar
 ```
+
+### One-shot builds from local working trees
+
+`build --config biblios.local.yml --use-local-working-tree` renders local sources
+from their currently checked-out branch, including uncommitted and untracked
+content, then exits. Remote sources and other configured branches retain their
+normal cached Git behavior. Without this option, `build` uses committed sources.
+The option uses the same source resolution as `serve`; static export access
+checks still apply. `build --help` lists the available options.
