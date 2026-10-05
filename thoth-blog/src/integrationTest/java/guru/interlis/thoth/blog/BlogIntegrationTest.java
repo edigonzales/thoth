@@ -277,7 +277,7 @@ class BlogIntegrationTest {
         assertTrue(Files.exists(output.resolve("2026/hello/index.html")));
         assertTrue(Files.exists(output.resolve("2026/without-tags/index.html")));
         assertTrue(Files.exists(output.resolve("2026/with-code/index.html")));
-        assertTrue(Files.exists(output.resolve("2026/draft-post/index.html")));
+        assertFalse(Files.exists(output.resolve("2026/draft-post/index.html")));
 
         // Aggregate pages
         assertTrue(Files.exists(output.resolve("index.html")));
@@ -306,8 +306,8 @@ class BlogIntegrationTest {
         assertTrue(index.contains("Hello World"));
         assertTrue(index.contains("Without Tags"));
         assertTrue(index.contains("With Code"));
-        // Note: SiteGenerator does NOT filter by thoth-status, so draft posts also appear
-        assertTrue(index.contains("Draft Post"));
+        // Unpublished variants must not be exposed by any generated artifact.
+        assertFalse(index.contains("Draft Post"));
         assertTrue(index.contains("#Java"));
         assertTrue(index.contains("#AI"));
 
@@ -331,11 +331,11 @@ class BlogIntegrationTest {
         assertTrue(feed.contains("https://example.com/feed.xml"));
         assertTrue(feed.contains("<title>Integration Test Blog</title>"));
 
-        // Items (note: SiteGenerator does NOT filter by thoth-status)
+        // Published items
         assertTrue(feed.contains("<title>Hello World</title>"));
         assertTrue(feed.contains("<title>Without Tags</title>"));
         assertTrue(feed.contains("<title>With Code</title>"));
-        assertTrue(feed.contains("<title>Draft Post</title>"));
+        assertFalse(feed.contains("<title>Draft Post</title>"));
 
         // GUIDs
         assertTrue(feed.contains("<guid isPermaLink=\"false\">2026/hello/</guid>"));

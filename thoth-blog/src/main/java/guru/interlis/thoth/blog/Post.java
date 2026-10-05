@@ -18,8 +18,12 @@ public record Post(
     boolean usesInterlisLab,
     String url,
     String guid,
-    Path outputRelativePath
+    Path outputRelativePath,
+    String contentId,
+    String language
 ) {
+    public boolean published() { return "published".equals(status); }
+
     public String tagsAsText() {
         return tags.stream().map(TagRef::name).reduce((left, right) -> left + ", " + right).orElse("");
     }

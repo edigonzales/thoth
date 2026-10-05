@@ -1,7 +1,7 @@
 <#import "layout.ftl" as layout>
-<@layout.page pageTitle="Blog Archive">
+<@layout.page pageTitle=messages.archiveTitle>
 <section class="archive-list">
-  <h1>Blog Archive</h1>
+  <h1>${messages.archiveTitle?html}</h1>
   <#list groups as group>
   <section class="archive-group">
     <h2 class="archive-group-heading">${group.heading?html}</h2>
@@ -10,7 +10,8 @@
       <li>
         <span class="archive-item-day">${post.day?html}</span>
         <span class="archive-item-separator">-</span>
-        <a class="post-title" href="${post.url?html}">${post.title?html}</a>
+        <a class="post-title" lang="${post.language!locale}" href="${post.url?html}">${post.title?html}</a>
+        <#if (post.fallback!"false") == "true"><span class="language-notice">${messages.onlyAvailable?html} ${post.languageName?html}</span></#if>
       </li>
       </#list>
     </ul>

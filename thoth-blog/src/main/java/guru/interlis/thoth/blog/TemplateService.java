@@ -16,6 +16,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.List;
 
 public final class TemplateService {
     private final Configuration configuration;
@@ -54,7 +56,18 @@ public final class TemplateService {
     public String render(String templateName, Map<String, Object> model) {
         try (Writer writer = new StringWriter()) {
             Template template = configuration.getTemplate(templateName);
-            template.process(model, writer);
+            Map<String, Object> complete = new HashMap<>(model);
+            complete.putIfAbsent("locale", "en");
+            complete.putIfAbsent("messages", UiText.forLanguage(complete.get("locale").toString()));
+            complete.putIfAbsent("siteRootUrl", "/index.html");
+            complete.putIfAbsent("archiveUrl", "/archive.html");
+            complete.putIfAbsent("feedUrl", "/feed.xml");
+            complete.putIfAbsent("searchPageUrl", "/search.html");
+            complete.putIfAbsent("searchIndexUrl", "/assets/search-index.json");
+            complete.putIfAbsent("languageSwitcher", List.of());
+            complete.putIfAbsent("alternates", List.of());
+            complete.putIfAbsent("canonicalUrl", "");
+            template.process(complete, writer);
             return writer.toString();
         } catch (IOException | TemplateException ex) {
             throw new IllegalStateException("Failed to render template " + templateName, ex);

@@ -63,10 +63,10 @@
 
     const toggle = document.getElementById("theme-toggle");
     if (toggle) {
-      toggle.setAttribute("title", `${normalizedMode} mode`);
+      toggle.setAttribute("title", toggle.dataset.themeLabel || `${normalizedMode} mode`);
       toggle.setAttribute(
         "aria-label",
-        `Switch between dark and light mode (currently ${normalizedMode} mode)`
+        toggle.dataset.themeLabel || `Switch between dark and light mode (currently ${normalizedMode} mode)`
       );
     }
   }

@@ -1,5 +1,6 @@
 package guru.interlis.thoth.blog;
 
+import guru.interlis.thoth.core.LanguageSupport;
 import org.asciidoctor.Asciidoctor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -41,6 +42,7 @@ public final class SiteGenerator implements AutoCloseable {
     private static final String TEMPLATES_DIR_NAME = "templates";
     private static final String ASSET_OVERRIDES_DIR_NAME = "assets";
     private static final String THOTH_IGNORE_FILE_NAME = ".thothignore";
+    private static final String OUTPUT_MANIFEST = ".thoth-blog-pages";
     private static final DateTimeFormatter FEED_DATE_FORMATTER =
         DateTimeFormatter.RFC_1123_DATE_TIME.withLocale(Locale.ENGLISH);
     private static final int INDEX_THUMBNAIL_MAX_WIDTH = 360;
@@ -113,7 +115,8 @@ public final class SiteGenerator implements AutoCloseable {
     private final Asciidoctor asciidoctor;
     private final PostParser postParser;
     private final Map<Path, Post> posts;
-    private final Set<String> generatedTagSlugs;
+    private final Set<Path> generatedPages = new HashSet<>();
+    private PostCatalog catalog;
     private final List<PathMatcher> ignoreMatchers;
 
     private SiteConfig config;
@@ -130,7 +133,6 @@ public final class SiteGenerator implements AutoCloseable {
         this.asciidoctor = Asciidoctor.Factory.create();
         this.postParser = new PostParser(asciidoctor);
         this.posts = new ConcurrentHashMap<>();
-        this.generatedTagSlugs = new HashSet<>();
         this.ignoreMatchers = loadIgnoreMatchers();
     }
 
@@ -147,11 +149,11 @@ public final class SiteGenerator implements AutoCloseable {
         reloadConfig();
         reloadTemplateService();
         loadAllPosts();
+        validatePublication();
         copyAllNonAdocAssets();
         writeBundledAssets();
         copyAllAssetOverrides();
-        renderAllPosts();
-        renderAggregatedPages();
+        renderPublication();
     }
 
     public void handleInputEvent(Path changedFile, String eventType) {
@@ -168,9 +170,7 @@ public final class SiteGenerator implements AutoCloseable {
 
             if (SiteConfig.FILE_NAME.equals(relativePath.toString())) {
                 if (!"DELETE".equals(eventType)) {
-                    reloadConfig();
-                    renderAllPosts();
-                    renderAggregatedPages();
+                    buildAll(false);
                 }
                 return;
             }
@@ -188,8 +188,7 @@ public final class SiteGenerator implements AutoCloseable {
                 }
 
                 if (isAdoc) {
-                    updateSinglePost(contentRelativePath);
-                    renderAggregatedPages();
+                    renderPublication(updateSinglePost(contentRelativePath));
                 } else {
                     copySingleContentAsset(contentRelativePath);
                 }
@@ -202,8 +201,7 @@ public final class SiteGenerator implements AutoCloseable {
                     return;
                 }
                 reloadTemplateService();
-                renderAllPosts();
-                renderAggregatedPages();
+                renderPublication();
                 return;
             }
 
@@ -216,6 +214,7 @@ public final class SiteGenerator implements AutoCloseable {
                 if ("DELETE".equals(eventType)) {
                     deleteSingleAssetOverride(assetOverrideRelativePath);
                 } else {
+                    validatePublication();
                     copySingleAssetOverride(assetOverrideRelativePath);
                 }
             }
@@ -230,14 +229,13 @@ public final class SiteGenerator implements AutoCloseable {
 
     private void handleContentDelete(Path relativePath, boolean isAdoc) throws IOException {
         if (isAdoc) {
-            posts.remove(relativePath);
-            deletePostOutput(relativePath);
+            Post removed = posts.remove(relativePath);
             System.out.println("[remove] " + toUnixPath(relativePath));
-            renderAggregatedPages();
+            renderPublication(removed == null ? Set.of() : Set.of(removed.contentId()));
             return;
         }
 
-        Path target = outputRoot.resolve(relativePath);
+        Path target = outputRoot.resolve(config.languageSupport().outputPath(relativePath));
         Files.deleteIfExists(target);
         System.out.println("[delete] " + toUnixPath(relativePath));
     }
@@ -263,9 +261,10 @@ public final class SiteGenerator implements AutoCloseable {
             stream
                 .filter(Files::isRegularFile)
                 .filter(path -> path.toString().endsWith(".adoc"))
+                .filter(path -> !shouldIgnoreAsset(toInputContentRelativePath(contentRoot.relativize(path))))
                 .forEach(path -> {
                     try {
-                        Post post = postParser.parse(path, contentRoot);
+                        Post post = postParser.parse(path, contentRoot, config.languageSupport());
                         posts.put(post.sourceRelativePath(), post);
                     } catch (Exception ex) {
                         throw new IllegalStateException("Failed to parse post " + path, ex);
@@ -299,7 +298,7 @@ public final class SiteGenerator implements AutoCloseable {
                 }
 
                 try {
-                    copyFile(file, outputRoot.resolve(relativePath));
+                    copyFile(file, outputRoot.resolve(config.languageSupport().outputPath(relativePath)));
                     System.out.println("[copy] " + toUnixPath(relativePath));
                 } catch (IOException ex) {
                     throw new IllegalStateException("Failed copying asset " + file, ex);
@@ -320,7 +319,8 @@ public final class SiteGenerator implements AutoCloseable {
             return;
         }
 
-        copyFile(source, outputRoot.resolve(relativePath));
+        validatePublication();
+        copyFile(source, outputRoot.resolve(config.languageSupport().outputPath(relativePath)));
         System.out.println("[copy] " + toUnixPath(relativePath));
     }
 
@@ -491,21 +491,40 @@ public final class SiteGenerator implements AutoCloseable {
         }
     }
 
-    private void renderAllPosts() throws IOException {
+    private void renderAllPosts(Set<String> affectedContentIds) throws IOException {
         for (Post post : posts.values()) {
-            renderPost(post);
+            if (post.published()) {
+                if (affectedContentIds == null || affectedContentIds.contains(post.contentId())
+                    || !Files.exists(outputRoot.resolve(post.outputRelativePath()))) {
+                    renderPost(post);
+                } else {
+                    generatedPages.add(post.outputRelativePath());
+                }
+            } else {
+                Files.deleteIfExists(outputRoot.resolve(post.outputRelativePath()));
+            }
         }
     }
 
-    private void updateSinglePost(Path relativePath) throws IOException {
+    private Set<String> updateSinglePost(Path relativePath) throws IOException {
         Path source = contentRoot.resolve(relativePath);
         if (!Files.exists(source)) {
-            return;
+            return Set.of();
         }
 
-        Post post = postParser.parse(source, contentRoot);
-        posts.put(relativePath, post);
-        renderPost(post);
+        Post post = postParser.parse(source, contentRoot, config.languageSupport());
+        Post previous = posts.put(relativePath, post);
+        try {
+            validatePublication();
+        } catch (RuntimeException | IOException e) {
+            if (previous == null) posts.remove(relativePath);
+            else posts.put(relativePath, previous);
+            throw e;
+        }
+        Set<String> affected = new HashSet<>();
+        affected.add(post.contentId());
+        if (previous != null) affected.add(previous.contentId());
+        return affected;
     }
 
     private Path toNestedRelativePath(Path inputRelativePath, String topLevelDirectory) {
@@ -525,97 +544,166 @@ public final class SiteGenerator implements AutoCloseable {
     }
 
     private void renderPost(Post post) throws IOException {
-        Map<String, Object> model = baseModel(post.title(), "");
-
+        Map<String, Object> model = baseModel(post.title(), post.language(), "", post);
         Map<String, Object> postModel = new LinkedHashMap<>();
         postModel.put("title", post.title());
         postModel.put("author", post.author());
-        postModel.put("date", formatDate(post.date()));
+        postModel.put("date", formatDate(post.date(), post.language()));
         postModel.put("status", post.status());
         postModel.put("html", post.htmlContent());
-        postModel.put("tags", tagsForTemplate(post.tags()));
+        postModel.put("tags", tagsForTemplate(post.tags(), post.language()));
         postModel.put("url", post.url());
         postModel.put("usesInterlisLab", post.usesInterlisLab());
-
         model.put("post", postModel);
-        templateService.renderToFile("post.ftl", model, outputRoot.resolve(post.outputRelativePath()));
-
+        renderPage("post.ftl", model, post.outputRelativePath());
         System.out.println("[render] " + toUnixPath(post.sourceRelativePath()) + " -> " + toUnixPath(post.outputRelativePath()));
     }
 
     private void renderAggregatedPages() throws IOException {
-        List<Post> sortedPosts = sortedPosts();
-
-        renderIndexPage(sortedPosts);
-        renderArchivePage(sortedPosts);
-        renderSearchPage();
-        renderTagPages(sortedPosts);
-        renderFeed(sortedPosts);
-        writeSearchIndex(sortedPosts);
-    }
-
-    private void renderIndexPage(List<Post> sortedPosts) throws IOException {
-        if (!config.indexThumbnailsEnabled()) {
-            cleanupIndexThumbnails();
+        if (!config.indexThumbnailsEnabled()) cleanupIndexThumbnails();
+        for (String language : config.languages()) {
+            List<Post> visible = catalog.visiblePosts(language);
+            renderIndexPage(visible, language);
+            renderArchivePage(visible, language);
+            renderSearchPage(language);
+            renderTagPages(visible, language);
+            renderFeed(catalog.publishedPosts(language), language);
+            writeSearchIndex(visible, language);
         }
-        Map<String, Object> model = baseModel(config.title(), "");
-        model.put("posts", summariesForTemplate(sortedPosts, true));
-        templateService.renderToFile("index.ftl", model, outputRoot.resolve("index.html"));
     }
 
-    private void renderArchivePage(List<Post> sortedPosts) throws IOException {
-        Map<String, Object> model = baseModel("Blog Archive", "");
-        model.put("groups", archiveGroupsForTemplate(sortedPosts));
-        templateService.renderToFile("archive.ftl", model, outputRoot.resolve("archive.html"));
+    private Path localizedOutput(String language, String path) {
+        return Path.of(config.route(language, path).substring(1));
     }
 
-    private void renderSearchPage() throws IOException {
-        Map<String, Object> model = baseModel("Search", "");
-        templateService.renderToFile("search.ftl", model, outputRoot.resolve("search.html"));
+    private void renderPage(String template, Map<String, Object> model, Path relativePath) throws IOException {
+        templateService.renderToFile(template, model, outputRoot.resolve(relativePath));
+        generatedPages.add(relativePath);
     }
 
-    private void renderTagPages(List<Post> sortedPosts) throws IOException {
-        cleanupOldTagPages();
+    /** Persist ownership of pages so non-clean builds can retract removed translations and drafts. */
+    private void renderPublication() throws IOException {
+        renderPublication(null);
+    }
 
-        Map<String, String> displayNameBySlug = new LinkedHashMap<>();
-        Map<String, List<Post>> postsBySlug = new LinkedHashMap<>();
-
-        for (Post post : sortedPosts) {
-            for (TagRef tag : post.tags()) {
-                displayNameBySlug.putIfAbsent(tag.slug(), tag.name());
-                postsBySlug.computeIfAbsent(tag.slug(), ignored -> new ArrayList<>()).add(post);
+    private void renderPublication(Set<String> affectedContentIds) throws IOException {
+        validatePublication();
+        Set<Path> previous = new HashSet<>(generatedPages);
+        Path manifest = outputRoot.resolve(OUTPUT_MANIFEST);
+        if (Files.exists(manifest)) {
+            for (String line : Files.readAllLines(manifest, StandardCharsets.UTF_8)) {
+                Path path = Path.of(line).normalize();
+                if (!line.isBlank() && !path.isAbsolute() && !path.startsWith("..") && !path.toString().isEmpty()) {
+                    previous.add(path);
+                }
             }
         }
+        generatedPages.clear();
+        renderAllPosts(affectedContentIds);
+        renderAggregatedPages();
+        for (Path stale : previous) {
+            if (!generatedPages.contains(stale)) Files.deleteIfExists(outputRoot.resolve(stale));
+        }
+        Files.write(manifest, generatedPages.stream().map(this::toUnixPath).sorted().toList(), StandardCharsets.UTF_8);
+    }
 
-        generatedTagSlugs.clear();
-        generatedTagSlugs.addAll(postsBySlug.keySet());
-
-        for (Map.Entry<String, List<Post>> entry : postsBySlug.entrySet()) {
-            String slug = entry.getKey();
-            String displayName = displayNameBySlug.getOrDefault(slug, slug);
-
-            Map<String, Object> model = baseModel("Tag: " + displayName, "");
-            model.put("tagName", displayName);
-            model.put("posts", summariesForTemplate(entry.getValue(), false));
-
-            Path tagFile = outputRoot.resolve("tags").resolve(slug).resolve("index.html");
-            templateService.renderToFile("tag.ftl", model, tagFile);
+    private void validatePublication() throws IOException {
+        catalog = new PostCatalog(posts.values(), config.defaultLanguage());
+        Map<Path, String> outputs = new LinkedHashMap<>();
+        reserveOutput(outputs, Path.of(OUTPUT_MANIFEST), "output manifest");
+        for (String descriptor : BUNDLED_ASSETS) {
+            reserveOutput(outputs, Path.of(descriptor.split("::", 2)[1]), "theme asset");
+        }
+        for (String language : config.languages()) {
+            for (String path : List.of("index.html", "archive.html", "search.html", "feed.xml", "assets/search-index.json")) {
+                reserveOutput(outputs, localizedOutput(language, path), "site page (" + language + ")");
+            }
+            Set<String> tags = catalog.visiblePosts(language).stream().flatMap(p -> p.tags().stream())
+                .map(TagRef::slug).collect(Collectors.toSet());
+            for (String tag : tags) {
+                reserveOutput(outputs, localizedOutput(language, "tags/" + tag + "/index.html"), "tag page");
+            }
+        }
+        for (Post post : posts.values()) {
+            reserveOutput(outputs, post.outputRelativePath(), post.sourceRelativePath().toString());
+        }
+        try (var stream = Files.walk(contentRoot)) {
+            for (Path file : stream.filter(Files::isRegularFile).toList()) {
+                Path relative = contentRoot.relativize(file);
+                if (!relative.toString().endsWith(".adoc") && !shouldIgnoreAsset(toInputContentRelativePath(relative))) {
+                    reserveOutput(outputs, config.languageSupport().outputPath(relative), relative.toString());
+                }
+            }
+        }
+        if (Files.isDirectory(assetOverrideRoot)) {
+            try (var stream = Files.walk(assetOverrideRoot)) {
+                for (Path file : stream.filter(Files::isRegularFile).toList()) {
+                    Path relative = assetOverrideRoot.relativize(file);
+                    Path output = Path.of("assets").resolve(relative);
+                    if (!shouldIgnoreAsset(output) && !BUNDLED_ASSET_RESOURCE_BY_OUTPUT.containsKey(toUnixPath(output))) {
+                        reserveOutput(outputs, output, "asset override " + relative);
+                    }
+                }
+            }
         }
     }
 
-    private void renderFeed(List<Post> sortedPosts) throws IOException {
-        Map<String, Object> model = new HashMap<>();
-        model.put("siteTitle", config.title());
-        model.put("siteDescription", config.description());
-        model.put("siteLanguage", config.language());
-        model.put("siteLink", config.baseUrl());
-        model.put("feedSelf", config.absoluteUrl("/feed.xml"));
+    private void reserveOutput(Map<Path, String> outputs, Path path, String owner) {
+        for (var entry : outputs.entrySet()) {
+            if (path.startsWith(entry.getKey()) || entry.getKey().startsWith(path)) {
+                throw new IllegalArgumentException("Output path collision at " + path + ": " + entry.getValue() + " and " + owner);
+            }
+        }
+        outputs.put(path, owner);
+    }
 
+    private void renderIndexPage(List<Post> sortedPosts, String language) throws IOException {
+        Map<String, Object> model = baseModel(config.title(language), language, "index.html", null);
+        model.put("posts", summariesForTemplate(sortedPosts, true, language));
+        renderPage("index.ftl", model, localizedOutput(language, "index.html"));
+    }
+
+    private void renderArchivePage(List<Post> sortedPosts, String language) throws IOException {
+        Map<String, Object> model = baseModel(UiText.forLanguage(language).get("archiveTitle"), language, "archive.html", null);
+        model.put("groups", archiveGroupsForTemplate(sortedPosts, language));
+        renderPage("archive.ftl", model, localizedOutput(language, "archive.html"));
+    }
+
+    private void renderSearchPage(String language) throws IOException {
+        Map<String, Object> model = baseModel(UiText.forLanguage(language).get("search"), language, "search.html", null);
+        renderPage("search.ftl", model, localizedOutput(language, "search.html"));
+    }
+
+    private void renderTagPages(List<Post> sortedPosts, String language) throws IOException {
+        Map<String, String> names = new LinkedHashMap<>();
+        Map<String, List<Post>> bySlug = new LinkedHashMap<>();
+        for (Post post : sortedPosts) {
+            for (TagRef tag : post.tags()) {
+                names.putIfAbsent(tag.slug(), tag.name());
+                bySlug.computeIfAbsent(tag.slug(), ignored -> new ArrayList<>()).add(post);
+            }
+        }
+        for (var entry : bySlug.entrySet()) {
+            String path = "tags/" + entry.getKey() + "/index.html";
+            Map<String, Object> model = baseModel(UiText.forLanguage(language).get("tag") + ": " + names.get(entry.getKey()), language, path, null);
+            model.put("tagName", names.get(entry.getKey()));
+            model.put("posts", summariesForTemplate(entry.getValue(), false, language));
+            renderPage("tag.ftl", model, localizedOutput(language, path));
+        }
+    }
+
+    private void renderFeed(List<Post> sortedPosts, String language) throws IOException {
+        Map<String, Object> model = new HashMap<>();
+        model.put("siteTitle", config.title(language));
+        model.put("siteDescription", config.description(language));
+        model.put("siteLanguage", language.equals(config.defaultLanguage()) ? config.language() : language);
+        model.put("siteLink", language.equals(config.defaultLanguage()) ? config.baseUrl()
+            : config.absoluteUrl(config.route(language, "")));
+        model.put("feedSelf", config.absoluteUrl(config.route(language, "feed.xml")));
         ZonedDateTime now = ZonedDateTime.now(config.zoneId());
         String nowFormatted = FEED_DATE_FORMATTER.format(now);
         model.put("pubDate", nowFormatted);
         model.put("lastBuildDate", nowFormatted);
-
         List<Map<String, Object>> items = new ArrayList<>();
         for (Post post : sortedPosts) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -627,68 +715,49 @@ public final class SiteGenerator implements AutoCloseable {
             items.add(item);
         }
         model.put("items", items);
-
-        templateService.renderToFile("feed.ftl", model, outputRoot.resolve("feed.xml"));
+        renderPage("feed.ftl", model, localizedOutput(language, "feed.xml"));
     }
 
-    private void writeSearchIndex(List<Post> sortedPosts) throws IOException {
-        Path searchIndexPath = outputRoot.resolve("assets/search-index.json");
+    private void writeSearchIndex(List<Post> sortedPosts, String language) throws IOException {
+        Path relative = localizedOutput(language, "assets/search-index.json");
+        Path searchIndexPath = outputRoot.resolve(relative);
         Files.createDirectories(searchIndexPath.getParent());
-
-        StringBuilder json = new StringBuilder();
-        json.append("[\n");
-
+        StringBuilder json = new StringBuilder("[\n");
         for (int i = 0; i < sortedPosts.size(); i++) {
             Post post = sortedPosts.get(i);
-            if (i > 0) {
-                json.append(",\n");
-            }
-
+            if (i > 0) json.append(",\n");
             json.append("  {")
+                .append(jsonField("contentId", post.contentId())).append(",")
+                .append(jsonField("language", post.language())).append(",")
+                .append(jsonField("languageName", LanguageSupport.displayName(post.language()))).append(",")
                 .append(jsonField("title", post.title())).append(",")
                 .append(jsonField("date", post.date().toString())).append(",")
                 .append(jsonField("tags", post.tagsAsText())).append(",")
                 .append(jsonField("url", post.url())).append(",")
                 .append(jsonField("body", post.plainText())).append(",")
-                .append(jsonField("teaser", post.teaser()))
-                .append("}");
+                .append(jsonField("teaser", post.teaser())).append("}");
         }
-
         json.append("\n]\n");
         Files.writeString(searchIndexPath, json.toString(), StandardCharsets.UTF_8);
+        generatedPages.add(relative);
     }
 
-    private void cleanupOldTagPages() throws IOException {
-        Path tagsRoot = outputRoot.resolve("tags");
-        if (Files.exists(tagsRoot)) {
-            deleteRecursively(tagsRoot);
-        }
-        Files.createDirectories(tagsRoot);
-    }
-
-    private List<Post> sortedPosts() {
-        return posts.values().stream()
-            .sorted(Comparator
-                .comparing(Post::date, Comparator.reverseOrder())
-                .thenComparing(Post::title, String.CASE_INSENSITIVE_ORDER))
-            .toList();
-    }
-
-    private List<Map<String, Object>> summariesForTemplate(List<Post> postsToConvert, boolean includeTeaserAndCover) {
+    private List<Map<String, Object>> summariesForTemplate(List<Post> postsToConvert, boolean includeTeaserAndCover, String language) {
         List<Map<String, Object>> summaries = new ArrayList<>();
         for (Post post : postsToConvert) {
             Map<String, Object> summary = new LinkedHashMap<>();
             summary.put("title", post.title());
-            summary.put("date", formatDate(post.date()));
+            summary.put("date", formatDate(post.date(), language));
             summary.put("author", post.author());
             summary.put("wordCount", wordCount(post.plainText()));
             summary.put("url", post.url());
-            summary.put("tags", tagsForTemplate(post.tags()));
+            summary.put("language", post.language());
+            summary.put("languageName", LanguageSupport.displayName(post.language()));
+            summary.put("fallback", !post.language().equals(language));
+            summary.put("tags", tagsForTemplate(post.tags(), language));
             if (includeTeaserAndCover) {
                 summary.put("teaser", post.teaser());
-                if (config.indexThumbnailsEnabled()) {
-                    summary.put("coverImage", resolveIndexCoverImage(post.coverImage()));
-                }
+                if (config.indexThumbnailsEnabled()) summary.put("coverImage", resolveIndexCoverImage(post.coverImage()));
             }
             summaries.add(summary);
         }
@@ -702,9 +771,9 @@ public final class SiteGenerator implements AutoCloseable {
         return text.trim().split("\\s+").length;
     }
 
-    private List<Map<String, Object>> archiveGroupsForTemplate(List<Post> sortedPosts) {
-        DateTimeFormatter headingFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", config.locale());
-        DateTimeFormatter dayFormatter = DateTimeFormatter.ofPattern("dd", config.locale());
+    private List<Map<String, Object>> archiveGroupsForTemplate(List<Post> sortedPosts, String language) {
+        DateTimeFormatter headingFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag(language));
+        DateTimeFormatter dayFormatter = DateTimeFormatter.ofPattern("dd", Locale.forLanguageTag(language));
         Map<YearMonth, List<Map<String, String>>> postsByMonth = new LinkedHashMap<>();
 
         for (Post post : sortedPosts) {
@@ -714,6 +783,9 @@ public final class SiteGenerator implements AutoCloseable {
             entry.put("day", dayFormatter.format(post.date()));
             entry.put("title", post.title());
             entry.put("url", post.url());
+            entry.put("language", post.language());
+            entry.put("languageName", LanguageSupport.displayName(post.language()));
+            entry.put("fallback", Boolean.toString(!post.language().equals(language)));
             entries.add(entry);
         }
 
@@ -873,33 +945,64 @@ public final class SiteGenerator implements AutoCloseable {
         return fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
-    private List<Map<String, String>> tagsForTemplate(Collection<TagRef> tags) {
+    private List<Map<String, String>> tagsForTemplate(Collection<TagRef> tags, String language) {
         List<Map<String, String>> result = new ArrayList<>();
         for (TagRef tag : tags) {
             Map<String, String> entry = new LinkedHashMap<>();
             entry.put("name", tag.name());
             entry.put("slug", tag.slug());
+            entry.put("url", config.route(language, "tags/" + tag.slug() + "/index.html"));
             result.add(entry);
         }
         return result;
     }
 
-    private Map<String, Object> baseModel(String pageTitle, String searchQuery) {
+    private Map<String, Object> baseModel(String pageTitle, String language, String pagePath, Post post) {
         Map<String, Object> model = new HashMap<>();
         Map<String, Object> site = new HashMap<>();
-        String[] brandParts = splitBrandTitle(config.title());
-
-        site.put("title", config.title());
-        site.put("description", config.description());
+        String[] brandParts = splitBrandTitle(config.title(language));
+        site.put("title", config.title(language));
+        site.put("description", config.description(language));
         site.put("baseUrl", config.baseUrl());
-        site.put("language", config.language());
+        site.put("language", language);
         site.put("brandMain", brandParts[0]);
         site.put("brandDomain", brandParts[1]);
-
         model.put("site", site);
         model.put("pageTitle", pageTitle);
-        model.put("searchQuery", searchQuery == null ? "" : searchQuery);
+        model.put("searchQuery", "");
+        model.put("locale", language);
+        model.put("messages", UiText.forLanguage(language));
+        model.put("siteRootUrl", config.route(language, "index.html"));
+        model.put("archiveUrl", config.route(language, "archive.html"));
+        model.put("feedUrl", config.route(language, "feed.xml"));
+        model.put("searchPageUrl", config.route(language, "search.html"));
+        model.put("searchIndexUrl", config.route(language, "assets/search-index.json"));
+        model.put("canonicalUrl", config.absoluteUrl(post != null ? post.url() : config.route(language, pagePath)));
+        List<Map<String, Object>> switcher = new ArrayList<>();
+        List<Map<String, String>> alternates = new ArrayList<>();
+        for (String targetLanguage : config.languages()) {
+            Post target = post != null ? catalog.publishedVariant(post.contentId(), targetLanguage) : null;
+            boolean available = post != null ? target != null : aggregateAvailable(targetLanguage, pagePath);
+            String targetUrl = post != null && available ? target.url()
+                : config.route(targetLanguage, available ? pagePath : "index.html");
+            Map<String, Object> option = new LinkedHashMap<>();
+            option.put("language", targetLanguage);
+            option.put("label", LanguageSupport.displayName(targetLanguage));
+            option.put("url", targetUrl);
+            option.put("available", available);
+            option.put("selected", language.equals(targetLanguage));
+            switcher.add(option);
+            if (available) alternates.add(Map.of("language", targetLanguage, "url", config.absoluteUrl(targetUrl)));
+        }
+        model.put("languageSwitcher", config.languages().size() > 1 ? switcher : List.of());
+        model.put("alternates", alternates);
         return model;
+    }
+
+    private boolean aggregateAvailable(String language, String path) {
+        if (!path.startsWith("tags/")) return true;
+        String slug = path.substring(5, path.length() - "/index.html".length());
+        return catalog.visiblePosts(language).stream().flatMap(p -> p.tags().stream()).anyMatch(tag -> tag.slug().equals(slug));
     }
 
     private String[] splitBrandTitle(String title) {
@@ -913,8 +1016,8 @@ public final class SiteGenerator implements AutoCloseable {
         };
     }
 
-    private String formatDate(LocalDate date) {
-        return config.htmlDateFormatter().format(date);
+    private String formatDate(LocalDate date, String language) {
+        return config.htmlDateFormatter(language).format(date);
     }
 
     private String feedDescription(Post post) {
@@ -1006,14 +1109,6 @@ public final class SiteGenerator implements AutoCloseable {
         return escaped.toString();
     }
 
-    private void deletePostOutput(Path relativePath) throws IOException {
-        String base = removeAdocExtension(toUnixPath(relativePath));
-        Path directory = outputRoot.resolve(base);
-        if (Files.exists(directory)) {
-            deleteRecursively(directory);
-        }
-    }
-
     private void copyFile(Path source, Path target) throws IOException {
         Files.createDirectories(target.getParent());
         Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
@@ -1037,13 +1132,6 @@ public final class SiteGenerator implements AutoCloseable {
                 return FileVisitResult.CONTINUE;
             }
         });
-    }
-
-    private String removeAdocExtension(String value) {
-        if (value.endsWith(".adoc")) {
-            return value.substring(0, value.length() - 5);
-        }
-        return value;
     }
 
     private String toUnixPath(Path path) {

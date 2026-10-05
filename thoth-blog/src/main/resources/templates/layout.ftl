@@ -1,15 +1,25 @@
 <#macro siteNav navClass="">
   <nav id="navbar"<#if navClass?has_content> class="${navClass?html}"</#if>>
     <div class="nav-left">
-      <a href="/index.html">Home</a>
-      <a href="/archive.html">Archive</a>
-      <a href="/feed.xml">Subscribe</a>
+      <a href="${siteRootUrl?html}">${messages.home?html}</a>
+      <a href="${archiveUrl?html}">${messages.archive?html}</a>
+      <a href="${feedUrl?html}">${messages.subscribe?html}</a>
     </div>
     <div class="nav-right">
-      <form id="search-form" action="/search.html" method="get">
-        <input id="search-input" type="search" name="q" value="${searchQuery!}" placeholder="Search posts">
+      <form id="search-form" action="${searchPageUrl?html}" method="get">
+        <input id="search-input" type="search" name="q" value="${(searchQuery!"")?html}" placeholder="${messages.searchPosts?html}" aria-label="${messages.searchPosts?html}">
       </form>
-      <button id="theme-toggle" class="theme-toggle" type="button" title="system mode" aria-label="Switch between dark and light mode (currently system mode)">
+      <#if languageSwitcher?has_content>
+      <div class="language-control">
+        <label for="language-switch">${messages.language?html}</label>
+        <select id="language-switch" aria-label="${messages.language?html}">
+          <#list languageSwitcher as option>
+          <option value="${option.url?html}" lang="${option.language?html}"<#if option.selected> selected</#if>>${option.label?html}<#if !option.available> (${messages.languageHome?html})</#if></option>
+          </#list>
+        </select>
+      </div>
+      </#if>
+      <button id="theme-toggle" class="theme-toggle" type="button" title="${messages.theme?html}" aria-label="${messages.theme?html}" data-theme-label="${messages.theme?html}">
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="theme-toggle__icon theme-toggle__icon--light">
           <path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path>
         </svg>
@@ -26,19 +36,23 @@
 
 <#macro page pageTitle pageClass="" homeHero=false heroTitle="" interlisLabEnabled=false>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="${locale?html}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${pageTitle?html} | ${site.title?html}</title>
-  <#if homeHero>
+  <#if canonicalUrl?has_content>
+  <link rel="canonical" href="${canonicalUrl?html}">
   </#if>
+  <#list alternates as alternate>
+  <link rel="alternate" hreflang="${alternate.language?html}" href="${alternate.url?html}">
+  </#list>
   <link rel="stylesheet" href="/assets/zurich.css">
   <link id="theme-style" rel="stylesheet" href="/assets/styles-light.css" data-light="/assets/styles-light.css" data-dark="/assets/styles-dark.css">
   <link rel="stylesheet" href="/assets/prism/prism.css">
   <link rel="stylesheet" href="/assets/prism/plugins/line-highlight/prism-line-highlight.min.css">
   <link rel="stylesheet" href="/assets/prism/plugins/line-numbers/prism-line-numbers.min.css">
-  <link rel="alternate" type="application/rss+xml" title="${site.title?html}" href="/feed.xml">
+  <link rel="alternate" type="application/rss+xml" title="${site.title?html}" href="${feedUrl?html}">
   <script src="/assets/theme.js" defer></script>
   <script src="/assets/prism/prism.js" defer></script>
   <script src="/assets/prism/components/prism-markup.min.js" defer></script>
@@ -71,7 +85,17 @@
   <script type="module" src="/assets/interlis-lab/interlis-lab.js"></script>
   </#if>
 </head>
-<body<#if pageClass?has_content> class="${pageClass?html}"</#if>>
+<body data-copy-code="${messages.copyCode?html}"
+      data-copied-code="${messages.copiedCode?html}"
+      data-copy-failed="${messages.copyFailed?html}"
+      data-search-index-url="${searchIndexUrl?html}"
+      data-results-for="${messages.resultsFor?html}"
+      data-no-results="${messages.noResults?html}"
+      data-enter-query="${messages.enterQuery?html}"
+      data-enter-search-term="${messages.enterSearchTerm?html}"
+      data-search-failed="${messages.searchFailed?html}"
+      data-only-available="${messages.onlyAvailable?html}"
+      data-multilingual="${(languageSwitcher?has_content)?string('true', 'false')}"<#if pageClass?has_content> class="${pageClass?html}"</#if>>
   <#if !homeHero>
     <@siteNav />
   </#if>
@@ -84,7 +108,7 @@
         <#if heroTitle?has_content>
         <h1 class="home-hero__title">${heroTitle?html}</h1>
         <#else>
-        <a class="brand" href="/index.html" aria-label="${site.title?html}">
+        <a class="brand" href="${siteRootUrl?html}" aria-label="${site.title?html}">
           <span class="brand-main">${site.brandMain?html}</span><#if site.brandDomain?has_content><span class="brand-domain">${site.brandDomain?html}</span></#if>
         </a>
         </#if>

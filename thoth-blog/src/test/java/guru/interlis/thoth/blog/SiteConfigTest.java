@@ -17,6 +17,28 @@ class SiteConfigTest {
     @TempDir Path tempDir;
 
     @Test
+    void loadsLanguageConfigurationAndTranslatedMetadata() throws Exception {
+        writeConfig("""
+            site.title=Mein Blog
+            site.title.en=My Blog
+            site.description=Beschreibung
+            site.description.en=Description
+            site.baseUrl=https://example.com
+            site.language=de
+            site.languages=de, en
+            site.dateFormat=dd MMMM yyyy
+            """);
+        SiteConfig config = SiteConfig.load(tempDir);
+        assertEquals(java.util.List.of("de", "en"), config.languages());
+        assertEquals("de", config.defaultLanguage());
+        assertEquals("My Blog", config.title("en"));
+        assertEquals("Mein Blog", config.title("de"));
+        assertEquals("Description", config.description("en"));
+        assertEquals("/en/search.html", config.route("en", "search.html"));
+        assertEquals("05 October 2026", config.htmlDateFormatter("en").format(LocalDate.of(2026, 10, 5)));
+    }
+
+    @Test
     void loadsMinimalRequiredConfig() throws Exception {
         writeConfig("""
             site.title=Test Blog

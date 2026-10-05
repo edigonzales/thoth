@@ -1,4 +1,19 @@
 (() => {
+  const messages = document.body.dataset;
+  function text(key, query = "") {
+    return (messages[key] || "").replace("{query}", query);
+  }
+
+  function initLanguageSwitcher() {
+    const select = document.getElementById("language-switch");
+    if (!select) return;
+    select.addEventListener("change", () => {
+      const target = new URL(select.value, window.location.href);
+      const query = new URLSearchParams(window.location.search).get("q");
+      if (target.pathname.endsWith("/search.html") && query) target.searchParams.set("q", query);
+      window.location.href = target.href;
+    });
+  }
 
   function ensureSearchInputSync(query) {
     const input = document.getElementById("search-input");
@@ -19,6 +34,7 @@
     title.className = "post-title";
     title.href = post.url;
     title.textContent = post.title;
+    if (post.language) title.lang = post.language;
 
     const date = document.createElement("div");
     date.className = "post-date";
@@ -26,6 +42,12 @@
 
     item.appendChild(title);
     item.appendChild(date);
+    if (post.language && post.language !== document.documentElement.lang) {
+      const notice = document.createElement("span");
+      notice.className = "language-notice";
+      notice.textContent = `${text("onlyAvailable")} ${post.languageName || post.language}`;
+      item.appendChild(notice);
+    }
     return item;
   }
 
@@ -41,7 +63,7 @@
     container.innerHTML = "";
 
     if (results.length === 0) {
-      renderMessage(container, `No results for \"${query}\".`);
+      renderMessage(container, text("noResults", query));
       return;
     }
 
@@ -65,6 +87,10 @@
     documents.forEach((doc) => docsByUrl.set(doc.url, doc));
 
     const index = window.lunr(function () {
+      if (messages.multilingual === "true" || document.documentElement.lang.startsWith("de")) {
+        this.pipeline.remove(window.lunr.stemmer, window.lunr.stopWordFilter);
+        this.searchPipeline.remove(window.lunr.stemmer);
+      }
       this.ref("url");
       this.field("title");
       this.field("tags");
@@ -107,15 +133,15 @@
 
     const queryElement = document.getElementById("search-query");
     if (queryElement) {
-      queryElement.textContent = query ? `Results for \"${query}\"` : "Enter a query in the search field.";
+      queryElement.textContent = query ? text("resultsFor", query) : text("enterQuery");
     }
 
     if (!query) {
-      renderMessage(container, "Enter a search term above.");
+      renderMessage(container, text("enterSearchTerm"));
       return;
     }
 
-    fetch("/assets/search-index.json")
+    fetch(messages.searchIndexUrl || "/assets/search-index.json")
       .then((response) => {
         if (!response.ok) {
           throw new Error("search-index fetch failed");
@@ -128,10 +154,11 @@
           : fallbackSearch(query, documents);
         renderResults(container, query, results);
       })
-      .catch(() => renderMessage(container, "Search index could not be loaded."));
+      .catch(() => renderMessage(container, text("searchFailed")));
   }
 
   function initPage() {
+    initLanguageSwitcher();
     initSearchPage();
   }
 

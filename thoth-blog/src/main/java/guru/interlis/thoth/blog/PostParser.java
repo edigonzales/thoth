@@ -2,6 +2,7 @@ package guru.interlis.thoth.blog;
 
 import guru.interlis.thoth.core.InterlisLabHtmlSupport;
 import guru.interlis.thoth.core.InterlisLabMacroProcessor;
+import guru.interlis.thoth.core.LanguageSupport;
 import org.asciidoctor.Asciidoctor;
 import org.asciidoctor.AttributesBuilder;
 import org.asciidoctor.OptionsBuilder;
@@ -37,6 +38,10 @@ public final class PostParser {
     }
 
     public Post parse(Path sourceFile, Path inputRoot) throws IOException {
+        return parse(sourceFile, inputRoot, new LanguageSupport("en", List.of("en"), false));
+    }
+
+    public Post parse(Path sourceFile, Path inputRoot, LanguageSupport languages) throws IOException {
         Path sourceRelativePath = inputRoot.relativize(sourceFile);
         List<String> lines = java.nio.file.Files.readAllLines(sourceFile, StandardCharsets.UTF_8);
 
@@ -71,22 +76,27 @@ public final class PostParser {
         );
         List<Boolean> sourceBlockLineNumbers = detectSourceBlockLineNumbers(body);
         String renderedHtml = renderAsciiDoc(interlisLabMacros.content(), sourceFile);
-        String normalizedHtml = rewriteRelativeLinks(renderedHtml, sourceRelativePath.getParent(), sourceBlockLineNumbers);
+        String normalizedHtml = rewriteRelativeLinks(renderedHtml, sourceRelativePath.getParent(), sourceBlockLineNumbers, languages);
 
         Document document = Jsoup.parseBodyFragment(normalizedHtml);
         String plainText = collapseWhitespace(document.text());
         boolean usesInterlisLab = interlisLabMacros.usesInterlisLab() || InterlisLabHtmlSupport.hasInterlisLab(normalizedHtml);
 
         String teaser = resolveTeaser(attributes.get("thoth-teaser"), plainText);
-        String coverImage = resolveCover(attributes.get("thoth-cover-image"), document, sourceRelativePath.getParent());
+        String coverImage = resolveCover(attributes.get("thoth-cover-image"), document, sourceRelativePath.getParent(), languages);
 
         String status = attributes.getOrDefault("thoth-status", "published").trim();
         List<TagRef> tags = parseTags(attributes.get("thoth-tags"));
 
-        String relativeWithoutExtension = removeExtension(toUnixPath(sourceRelativePath));
-        String url = "/" + relativeWithoutExtension + "/";
-        String guid = relativeWithoutExtension + "/";
-        Path outputRelativePath = Path.of(relativeWithoutExtension).resolve("index.html");
+        LanguageSupport.SourcePath localized = languages.sourcePath(sourceRelativePath);
+        String relativeWithoutExtension = removeExtension(toUnixPath(localized.path()));
+        String contentId = attributes.getOrDefault("thoth-id", relativeWithoutExtension).trim();
+        if (contentId.isEmpty()) {
+            throw new IllegalArgumentException("thoth-id must not be blank: " + sourceRelativePath);
+        }
+        String url = languages.route(localized.language(), relativeWithoutExtension + "/");
+        String guid = url.substring(1);
+        Path outputRelativePath = Path.of(url.substring(1)).resolve("index.html");
 
         return new Post(
             sourceRelativePath,
@@ -102,7 +112,9 @@ public final class PostParser {
             usesInterlisLab,
             url,
             guid,
-            outputRelativePath
+            outputRelativePath,
+            contentId,
+            localized.language()
         );
     }
 
@@ -141,16 +153,16 @@ public final class PostParser {
         return asciidoctor.convert(body, options.build());
     }
 
-    private String rewriteRelativeLinks(String html, Path sourceDirectory, List<Boolean> sourceBlockLineNumbers) {
+    private String rewriteRelativeLinks(String html, Path sourceDirectory, List<Boolean> sourceBlockLineNumbers, LanguageSupport languages) {
         Document document = Jsoup.parseBodyFragment(html);
 
         for (Element element : document.select("[src]")) {
-            String rewritten = resolveSiteUrl(element.attr("src"), sourceDirectory, false);
+            String rewritten = resolveSiteUrl(element.attr("src"), sourceDirectory, false, languages);
             element.attr("src", rewritten);
         }
 
         for (Element element : document.select("[href]")) {
-            String rewritten = resolveSiteUrl(element.attr("href"), sourceDirectory, true);
+            String rewritten = resolveSiteUrl(element.attr("href"), sourceDirectory, true, languages);
             element.attr("href", rewritten);
         }
 
@@ -305,9 +317,9 @@ public final class PostParser {
         return "----".equals(line) || "....".equals(line);
     }
 
-    private String resolveCover(String overrideValue, Document document, Path sourceDirectory) {
+    private String resolveCover(String overrideValue, Document document, Path sourceDirectory, LanguageSupport languages) {
         if (overrideValue != null && !overrideValue.isBlank()) {
-            return resolveSiteUrl(overrideValue.trim(), sourceDirectory, false);
+            return resolveSiteUrl(overrideValue.trim(), sourceDirectory, false, languages);
         }
 
         Element firstImage = document.selectFirst("img[src]");
@@ -397,7 +409,7 @@ public final class PostParser {
         return tags;
     }
 
-    private String resolveSiteUrl(String rawValue, Path sourceDirectory, boolean convertAdocLinks) {
+    private String resolveSiteUrl(String rawValue, Path sourceDirectory, boolean convertAdocLinks, LanguageSupport languages) {
         if (rawValue == null || rawValue.isBlank()) {
             return rawValue;
         }
@@ -432,7 +444,7 @@ public final class PostParser {
             return rawValue;
         }
 
-        String normalized = toUnixPath(resolved);
+        String normalized = toUnixPath(languages.outputPath(resolved));
         if (convertAdocLinks && normalized.endsWith(".adoc")) {
             normalized = removeExtension(normalized) + "/";
         }

@@ -92,6 +92,35 @@ a:hover {
   gap: 0.9rem;
 }
 
+.language-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+#language-switch {
+  min-width: 0;
+  max-width: 16rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+#language-switch:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.language-notice {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+
 #search-form {
   margin: 0;
 }
@@ -673,6 +702,7 @@ pre[class*="language-"] > code {
 
   .nav-right {
     width: 100%;
+    flex-wrap: wrap;
   }
 
   #search-input {
@@ -721,4 +751,9 @@ pre[class*="language-"] > code {
     width: 100%;
     max-width: none;
   }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .nav-right { flex-wrap: wrap; justify-content: flex-end; }
+  #search-input { width: min(14rem, 25vw); }
 }
