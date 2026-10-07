@@ -9,6 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ThothBibliosCliOptionParsingTest {
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"--public-export", "--output=site", "--format=pdf", "--format=pdf,docx"})
+    void rejectsConflictingPackageOptionsBeforeReadingConfig(String option) {
+        assertEquals(2, new CommandLine(new ThothBibliosCli()).execute(
+            "build", "--config", "missing.yml", "--package", "package", option));
+    }
+
     @Test
     void buildParsesLocalWorkingTree() {
         CommandLine cli = new CommandLine(new ThothBibliosCli());

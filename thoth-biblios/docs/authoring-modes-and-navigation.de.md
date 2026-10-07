@@ -22,8 +22,8 @@ Die englische Originalfassung dieser Seite steht unter [authoring-modes-and-navi
 
 | `render_mode` | `nav.yml` | `start_page` | Nummerierungseinstellungen | Benötigte Quelldateien | Erzeugtes Ergebnis | Wichtige Besonderheiten |
 |-----|-----|-----|-----|-----|-----|-----|
-| `split` | Gültige `navigation.file`, die erfolgreich geparst wird | Wird als Root-Route der Version verwendet. Wenn die Datei existiert, aber nicht in `nav.yml` steht, setzt Biblios sie an den Anfang der Build-Liste. | `ui.content_section_numbers` steuert die gerenderten Abschnittsnummern innerhalb jeder Seite. | Einzelne `.adoc`-Seiten sowie `nav.yml`, falls konfiguriert. | Eine HTML-Seite pro referenzierter Quellseite. Sidebar, Breadcrumbs und Prev/Next-Reihenfolge kommen aus `nav.yml`. | Bei nicht leerem `nav.yml` baut Biblios aktuell nur die dort referenzierten Seiten sowie `start_page`, falls diese existiert und in nav fehlte. |
-| `split` | Datei fehlt, YAML ist ungültig oder gar nicht konfiguriert | Wird weiterhin als bevorzugte Root-Seite der Version verwendet, falls die Datei existiert. | `ui.content_section_numbers` steuert weiterhin die gerenderten Abschnittsnummern. | Einzelne `.adoc`-Seiten. Keine Nav-Datei erforderlich. | Eine HTML-Seite pro gefundener `.adoc`-Datei. Die Suche läuft rekursiv unter `start_path`. | Auf diesem Fallback-Pfad protokolliert Biblios Warnungen und entdeckt `.adoc`-Dateien automatisch, sortiert nach relativem Pfad. Die Sidebar-Reihenfolge folgt dann dieser Fundreihenfolge. |
+| `split` | Gültige `navigation.file` mit Seitenreferenzen | Wird als Root-Route der Version verwendet. Wenn die Datei existiert, aber nicht in `nav.yml` steht, setzt Biblios sie an den Anfang der Build-Liste. | `ui.content_section_numbers` steuert die gerenderten Abschnittsnummern innerhalb jeder Seite. | Einzelne `.adoc`-Seiten sowie `nav.yml`, falls konfiguriert. | Eine HTML-Seite pro referenzierter Quellseite. Sidebar, Breadcrumbs und Prev/Next-Reihenfolge kommen aus `nav.yml`. | Bei nicht leerem `nav.yml` baut Biblios aktuell nur die dort referenzierten Seiten sowie `start_page`, falls diese existiert und in nav fehlte. |
+| `split` | Datei fehlt, ist ungültig, nicht konfiguriert oder enthält keine Seitenreferenzen | Wird weiterhin als bevorzugte Root-Seite der Version verwendet, falls die Datei existiert. | `ui.content_section_numbers` steuert weiterhin die gerenderten Abschnittsnummern. | Einzelne `.adoc`-Seiten. Keine Nav-Datei erforderlich. | Eine HTML-Seite pro gefundener `.adoc`-Datei. Die Suche läuft rekursiv unter `start_path`. | Biblios entdeckt `.adoc`-Dateien sortiert nach relativem Pfad. Fehlende oder ungültige konfigurierte Nav-Dateien erzeugen Warnungen; unkonfigurierte oder leere Navigation nicht zwingend. Die Dateisuche erzeugt keinen Nav-Baum: Ohne Nav-Einträge bleibt die Sidebar leer; Prev/Next fällt auf die Seitenreihenfolge zurück. |
 | `split` | Gültiges `nav.yml`, aber `start_page` ist darin nicht aufgeführt | Wenn die Datei existiert, fügt Biblios sie vorne ein und gibt ihr die Root-Route `/<component>/<version>/`. | Wie bei anderen `split`-Builds. | `start_page` plus die in nav gelisteten Seiten. | Die Startseite wird gebaut, obwohl sie nicht in nav steht, und wird zur Root-Seite der Version. | Die Seite wird gebaut, ihre Nav-Breadcrumbs und Platzierung stammen aber trotzdem nicht aus einem expliziten Nav-Eintrag. |
 | `single_page` | Für Seitengenerierung und Sidebar-Struktur ignoriert | Wird nicht zur Auswahl der Root-Seite verwendet. Die Version wird immer aus `master_file` gerendert. | `ui.content_section_numbers` steuert, ob nummerierte Überschriften im Inhalt gerendert werden. `ui.sidebar_toc_depth` steuert, wie viele Überschriftenebenen in den generierten Sidebar-Baum eingehen. | `master_file` ist Pflicht. | Genau eine HTML-Seite für die gesamte Version. Sidebar-Einträge werden aus den Überschriften des gerenderten Master-Dokuments erzeugt. | `navigation.file` steuert die Sidebar in diesem Modus nicht. `start_page` ist hier nicht das maßgebliche Dokument. |
 | `single_page` | Ignoriert | Ignoriert | `content_section_numbers: on` plus `sidebar_toc_numbers: on` setzt Kapitelnummern vor die Sidebar-Einträge. | `master_file`. | Eine Seite mit generierter, überschriftenbasierter Sidebar. | `sidebar_toc_numbers` betrifft nur die Labels in der Single-Page-Sidebar. Auf `split` hat es keinen Einfluss. |
@@ -37,16 +37,18 @@ Verwende `split`, wenn jede Quelldatei zu einer eigenen HTML-Seite werden soll.
 
 Aktuelles Verhalten:
 
-- Wenn `navigation.file` konfiguriert ist und die Datei erfolgreich geparst wird, verwendet Biblios diesen Nav-Baum als Quelle für Seitenreihenfolge, Breadcrumbs und Sidebar-Struktur.
+- Wenn `navigation.file` konfiguriert ist und der geparste Baum Seitenreferenzen enthält, verwendet Biblios diesen Nav-Baum als Quelle für Seitenreihenfolge, Breadcrumbs und Sidebar-Struktur.
 - In diesem Fall sammelt Biblios die Seitenpfade aus `nav.yml` und baut genau diese Seiten.
 - Wenn die konfigurierte `start_page` existiert, aber in `nav.yml` fehlt, fügt Biblios sie vorne in die Build-Liste ein, damit die Root-Seite der Version weiterhin funktioniert.
-- Wenn keine verwendbare Nav-Datei vorhanden ist, entdeckt Biblios `.adoc`-Dateien rekursiv unter `start_path`.
+- Wenn keine verwendbare Nav-Datei vorhanden ist oder der Baum keine Seitenreferenzen enthält, entdeckt Biblios `.adoc`-Dateien rekursiv unter `start_path`.
 - Die Routen sind seitenbasiert: `guide.adoc` wird zu `/<component>/<version>/guide/`, während `start_page` zu `/<component>/<version>/` wird.
 
 Wichtige Folge:
 
 - `nav.yml` ist im `split`-Modus nicht zwingend erforderlich.
-- Aber wenn `nav.yml` vorhanden und gültig ist, ist es nicht bloß Metadaten. Es definiert effektiv, welche Seiten gebaut werden, mit Ausnahme des oben beschriebenen zusätzlichen `start_page`-Einfügens.
+- Aber wenn `nav.yml` gültig ist und Seitenreferenzen enthält, ist es nicht bloß Metadaten. Es definiert effektiv, welche Seiten gebaut werden, mit Ausnahme des oben beschriebenen zusätzlichen `start_page`-Einfügens.
+
+Die automatische Dateisuche erzeugt keinen Navigationsbaum. Ohne Nav-Einträge bleibt die Sidebar leer; Prev/Next kann die Reihenfolge der entdeckten Seiten verwenden.
 
 ### `single_page`-Modus
 
@@ -125,8 +127,8 @@ Dadurch ist dieses Muster nützlich für Anhänge, die in der Sidebar sichtbar b
 
 ### In `split`
 
-- Wenn es vorhanden und gültig ist, definiert es die gebaute Seitenmenge sowie die Reihenfolge in Sidebar und Breadcrumbs.
-- Wenn es fehlt oder unbrauchbar ist, fällt Biblios auf rekursive `.adoc`-Erkennung zurück.
+- Wenn es gültig ist und Seitenreferenzen enthält, definiert es die gebaute Seitenmenge sowie die Reihenfolge in Sidebar und Breadcrumbs.
+- Wenn es fehlt, unbrauchbar ist oder keine Seitenreferenzen enthält, fällt Biblios auf rekursive `.adoc`-Erkennung zurück.
 
 ### In `single_page`
 
@@ -271,7 +273,7 @@ Es schaltet aktuell nicht HTML-Routing, Sidebar-Generierung oder Seitenauswahl a
 - Verwende `single_page`, wenn Autorinnen und Autoren in einem zusammengebauten Handbuch mit überschriftenbasierter Sidebar-Navigation denken.
 - Behandle `master_file` in `single_page` als verpflichtende Entwurfsentscheidung, nicht als Nachgedanken.
 - Behandle `= Titel` nur bei Fragmenten als optional; bei eigenständigen Seiten und Master-Dateien sollte es vorhanden sein.
-- Gehe nicht davon aus, dass `nav.yml` in `split` nur harmlose Metadaten enthält; wenn es gültig ist, bestimmt es sehr stark, was gebaut wird.
+- Gehe nicht davon aus, dass `nav.yml` in `split` nur harmlose Metadaten enthält; wenn es Seitenreferenzen enthält, bestimmt es sehr stark, was gebaut wird.
 - Wenn Anhänge in einer Single-Page-Sidebar sichtbar bleiben sollen, kombiniere `[unnumbered]` mit `[.appendix]`.
 
 ## Verwandte Referenzen

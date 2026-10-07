@@ -2,6 +2,7 @@ package guru.interlis.thoth.biblios;
 
 import guru.interlis.thoth.biblios.config.BibliosConfig;
 import guru.interlis.thoth.biblios.config.BibliosConfigParser;
+import guru.interlis.thoth.biblios.config.OutputSection;
 import guru.interlis.thoth.biblios.access.AccessPolicyResolver;
 import guru.interlis.thoth.biblios.access.AccessRules;
 import guru.interlis.thoth.biblios.access.AccessRulesParser;
@@ -16,8 +17,11 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
@@ -120,7 +124,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
         return Path.of(".thoth/cache");
     }
 
-    @Command(name = "build", mixinStandardHelpOptions = true, description = "Builds the documentation site")
+    @Command(name = "build", mixinStandardHelpOptions = true, description = "Builds a static documentation site or a private publication package")
     static final class BuildCommand implements Callable<Integer> {
         private enum BuildFormat {
             HTML("html"),
@@ -144,7 +148,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
         }
 
-        @Option(names = "--config", required = true, description = "Path to bibliios.yml configuration file")
+        @Option(names = "--config", required = true, description = "Path to biblios.yml configuration file")
         private Path config;
 
         @Option(names = "--output", description = "Output directory (overrides config)")
@@ -188,13 +192,13 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
         @Option(
             names = "--public-export",
-            description = "Export only publicly readable documentation. Without this flag the build fails when access policies protect sources."
+            description = "Export only publicly readable documentation. Protected sources otherwise require --package; the two options cannot be combined."
         )
         private boolean publicExport;
 
         @Option(
             names = "--package",
-            description = "Write a publication package (manifest, page fragments, servable files) for thoth-biblios-server to this directory."
+            description = "Write only a private publication package for thoth-biblios-server. Requires HTML; cannot combine with --output or --public-export."
         )
         private Path packageOutput;
 
@@ -209,6 +213,11 @@ public final class ThothBibliosCli implements Callable<Integer> {
             boolean generateHtml = selectedFormats.contains(BuildFormat.HTML);
             boolean generatePdf = selectedFormats.contains(BuildFormat.PDF);
             boolean generateDocx = selectedFormats.contains(BuildFormat.DOCX);
+            if (packageOutput != null && (publicExport || output != null || !generateHtml)) {
+                System.err.println("[error] --package requires HTML and cannot be combined with --output or --public-export. "
+                    + "Build a public site in a separate invocation.");
+                return 2;
+            }
             if (pdfVersions == null) {
                 pdfVersions = new ArrayList<>();
             }
@@ -238,11 +247,11 @@ public final class ThothBibliosCli implements Callable<Integer> {
             AccessPolicyResolver accessResolver = new AccessPolicyResolver(accessRules);
             accessResolver.validate(bibliosConfig.content().sources());
             boolean nonPublicSources = accessResolver.hasNonPublicSources(bibliosConfig.content().sources());
-            if (nonPublicSources && !publicExport) {
+            if (nonPublicSources && !publicExport && packageOutput == null) {
                 System.err.println("[error] Access-protected documentation configured: "
                     + String.join(", ", accessResolver.nonPublicSourceIds(bibliosConfig.content().sources())));
                 System.err.println("[error] A regular static export would expose protected content.");
-                System.err.println("[error] Use --public-export to build a public-only site, or use thoth-biblios-server.");
+                System.err.println("[error] Use --public-export for a public-only site, or --package for thoth-biblios-server.");
                 return 2;
             }
             if (publicExport) {
@@ -253,7 +262,6 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
             // Resolve output path
             Path outputDir = resolveOutputDir(config, bibliosConfig, output);
-            System.out.println("[info] output: " + outputDir);
             Path packageDir;
             try {
                 packageDir = resolvePackageDir(outputDir);
@@ -267,19 +275,22 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
             // Build catalog
             Path workRoot = resolveWorkRoot();
-            try (CatalogBuilder catalogBuilder = new CatalogBuilder(bibliosConfig, workRoot, true, useLocalWorkingTree, config)) {
+            try (CatalogBuilder catalogBuilder = new CatalogBuilder(bibliosConfig, workRoot, true, useLocalWorkingTree, config);
+                 TemporarySiteOutput temporaryOutput = packageDir != null ? new TemporarySiteOutput() : null) {
+                Path generationDir = temporaryOutput != null ? temporaryOutput.site() : outputDir;
+                System.out.println("[info] output: " + generationDir);
                 SiteCatalog catalog = catalogBuilder.build();
                 System.out.println("[info] Catalog built: " + catalog.components().size() + " components");
 
                 // Generate site
                 PublicationPackageWriter packageWriter = packageDir != null
-                    ? new PublicationPackageWriter(packageDir, outputDir, catalog)
+                    ? new PublicationPackageWriter(packageDir, generationDir, catalog)
                     : null;
                 if (packageWriter != null) {
                     packageWriter.begin();
                 }
                 try (BibliosSiteGenerator generator = new BibliosSiteGenerator(
-                    bibliosConfig, catalog, outputDir, config, packageWriter
+                    bibliosConfig, catalog, generationDir, config, packageWriter
                 )) {
                     generator.generate(generateHtml, generatePdf, selectedPdfVersions(), generateDocx, selectedDocxVersions());
                 }
@@ -292,13 +303,14 @@ public final class ThothBibliosCli implements Callable<Integer> {
             return 0;
         }
 
-        private Path resolvePackageDir(Path outputDir) {
+        private Path resolvePackageDir(Path outputDir) throws IOException {
             if (packageOutput == null) {
                 return null;
             }
             Path resolved = packageOutput.toAbsolutePath().normalize();
-            Path normalizedOutput = outputDir.toAbsolutePath().normalize();
-            if (resolved.startsWith(normalizedOutput) || normalizedOutput.startsWith(resolved)) {
+            Path normalizedOutput = physicalPath(outputDir);
+            Path physicalPackage = physicalPath(resolved);
+            if (physicalPackage.startsWith(normalizedOutput) || normalizedOutput.startsWith(physicalPackage)) {
                 throw new IllegalArgumentException(
                     "--package directory must not overlap the site output directory ("
                         + normalizedOutput + "). Choose a separate directory.");
@@ -307,9 +319,49 @@ public final class ThothBibliosCli implements Callable<Integer> {
         }
 
         private BibliosConfig overrideClean(BibliosConfig cfg) {
-            // For simplicity, just note it in output - real impl would override output section
             System.out.println("[info] clean: true");
-            return cfg;
+            return new BibliosConfig(cfg.site(), new OutputSection(cfg.output().dir(), true),
+                cfg.ui(), cfg.pdf(), cfg.docx(), cfg.content());
+        }
+
+        private static Path physicalPath(Path path) throws IOException {
+            Path absolute = path.toAbsolutePath().normalize();
+            Path ancestor = absolute;
+            while (!Files.exists(ancestor)) {
+                ancestor = ancestor.getParent();
+            }
+            return ancestor.toRealPath().resolve(ancestor.relativize(absolute)).normalize();
+        }
+
+        /** Keep transient rendered content outside the public site, even when output.clean is true. */
+        private static final class TemporarySiteOutput implements AutoCloseable {
+            private final Path root = Files.createTempDirectory("thoth-biblios-package-");
+
+            private TemporarySiteOutput() throws IOException { }
+
+            Path site() {
+                return root.resolve("site");
+            }
+
+            @Override
+            public void close() throws IOException {
+                Files.walkFileTree(root, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        Files.delete(file);
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(Path directory, IOException error) throws IOException {
+                        if (error != null) {
+                            throw error;
+                        }
+                        Files.delete(directory);
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
         }
 
         private Set<BuildFormat> selectedFormats() {
@@ -382,7 +434,7 @@ public final class ThothBibliosCli implements Callable<Integer> {
 
     @Command(name = "serve", description = "Runs dev server for documentation site")
     static final class ServeCommand implements Callable<Integer> {
-        @Option(names = "--config", required = true, description = "Path to bibliios.yml configuration file")
+        @Option(names = "--config", required = true, description = "Path to biblios.yml configuration file")
         private Path config;
 
         @Option(names = "--output", description = "Output directory (overrides config)")

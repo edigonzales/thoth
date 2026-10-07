@@ -8,12 +8,16 @@ Multi-repo documentation site generator with versioning support.
 
 Think of it as a lightweight, JVM-native alternative to Antora: you point it at Git repos, define your navigation in `nav.yml`, and Biblios generates a full HTML documentation portal plus optional PDF and DOCX artifacts per component version.
 
+Commands below assume the repository root as the working directory. Replace
+`<version>` in JAR filenames with the version produced by your Gradle build.
+
 ## Quick Start
 
 ### Prerequisites
 
-- Java 17 or later
-- Git (for accessing content repositories)
+- Java 17 or later to run the generator
+- Java 17 JDK for building this module; Java 25 additionally for full repository/server builds
+- Git repositories are accessed through bundled JGit; a separate Git CLI is useful for authoring but is not required by the generator
 
 ### Build
 
@@ -34,7 +38,6 @@ thoth-biblios/build/libs/thoth-biblios-<version>-all.jar
 site:
   title: My Docs Portal
   url: https://docs.example.org
-  logo: ./assets/logo.svg
   default_language: en
 
 output:
@@ -58,7 +61,7 @@ content:
 pdf:
   enabled: true
   attributes:
-    pdf-theme: ./themes/default-theme.yml
+    pdf-theme: default
 ```
 
 2. Run the build (HTML only by default):
@@ -86,7 +89,7 @@ java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
   --pdf-version mydocs/v1.x
 ```
 
-Optional: enable DOCX output (requires explicit `--docx-version` filters).
+Optional: enable DOCX output (set `docx.enabled: true` in the configuration and supply explicit `--docx-version` filters).
 
 ```bash
 java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
@@ -141,7 +144,8 @@ policies:
 
 A regular `build` refuses to export access-protected sources. Use
 `--public-export` to generate a consistent public-only site, or `--package <dir>`
-to write a private publication package for `thoth-biblios-server`:
+to write only a private publication package containing all sources for
+`thoth-biblios-server`:
 
 ```bash
 java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
@@ -152,6 +156,32 @@ java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
 The package contains pre-rendered page fragments, all servable files, the search
 data and a manifest that maps every path to its documentation. The server enforces
 the policies and assembles navigation, switchers and search per user.
+
+Package builds do not create or modify `output.dir`. Rendering uses a temporary
+private directory that is removed after success or failure. The package directory
+is recreated on each build and must not overlap `output.dir`. `--clean` is not
+needed for packages. `--package` requires HTML (the default); optional artifacts
+can be included using `--format html,pdf,docx` with the usual enablement and filters.
+
+`--package` cannot be combined with `--output` or `--public-export`. To publish both
+a private portal package and a public static site, run two separate builds:
+
+```bash
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
+  --config biblios.yml --package build/package
+java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
+  --config biblios.yml --public-export --output build/public-site --clean
+```
+
+Upgrade note: package builds previously also generated a static site and rejected
+protected sources. They now include protected sources in the package only. Remove
+`--output`/`--public-export` from existing package commands and use a separate
+static build where needed.
+
+With no implicit `access.yml`, static builds retain the default-public behavior;
+an explicitly supplied `--access-config` must exist. Unknown named policies always
+fail validation. The portal server requires a valid access file even for public
+packages. See [the server reference](../thoth-biblios-server/README.md).
 
 ### Development Server
 
@@ -167,8 +197,10 @@ The `serve` command:
 - Performs an initial build
 - Starts a local HTTP server on the specified port
 - Watches the `biblios.yml` config file for changes
-- Watches the cached Git repositories for changes
-- Rebuilds automatically when content changes
+- Watches config-relative `assets/` and `templates/`
+- Watches local content only with `--use-local-working-tree`; does not watch the Git cache
+- Fetches once at startup; restart to pick up remote changes
+- Refuses protected sources; use the authenticated portal for protected previews
 
 ## Configuration: `biblios.yml`
 
@@ -254,10 +286,10 @@ If `site.logo` points to a local file that does not exist, the build fails with 
 
 | Key | Required | Description |
 |-----|----------|-------------|
-| `dir` | Yes | Output directory for the generated HTML site |
+| `dir` | Yes | Static output directory, relative to `biblios.yml` unless absolute. Required in config even for package builds, which leave it untouched. |
 | `clean` | No | Delete output directory before building. Default: `false` |
 
-#### `ui` – User Interface Settings (MVP)
+#### `ui` – User Interface Settings
 
 | Key | Required | Description |
 |-----|----------|-------------|
@@ -344,7 +376,7 @@ pdf:
 
 Biblios also applies German PDF admonition captions as soft defaults when `site.default_language: de`. These defaults can still be overridden in the document itself or explicitly in `pdf.attributes`.
 
-A ready-made sample theme is available at [examples/themes/admonitions-htmlish-theme.yml](/Users/stefan/sources/thoth/thoth-biblios/examples/themes/admonitions-htmlish-theme.yml). It pushes PDF admonitions closer to the Biblios HTML look by using a card-like block, stronger label typography, and per-type icon colors.
+A ready-made sample theme is available at [examples/themes/admonitions-htmlish-theme.yml](examples/themes/admonitions-htmlish-theme.yml). It pushes PDF admonitions closer to the Biblios HTML look by using a card-like block, stronger label typography, and per-type icon colors.
 
 Example:
 
@@ -412,14 +444,15 @@ Each entry defines a Git repository as a documentation source.
 
 | Key | Required | Description |
 |-----|----------|-------------|
-| `id` | Yes | Technical identifier for this documentation (used in URLs: `/<id>/<version>/`) |
+| `id` | Yes | Single nonempty path segment used in URLs, excluding `.`, `..`, `/` and `\`. `site-assets` is reserved in every letter case. |
+| `access_policy` | No | Policy name from `access.yml`; if omitted, the file's default applies. Unknown named policies fail the build. |
 | `display_name` | Yes | Human-readable name shown in the UI and switchers |
 | `card_background_color` | No | CSS background color for this source's card on the global start page. Supports hex, RGB/RGBA, HSL/HSLA, and CSS color names. The default theme is used when omitted. |
 | `url` | Yes | Git repository URL. Supports `https://`, `ssh://`, and `file://` protocols |
 | `branches` | Yes | List of branches to publish as versions (see below) |
-| `start_path` | Yes | Relative path inside the repo where documentation root is located |
-| `default_version` | Yes | Which version to show when navigating to `/<id>/` without explicit version |
-| `navigation.file` | No | Navigation file path relative to `start_path`. In `split`, Biblios uses it when present and valid; on missing/invalid nav it falls back to recursive `.adoc` discovery. Ignored in `single_page`. |
+| `start_path` | No | Documentation root relative to the repository. Default: `.` |
+| `default_version` | No | Preferred version in links and selectors. Defaults to the first available version; an unavailable value warns and falls back to that version. `/<id>/` remains a landing page. |
+| `navigation.file` | No | Navigation file path relative to `start_path`. In `split`, referenced pages determine the build list; missing/invalid nav or a nav tree without page references falls back to recursive `.adoc` discovery. Ignored in `single_page`. |
 | `start_page` | No | Start page filename relative to `start_path`. Default: `index.adoc`. In `split`, this becomes the version root route and is auto-added if the file exists but is missing from nav. In `single_page`, it does not choose the rendered source document. |
 | `revnumber` | No | Controls Asciidoctor `revnumber` attribute. `true` uses `branches[].display_version`, string uses explicit value, `false`/unset sets nothing. |
 | `render_mode` | No | Rendering mode. Allowed values: `split`, `single_page`. Default: `split` |
@@ -436,6 +469,9 @@ Each entry defines a Git repository as a documentation source.
 
 For the practical interaction between `render_mode`, `nav.yml`, `start_page`, `master_file`, numbering, title lines, and `doctype`, see [docs/authoring-modes-and-navigation.md](docs/authoring-modes-and-navigation.md). A German translation is available at [docs/authoring-modes-and-navigation.de.md](docs/authoring-modes-and-navigation.de.md).
 
+The optional `site.default_component` and `site.default_version` fields are parsed
+but currently do not change routing; use source-level `default_version`.
+
 For `render_mode: single_page`, chapter entries with `[unnumbered]` are hidden from the sidebar TOC by default.  
 If you want an unnumbered chapter to be shown (for example appendices like `Anhang A - ...`), add role `[.appendix]` to that section:
 
@@ -451,7 +487,7 @@ Each branch entry maps a Git branch to a published documentation version.
 
 | Key | Required | Description |
 |-----|----------|-------------|
-| `name` | Yes | Git branch name (exact name only in MVP). Examples: `main`, `v1.x`, `v2.0` |
+| `name` | Yes | Git branch name (exact names only). Examples: `main`, `v1.x`, `v2.0` |
 | `display_version` | No | Human-readable label shown in the version switcher. Defaults to the branch name |
 
 ## Syntax Highlighting
@@ -524,7 +560,7 @@ items:
 - `page` paths are relative to the `start_path` in `biblios.yml`
 - Nesting depth is unlimited
 - Only `.adoc` files referenced in `nav.yml` are included in the navigation sidebar
-- In current `split` builds with a valid `nav.yml`, Biblios builds the pages referenced in nav, plus `start_page` if it exists and is missing from nav
+- In current `split` builds with a valid `nav.yml` containing page references, Biblios builds the pages referenced in nav, plus `start_page` if it exists and is missing from nav
 
 For a behavior-focused explanation of `nav.yml`, `split` fallback discovery, `single_page`, numbering, title lines, and `doctype`, see [docs/authoring-modes-and-navigation.md](docs/authoring-modes-and-navigation.md). A German translation is available at [docs/authoring-modes-and-navigation.de.md](docs/authoring-modes-and-navigation.de.md).
 
@@ -553,7 +589,7 @@ Each component also has a landing page at `/<component>/index.html` that shows a
 
 - URLs always end with `/` (directory-style, serves `index.html`)
 - The version is always visible in the URL
-- No redirects from `/<component>/` to `/<component>/<default-version>/` in the MVP
+- No redirects from `/<component>/` to `/<component>/<default-version>/`
 - URLs are stable and cache-friendly
 
 ## Git Sources and Branch Versioning
@@ -562,8 +598,8 @@ Each component also has a landing page at `/<component>/index.html` that shows a
 
 1. On the first build, Biblios **clones** each configured Git repository into a local cache (`.thoth/cache/repos/<source-id>/`)
 2. On subsequent builds, Biblios **fetches** updates instead of re-cloning
-3. For each configured branch, Biblios **checks out** the branch into an isolated work directory
-4. The documentation is then read from the checked-out work directory
+3. Biblios **checks out** each configured branch sequentially in the same cached repository working directory
+4. The documentation is read and rendered from that checkout; no isolated Git worktree is created for each version
 
 ### Local Git Cache
 
@@ -574,8 +610,9 @@ The cache is stored at:
 
 Benefits of caching:
 - Subsequent builds are faster (fetch instead of clone)
-- Multiple builds can share the same cached repository
-- The `serve` command uses the cache as its source-of-truth working copy
+- The cache is reused across sequential builds; do not run concurrent builds against the same mutable cache
+- `serve` uses cached content except for local working-tree overrides, and does not watch the cache directly
+- Override the cache root with the JVM property `-Dthoth.work.dir=/path/to/cache` before `-jar`
 
 To clear the cache:
 ```bash
@@ -586,7 +623,7 @@ rm -rf .thoth/cache
 
 - Exact branch names are matched first (e.g., `main`, `v1.x`)
 - If a branch does not exist, a warning is logged and the version is skipped
-- Branch patterns (e.g., `release/*`) are NOT yet supported in the MVP — use exact names
+- Branch patterns (e.g., `release/*`) are not supported — use exact names
 
 ### Local Repositories
 
@@ -630,9 +667,18 @@ If `display_version` is not specified, the branch name is used as-is.
 
 When a document already defines `:revnumber:`, the Biblios config value wins (config override).
 
+## Content Assets
+
+The HTML generator copies local relative images referenced by rendered pages and
+lesson JSON files referenced by INTERLIS Lab components. Generated PDF/DOCX files
+are placed under their component/version. Merely putting an arbitrary attachment
+in a source repository, or linking to it with `link:`, does not copy that file.
+Publication packages contain the files produced by these generation steps, with
+source ownership recorded in the manifest.
+
 ## HTML Customization
 
-Biblios supports config-relative HTML overrides next to `biblios.yml`. This affects the generated HTML site only.
+Biblios supports config-relative HTML overrides next to `biblios.yml`. Template overrides affect static HTML frames; they are not packaged as server templates. Asset overrides are also included in publication packages.
 
 ```text
 project/
@@ -720,7 +766,7 @@ Available bundled templates:
 In a source checkout, the originals are under:
 
 ```text
-thoth-biblios/src/main/resources/templates/
+thoth-biblios-core/src/main/resources/templates/
 ```
 
 In a packaged JAR, they are classpath resources under `templates/`. You can inspect or extract them with:
@@ -871,8 +917,12 @@ java -jar thoth-biblios-<version>-all.jar build \
 | Option | Required | Description |
 |--------|----------|-------------|
 | `--config` | Yes | Path to `biblios.yml` configuration file |
-| `--output` | No | Output directory (overrides `output.dir` in config) |
-| `--clean` | No | Delete output directory before building |
+| `--output` | No | Output directory relative to the working directory; overrides config-relative `output.dir`. Not allowed with `--package`. |
+| `--clean` | No | Force `output.clean: true` for this invocation. Without it, the YAML setting applies. |
+| `--use-local-working-tree` | No | Render the current configured branch of local sources directly, including uncommitted files. |
+| `--access-config` | No | Access file relative to the working directory. Defaults to `access.yml` next to `biblios.yml`. |
+| `--public-export` | No | Build only public sources. Cannot combine with `--package`. |
+| `--package` | No | Produce only a private portal package with all sources. Path is relative to the working directory. Requires HTML; cannot combine with `--output` or `--public-export`. |
 | `--format` | No | Output format(s): `html`, `pdf`, `docx` (comma-separated). Default: `html` |
 | `--pdf-version` | No | Limit PDF generation to selected versions (`main`, `v1.x`, or `<component>/<version>`). Requires `--format` to include `pdf`. |
 | `--docx-version` | No | Limit DOCX generation to selected versions (`main`, `v1.x`, or `<component>/<version>`). Requires `--format` to include `docx`. |
@@ -895,6 +945,7 @@ java -jar thoth-biblios-<version>-all.jar serve \
 | `--config` | Yes | Path to `biblios.yml` configuration file |
 | `--output` | No | Output directory (overrides `output.dir` in config) |
 | `--port` | No | HTTP server port. Default: `8080` |
+| `--access-config` | No | Access file override; protected sources are rejected by `serve`. |
 | `--use-local-working-tree` | No | For local sources (`file://` or local paths), render the currently checked-out branch directly from the local working tree |
 
 `serve` is always HTML-only.
@@ -991,7 +1042,7 @@ content:
         file: nav.yml
 ```
 
-Each branch (`main`, `stable`, `v1.x`) is checked out independently and rendered as a separate version.
+Each branch (`main`, `stable`, `v1.x`) is checked out sequentially in the cache and rendered as a separate version.
 
 ## Testing
 
@@ -1007,29 +1058,26 @@ Each branch (`main`, `stable`, `v1.x`) is checked out independently and rendered
 # End-to-End tests (realistic user flows: build, HTML output, search, serve)
 ./gradlew :thoth-biblios:e2eTest
 
-# All tests
-./gradlew :thoth-biblios:test :thoth-biblios:integrationTest :thoth-biblios:e2eTest
+# Biblios tests, including shared configuration/navigation/access models
+./gradlew :thoth-biblios-core:test :thoth-biblios:test :thoth-biblios:integrationTest :thoth-biblios:e2eTest
 ```
 
 ### Test Categories
 
 | Category | Purpose | Examples |
 |----------|---------|----------|
-| **Unit Tests** | Config parsing, navigation parsing, routing, breadcrumbs, rendering | `BibliosConfigParserTest`, `NavParserTest`, `RoutingTest` |
+| **Unit Tests** | Shared config/navigation/routing in `thoth-biblios-core`; rendering and CLI in `thoth-biblios` | `BibliosConfigParserTest`, `NavParserTest`, `AsciidoctorRendererTest` |
 | **Integration Tests** | Full build pipeline: Git fetching → catalog building → site generation | `BibliosIntegrationTest` |
 | **E2E Tests** | Realistic end-to-end flows: multi-source, multi-version, HTML output verification, DevServer | `BibliosE2ETest` |
 
-## Known MVP Limitations
+## Current Limitations
 
-1. **No Redirects**: Navigating to `/<component>/` does NOT redirect to `/<component>/<default-version>/`. Component landing pages show an overview instead.
-2. **Version Switch Mode**: By default (`ui.version_switch_mode: start_page`) the switcher always jumps to the target version start page. Set `ui.version_switch_mode: equivalent_page` to prefer same-source-page mapping with fallback to the target version start page.
-3. **No Branch Patterns**: Patterns like `release/*` are listed in the spec but not yet implemented in the MVP. Use exact branch names.
-4. **No Tag-Based Versions**: Only branch-based versions are supported.
-5. **Global Search Only**: Search covers all documentation and versions without faceting or filtering.
-6. **Single Theme Only**: Only the default theme is available. No theming API yet.
-7. **Single Theme for HTML**: HTML theming is still limited to the bundled default theme.
-8. **No Multi-Language**: Each component has a single language.
-9. **Edit/Source Links**: Configurable via `ui.show_edit_link`, `ui.show_source_link`, `ui.edit_url_pattern`, and `ui.source_url_pattern` in `biblios.yml`. Patterns support `{repo_url}`, `{branch}`, and `{path}` placeholders. Example: `edit_url_pattern: "https://github.com/org/repo/edit/{branch}/{path}"`.
+- Component roots show landing pages rather than redirecting to the default version.
+- Versions use exact branch names; branch patterns and tag-based versions are unsupported.
+- Search supports global and active-component/version scopes, but no arbitrary faceting.
+- One HTML theme is bundled; CSS/assets and FreeMarker templates can be overridden.
+- Biblios has no language variants per component. This is separate from multilingual Blog support.
+- Access policies cover a whole source, including every version and download; chapter-level rights are unsupported.
 
 ## thoth-blog vs. thoth-biblios: Which Should I Use?
 
@@ -1040,9 +1088,9 @@ Each branch (`main`, `stable`, `v1.x`) is checked out independently and rendered
 | **Input** | Single directory with `.adoc` files | Multiple Git repositories |
 | **Versioning** | None (chronological) | Branch-based versions |
 | **Navigation** | Archive, tags, homepage | `nav.yml` sidebar, breadcrumbs, prev/next |
-| **Switchers** | None | Doc switcher + version switcher |
+| **Switchers** | Language/translation switcher when configured | Doc switcher + version switcher |
 | **Search** | Client-side Lunr search | Header search + `/search/` page (Lunr + global index) |
-| **Output** | Blog homepage, archive, tag pages, RSS | Global start page, component pages, doc pages |
+| **Output** | Blog homepage, archive, tag pages, RSS per language | HTML, optional PDF/DOCX, or private portal package |
 | **Config** | `thoth.properties` | `biblios.yml` |
 
 **Use `thoth-blog` if:**
@@ -1126,14 +1174,14 @@ Then run the build again.
 ## Build the Project
 
 ```bash
-# Build all modules
+# Build all modules (requires Java 17 and Java 25 toolchains)
 ./gradlew build
 
 # Build Biblios only
 ./gradlew :thoth-biblios:build
 
 # Run all tests
-./gradlew test :thoth-biblios:integrationTest :thoth-biblios:e2eTest
+./gradlew test integrationTest e2eTest
 
 # Create executable JAR
 ./gradlew :thoth-biblios:fatJar

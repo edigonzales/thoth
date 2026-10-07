@@ -9,6 +9,9 @@ The ports are chosen so that they do not collide with common local stacks
 | Keycloak | **8090** | <http://localhost:8090> |
 | Biblios server (dev profile) | **8091** | <http://localhost:8091> |
 
+Commands below assume the repository root as the working directory. Replace
+`<version>` in JAR filenames with the version produced by your Gradle build.
+
 ## Start and stop Keycloak
 
 ```bash
@@ -72,8 +75,8 @@ docker compose -f dev/keycloak/docker-compose.yml up -d
 ./gradlew :thoth-biblios-server:bootJar
 
 # 4) Run the server as a Java application (needs Java 25)
-~/.sdkman/candidates/java/25.0.3-tem/bin/java \
-  -jar thoth-biblios-server/build/libs/thoth-biblios-server-0.0.1-SNAPSHOT.jar \
+java \
+  -jar thoth-biblios-server/build/libs/thoth-biblios-server-<version>.jar \
   --spring.profiles.active=dev \
   --biblios.package-dir=thoth-biblios-server/build/smoke-package/package \
   --biblios.access-config=thoth-biblios-server/build/smoke-package/access.yml
@@ -115,7 +118,8 @@ Alternative without building the jar: `./gradlew :thoth-biblios-server:bootRun
 
 - **Access rules without restart:** edit
   `thoth-biblios-server/build/smoke-package/access.yml` (for example set the
-  `internal` policy to `mode: public`). The next access decision reads and compares
+  `internal` policy to `mode: public` and remove its `allow` block, which is only
+  valid for restricted policies). The next access decision reads and compares
   the file contents, including when timestamp and size are unchanged. Invalid
   updates (including removal of a referenced policy) immediately deny all
   documentation until fully valid rules return. Unchanged invalid contents do not
@@ -132,5 +136,5 @@ Alternative without building the jar: `./gradlew :thoth-biblios-server:bootRun
   one minute; the next protected request returns the generic 404 with a login link.
   Choosing that link starts a fresh login.
 - **Native binary:** see
-  [thoth-biblios-server/README.md](../thoth-biblios-server/README.md) (requires a
+  [thoth-biblios-server/README.md](../../thoth-biblios-server/README.md) (requires a
   GraalVM 25 JDK, `GRAALVM_HOME=... ./gradlew :thoth-biblios-server:nativeCompile`).

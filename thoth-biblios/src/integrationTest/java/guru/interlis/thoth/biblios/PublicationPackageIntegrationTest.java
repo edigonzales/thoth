@@ -3,55 +3,178 @@ package guru.interlis.thoth.biblios;
 import guru.interlis.thoth.biblios.fixture.BibliosConfigBuilder;
 import guru.interlis.thoth.biblios.fixture.TestRepoBuilder;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import picocli.CommandLine;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Integration test for the publication package: page fragments without frame,
- * exhaustively mapped manifest and internal search data.
- */
 class PublicationPackageIntegrationTest {
-
-    @TempDir
-    Path tempDir;
-
+    @TempDir Path tempDir;
     private String previousWorkDir;
 
+    @BeforeEach
+    void setWorkDir() {
+        previousWorkDir = System.getProperty("thoth.work.dir");
+        System.setProperty("thoth.work.dir", tempDir.resolve("work").toString());
+    }
+
     @AfterEach
-    void restoreWorkDirProperty() {
-        if (previousWorkDir == null) {
-            System.clearProperty("thoth.work.dir");
-        } else {
-            System.setProperty("thoth.work.dir", previousWorkDir);
-        }
+    void restoreWorkDir() {
+        if (previousWorkDir == null) System.clearProperty("thoth.work.dir");
+        else System.setProperty("thoth.work.dir", previousWorkDir);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void packagesProtectedSourcesWithoutWritingStaticSite(boolean includePublic) throws Exception {
+        Path config = fixture(includePublic);
+        Path output = tempDir.resolve("output");
+        Files.createDirectories(output);
+        Files.writeString(output.resolve("sentinel.txt"), "existing site");
+        Path target = tempDir.resolve("package");
+        Files.createDirectories(target);
+        Files.writeString(target.resolve("stale.txt"), "old package");
+
+        assertEquals(0, execute(config, target));
+        assertEquals(List.of("sentinel.txt"), names(output));
+        assertEquals("existing site", Files.readString(output.resolve("sentinel.txt")));
+        assertFalse(Files.exists(target.resolve("stale.txt")));
+        String manifest = Files.readString(target.resolve("manifest.json"));
+        assertTrue(manifest.contains("internal-docs/main/"), manifest);
+        assertTrue(manifest.contains("site-assets/styles.css"), manifest);
+        assertEquals(includePublic, manifest.contains("public-docs/main/"));
+        String catalog = Files.readString(target.resolve("catalog.json"));
+        assertTrue(catalog.contains("internal-docs"));
+        assertTrue(catalog.contains("\"accessPolicy\":\"internal\""), catalog);
+        String fragment = Files.readString(target.resolve("pages/internal-docs/main/index.html"));
+        assertTrue(fragment.contains("Welcome"));
+        assertFalse(fragment.contains("<!DOCTYPE html>"));
+        assertFalse(fragment.contains("site-header"));
+        assertArrayEquals(Files.readAllBytes(tempDir.resolve("internal-repo/docs/secret.png")),
+            Files.readAllBytes(target.resolve("files/internal-docs/main/secret.png")));
+        assertTrue(Files.readString(target.resolve("search-index.json")).contains("internal-docs"));
     }
 
     @Test
-    void writesManifestFragmentsAndFiles() throws Exception {
-        previousWorkDir = System.getProperty("thoth.work.dir");
-        System.setProperty("thoth.work.dir", tempDir.resolve("work").toString());
+    void packageDoesNotCreateConfiguredSite() throws Exception {
+        assertEquals(0, execute(fixture(false), tempDir.resolve("package")));
+        assertFalse(Files.exists(tempDir.resolve("output")));
+    }
 
-        Path publicRepo = tempDir.resolve("public-repo");
-        Path internalRepo = tempDir.resolve("internal-repo");
-        new TestRepoBuilder(publicRepo).withBasicDocs();
-        new TestRepoBuilder(internalRepo).withBasicDocs();
+    @Test
+    void rejectsUnknownPolicyBeforeWritingAnything() throws Exception {
+        Path config = fixture(false);
+        Files.writeString(tempDir.resolve("access.yml"), "default: public\n");
+        assertNotEquals(0, execute(config, tempDir.resolve("package")));
+        assertFalse(Files.exists(tempDir.resolve("package")));
+        assertFalse(Files.exists(tempDir.resolve("output")));
+    }
 
-        Path outputDir = tempDir.resolve("output");
-        Path packageDir = tempDir.resolve("package");
-        Path configFile = tempDir.resolve("biblios.yml");
-        new BibliosConfigBuilder()
-            .withSiteTitle("Package Test")
-            .withOutputDir(outputDir)
-            .withSource(new BibliosConfigBuilder.SourceEntry(sourceYaml(publicRepo, "public-docs", "Public Docs", "public")))
-            .withSource(new BibliosConfigBuilder.SourceEntry(sourceYaml(internalRepo, "internal-docs", "Internal Docs", "internal")))
-            .writeTo(configFile);
+    @Test
+    void removesTemporaryOutputAfterRenderingFailure() throws Exception {
+        Path config = fixture(false);
+        Path templates = tempDir.resolve("templates");
+        Files.createDirectories(templates);
+        Files.writeString(templates.resolve("index.ftl"), "${missingRequiredValue}");
+        assertNotEquals(0, execute(config, tempDir.resolve("package")));
+        assertFalse(Files.exists(tempDir.resolve("output")));
+    }
+
+    @Test
+    void rejectsOverlappingPackageDirectoriesBeforeMutation() throws Exception {
+        Path config = fixture(false);
+        Path output = tempDir.resolve("output");
+        Files.createDirectories(output);
+        Files.writeString(output.resolve("sentinel.txt"), "keep");
+        for (Path target : List.of(output, output.resolve("package"), tempDir)) {
+            assertEquals(2, execute(config, target));
+            assertEquals("keep", Files.readString(output.resolve("sentinel.txt")));
+        }
+        Path alias = tempDir.resolve("alias");
+        Files.createSymbolicLink(alias, output);
+        assertEquals(2, execute(config, alias.resolve("package")));
+        assertFalse(Files.exists(output.resolve("package")));
+    }
+
+    @Test
+    void packagesPdfAndDocxDownloads() throws Exception {
+        Path config = fixture(false);
+        Files.writeString(config, "\npdf:\n  enabled: true\ndocx:\n  enabled: true\n", java.nio.file.StandardOpenOption.APPEND);
+        Path target = tempDir.resolve("package");
+        assertEquals(0, execute(config, target, "--format", "html,pdf,docx", "--docx-version", "main"));
+        String manifest = Files.readString(target.resolve("manifest.json"));
+        for (String extension : List.of("pdf", "docx")) {
+            String route = "internal-docs/main/internal-docs-main." + extension;
+            assertTrue(manifest.contains(route));
+            assertTrue(Files.size(target.resolve("files").resolve(route)) > 0);
+        }
+        assertFalse(Files.exists(tempDir.resolve("output")));
+    }
+
+    private int execute(Path config, Path target, String... extraArgs) throws Exception {
+        ByteArrayOutputStream log = new ByteArrayOutputStream();
+        PrintStream original = System.out;
+        int result;
+        try (PrintStream capture = new PrintStream(log, true, StandardCharsets.UTF_8)) {
+            System.setOut(capture);
+            var args = new ArrayList<>(List.of("build", "--config", config.toString(), "--package", target.toString()));
+            args.addAll(List.of(extraArgs));
+            result = new CommandLine(new ThothBibliosCli()).execute(args.toArray(String[]::new));
+        } finally {
+            System.setOut(original);
+        }
+        String output = log.toString(StandardCharsets.UTF_8);
+        original.print(output);
+        for (String line : output.lines().toList()) {
+            if (line.startsWith("[info] output: ")) {
+                Path site = Path.of(line.substring("[info] output: ".length()));
+                assertTrue(site.getParent().getFileName().toString().startsWith("thoth-biblios-package-"));
+                assertFalse(Files.exists(site.getParent()), "Temporary output leaked: " + site);
+            }
+        }
+        return result;
+    }
+
+    private Path fixture(boolean includePublic) throws Exception {
+        var builder = new BibliosConfigBuilder().withSiteTitle("Package Test").withOutputDir(tempDir.resolve("output"));
+        var ids = new ArrayList<>(List.of("internal"));
+        if (includePublic) ids.add("public");
+        for (String id : ids) {
+            Path repo = tempDir.resolve(id + "-repo");
+            new TestRepoBuilder(repo).withBasicDocs();
+            javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_RGB),
+                "png", repo.resolve("docs/secret.png").toFile());
+            Files.writeString(repo.resolve("docs/index.adoc"), "\nimage::secret.png[]\n", java.nio.file.StandardOpenOption.APPEND);
+            try (var git = org.eclipse.jgit.api.Git.open(repo.toFile())) {
+                git.add().addFilepattern(".").call();
+                git.commit().setMessage("attachment").setAuthor("Test", "test@example.org").call();
+            }
+            builder.withSource(new BibliosConfigBuilder.SourceEntry("""
+                - id: %s-docs
+                  display_name: %s Docs
+                  url: file://%s
+                  branches:
+                    - name: main
+                  start_path: docs
+                  navigation:
+                    file: nav.yml
+                  access_policy: %s
+                """.formatted(id, id, repo, id)));
+        }
+        Path config = tempDir.resolve("biblios.yml");
+        builder.writeTo(config);
         Files.writeString(tempDir.resolve("access.yml"), """
             default: deny
             policies:
@@ -61,55 +184,15 @@ class PublicationPackageIntegrationTest {
                 mode: restricted
                 allow:
                   groups:
-                    - provider: entra-kanton
-                      id: group-internal
+                    - provider: keycloak-local
+                      id: agi-betrieb
             """);
-
-        int exitCode = new CommandLine(new ThothBibliosCli()).execute(List.of(
-            "build",
-            "--config", configFile.toString(),
-            "--output", outputDir.toString(),
-            "--public-export",
-            "--package", packageDir.toString()
-        ).toArray(String[]::new));
-
-        assertEquals(0, exitCode);
-
-        Path manifest = packageDir.resolve("manifest.json");
-        assertTrue(Files.exists(manifest));
-        String manifestJson = Files.readString(manifest);
-        assertTrue(manifestJson.contains("\"path\": \"site-assets/styles.css\""), manifestJson);
-        assertTrue(manifestJson.contains("\"scope\": \"shared\""), manifestJson);
-        assertTrue(manifestJson.contains("\"path\": \"public-docs/main/\""), manifestJson);
-        assertTrue(manifestJson.contains("\"kind\": \"page\""), manifestJson);
-        assertFalse(manifestJson.contains("internal-docs"), manifestJson);
-        assertTrue(manifestJson.contains("\"path\": \"search-index.json\""), manifestJson);
-        assertTrue(manifestJson.contains("\"scope\": \"internal\""), manifestJson);
-
-        Path fragment = packageDir.resolve("pages/public-docs/main/index.html");
-        assertTrue(Files.exists(fragment));
-        String fragmentHtml = Files.readString(fragment);
-        assertTrue(fragmentHtml.contains("Welcome"), fragmentHtml);
-        assertFalse(fragmentHtml.contains("<!DOCTYPE html>"), fragmentHtml);
-        assertFalse(fragmentHtml.contains("site-header"), fragmentHtml);
-
-        assertTrue(Files.exists(packageDir.resolve("files/site-assets/styles.css")));
-        assertTrue(Files.exists(packageDir.resolve("search-index.json")));
+        return config;
     }
 
-    private static String sourceYaml(Path repoDir, String id, String displayName, String accessPolicy) {
-        return """
-            - id: %s
-              display_name: %s
-              url: file://%s
-              branches:
-                - name: main
-                  display_version: main
-              start_path: docs
-              default_version: main
-              navigation:
-                file: nav.yml
-              access_policy: %s
-            """.formatted(id, displayName, repoDir.toString(), accessPolicy);
+    private List<String> names(Path directory) throws Exception {
+        try (var files = Files.list(directory)) {
+            return files.map(p -> p.getFileName().toString()).sorted().toList();
+        }
     }
 }

@@ -4,15 +4,31 @@ Authenticated documentation portal for Biblios. It serves a private **publicatio
 package** produced by `thoth-biblios build --package`, enforces per-documentation
 access policies and assembles navigation, switchers and search for each visitor.
 
+Commands below assume the repository root as the working directory. Replace
+`<version>` in JAR filenames with the version produced by your Gradle build.
+
 ## 1. Build the publication package
 
 ```bash
 ./gradlew :thoth-biblios:fatJar
 java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
   --config biblios.yml \
-  --output build/site \
   --package build/package
 ```
+
+This produces only the private package, including protected sources; it leaves
+`output.dir` untouched. The package directory is recreated for every build, so
+`--clean` is not required. Temporary rendered files are removed on success or
+failure. The package directory must not overlap the configured static output.
+
+`--package` cannot be combined with `--output` or `--public-export`. Existing
+commands that produced both outputs must be split into a package build and a
+separate `build --public-export --output build/public-site --clean` invocation.
+Do not serve the package directory with a static web server; use this portal.
+
+HTML is required (and is the default). To include downloads, select
+`--format html,pdf,docx`, enable the corresponding artifacts in `biblios.yml`,
+and supply the required `--docx-version` filters (optional `--pdf-version` filters).
 
 The package contains:
 
@@ -30,8 +46,8 @@ JVM as a plain Java application (recommended for local development; needs Java 2
 
 ```bash
 ./gradlew :thoth-biblios-server:bootJar
-~/.sdkman/candidates/java/25.0.3-tem/bin/java \
-  -jar thoth-biblios-server/build/libs/thoth-biblios-server-0.0.1-SNAPSHOT.jar \
+java \
+  -jar thoth-biblios-server/build/libs/thoth-biblios-server-<version>.jar \
   --spring.profiles.active=dev \
   --biblios.package-dir=build/package \
   --biblios.access-config=access.yml
@@ -68,7 +84,9 @@ Docker: `docker build -f thoth-biblios-server/Dockerfile -t thoth-biblios-server
 | `biblios.subject-claim` | `BIBLIOS_SUBJECT_CLAIM` | `sub` | stable subject (Entra: `oid`) |
 | `biblios.groups-claim` | `BIBLIOS_GROUPS_CLAIM` | `groups` | group memberships |
 | `biblios.registration-id` | `BIBLIOS_REGISTRATION_ID` | `keycloak` | Spring Security registration |
-| `BIBLIOS_SESSION_TIMEOUT` | | `8h` | servlet session timeout |
+| `server.servlet.session.timeout` | `BIBLIOS_SESSION_TIMEOUT` | `8h` | servlet session timeout |
+| `server.port` | `BIBLIOS_PORT` | `8080` | HTTP port; the dev profile sets `8091` |
+| `server.servlet.session.cookie.secure` | `BIBLIOS_SECURE_COOKIE` | `false` | Set true for HTTPS deployments |
 | `biblios.issuer-uri` | `BIBLIOS_ISSUER_URI` | `http://localhost:8090/realms/biblios-dev` | exact expected ID-token issuer |
 
 The OIDC client is configured in `application.yml`; authorization and token
@@ -93,6 +111,8 @@ policies:
 ```
 
 Documentation sources reference policies via `access_policy` in `biblios.yml`.
+`allow` is valid only for `mode: restricted`; remove it when changing a policy to
+`public` or `authenticated`, otherwise the rules are invalid.
 Identities are matched by provider + subject (Entra ID: `oid`), never by e-mail.
 The configured subject claim must be a nonempty string; a missing `oid`, for example,
 does not fall back to `sub`.
@@ -189,8 +209,8 @@ docker compose -f dev/keycloak/docker-compose.yml up -d
 ./gradlew :thoth-biblios-server:generateSmokePackage
 ./gradlew :thoth-biblios-server:bootJar
 
-~/.sdkman/candidates/java/25.0.3-tem/bin/java \
-  -jar thoth-biblios-server/build/libs/thoth-biblios-server-0.0.1-SNAPSHOT.jar \
+java \
+  -jar thoth-biblios-server/build/libs/thoth-biblios-server-<version>.jar \
   --spring.profiles.active=dev \
   --biblios.package-dir=thoth-biblios-server/build/smoke-package/package \
   --biblios.access-config=thoth-biblios-server/build/smoke-package/access.yml

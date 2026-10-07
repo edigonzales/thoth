@@ -8,6 +8,9 @@ Static site generator for AsciiDoc blogs.
 
 Plain text. Real websites.
 
+Commands below assume the repository root as the working directory. Replace
+`<version>` in JAR filenames with the version produced by your Gradle build.
+
 ## Quick Start
 
 > [!WARNING]
@@ -15,7 +18,9 @@ Plain text. Real websites.
 
 ### Prerequisites
 
-- Java 17 or later
+- Java 17 or later to run the generator
+- Java 17 JDK toolchain for this module
+- Full repository builds also require a Java 25 JDK toolchain for the Biblios server
 
 ### Build
 
@@ -297,6 +302,8 @@ java -jar thoth-blog-<version>-all.jar <command> [options]
 
 ## Features
 
+- Multilingual posts, translation switching, per-language search and feeds
+
 - Pretty URLs (`/2026/01/hello/`)
 - Tag pages with slug normalization (including umlauts)
 - RSS 2.0 feed with Atom self-link
@@ -330,8 +337,8 @@ Thoth Blog requires Java 17 or later. If you see `UnsupportedClassVersionError`:
 
 ```bash
 java -version
-# If Java 17 or later is not active, use SDKMAN:
-sdk use java 17.0.12-tem
+# Inspect installed JDK toolchains for source builds:
+./gradlew -q javaToolchains
 ```
 
 ### Build Failures

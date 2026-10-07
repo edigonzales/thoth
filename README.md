@@ -1,21 +1,24 @@
 # Thoth
 
-Thoth is a family of JVM-based static site generators for AsciiDoc content.
+Thoth provides JVM-based static site generators for AsciiDoc content and an authenticated documentation portal.
 
 ## Product Family
 
-| Product | Purpose | Status |
-|---------|---------|--------|
-| **`thoth-blog`** | Static site generator for AsciiDoc blogs | Production-ready |
-| **`thoth-biblios`** | Multi-repo documentation site generator with versioning | MVP complete |
-| **`thoth-biblios-core`** | Biblios configuration, catalog and access model, shared view contracts | New |
-| **`thoth-biblios-server`** | Authenticated Biblios portal (OIDC, per-documentation access policies) | New |
-| **`thoth-core`** | Shared technical infrastructure | Production-ready |
+| Module | Purpose |
+|--------|---------|
+| **`thoth-blog`** | Static site generator for AsciiDoc blogs |
+| **`thoth-biblios`** | Multi-repo documentation site generator with versioning |
+| **`thoth-biblios-core`** | Biblios configuration, catalog, access/publication models and shared templates |
+| **`thoth-biblios-server`** | Authenticated Biblios portal (OIDC, per-documentation access policies) |
+| **`thoth-core`** | Shared technical infrastructure |
+
+Commands below assume the repository root as the working directory. Replace
+`<version>` in JAR filenames with the version produced by your Gradle build.
 
 ## Quick Start
 
 ```bash
-# Build all modules
+# Build all modules (Java 17 and Java 25 toolchains required)
 ./gradlew build
 
 # Run tests
@@ -28,7 +31,7 @@ Thoth is a family of JVM-based static site generators for AsciiDoc content.
 
 Plain text. Real websites.
 
-Thoth Blog builds pretty URLs, tag pages, RSS, local assets, Lunr search, and a watch-based dev server.
+Thoth Blog builds pretty URLs, tag pages, RSS, local assets, Lunr search, multilingual blogs with translation switching, and a watch-based dev server.
 
 **Details:** See [thoth-blog/README.md](thoth-blog/README.md)
 
@@ -51,7 +54,7 @@ java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar --help
 ### thoth-biblios-core
 
 Biblios configuration (`biblios.yml`, `access.yml`), catalog model, access model and the shared
-FreeMarker view contracts used by both the static generator and the server.
+FreeMarker view contracts and templates used by both the static generator and the server.
 
 ### thoth-biblios-server
 
@@ -60,7 +63,7 @@ Authenticated documentation portal. The build produces a private publication pac
 per-documentation access policies (OIDC, e.g. Entra ID or Keycloak).
 
 ```bash
-# Build a site plus publication package (protected sources require --public-export)
+# Build only a private publication package, including protected sources
 java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
   --config biblios.yml --package build/package
 
@@ -68,11 +71,16 @@ java -jar thoth-biblios/build/libs/thoth-biblios-<version>-all.jar build \
 ./gradlew :thoth-biblios-server:bootJar
 java -jar thoth-biblios-server/build/libs/thoth-biblios-server-<version>.jar \
   --spring.profiles.active=dev \
-  --biblios.package-dir=build/package --biblios.access-config=build/access.yml
+  --biblios.package-dir=build/package --biblios.access-config=access.yml
 
 # Or build a native binary
 GRAALVM_HOME=/path/to/graalvm-25 ./gradlew :thoth-biblios-server:nativeCompile
 ```
+
+**Server reference:** [thoth-biblios-server/README.md](thoth-biblios-server/README.md).
+The server requires Java 25 (GraalVM 25 for native builds). Build a public static
+site separately with `build --public-export`; `--package` cannot be combined with
+`--public-export` or `--output`.
 
 Local development: Keycloak runs as a container (port 8090), the server as a
 Java application (port 8091). The complete walkthrough is in
@@ -84,11 +92,15 @@ Shared technical infrastructure:
 - `DevServer` – HTTP static file server
 - `InputWatcher` – Recursive file system watcher
 - `ServeHandle` – Serve/watch orchestration helper
-- AsciidoctorJ, FreeMarker, jsoup dependencies
+- Shared language/URL helpers and INTERLIS Lab support
+- Internal AsciidoctorJ, FreeMarker and jsoup dependencies; products declare their own usage
 
 ## Testing
 
 ### Test Strategy
+
+`build` runs unit tests but does not automatically run `integrationTest` or `e2eTest`.
+The server Keycloak E2E test requires Docker and is skipped when Docker is unavailable.
 
 Thoth uses a three-tier test strategy across all modules:
 
@@ -137,10 +149,10 @@ page.
 
 During build, Thoth resolves `@edigonzales/interlis-lab-web-component` from Codeberg Packages and
 extracts `dist/interlis-lab.js` plus `dist/ili2c.jar` into both products. Select the package version
-with a Gradle property:
+with a Gradle property (the current bundled default is `0.1.10`):
 
 ```bash
-./gradlew build -PinterlisLabVersion=0.1.2
+./gradlew build -PinterlisLabVersion=0.1.10
 ```
 
 Optional: override the tarball URL directly (for npmjs.org, mirrors, or internal proxies). When set,
@@ -148,9 +160,12 @@ this URL takes precedence over package metadata lookup:
 
 ```bash
 ./gradlew build \
-  -PinterlisLabVersion=0.1.2 \
-  -PinterlisLabTarballUrl=https://codeberg.org/api/packages/edigonzales/npm/%40edigonzales%2Finterlis-lab-web-component/-/0.1.2/interlis-lab-web-component-0.1.2.tgz
+  -PinterlisLabVersion=0.1.10 \
+  -PinterlisLabTarballUrl=https://codeberg.org/api/packages/edigonzales/npm/%40edigonzales%2Finterlis-lab-web-component/-/0.1.10/interlis-lab-web-component-0.1.10.tgz
 ```
+
+The metadata endpoint can also be overridden with `-PinterlisLabPackageMetadataUrl=<url>`.
+The first asset resolution requires network access; subsequent builds reuse Gradle outputs.
 
 ### thoth-blog
 
@@ -179,6 +194,10 @@ site:
   title: My Docs Portal
   url: https://docs.example.org
 
+output:
+  dir: build/site
+  clean: true
+
 content:
   sources:
     - id: mydocs
@@ -198,9 +217,9 @@ content:
 For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Key decisions:
-- **Java 17** baseline (Java 17 or later)
+- **Java 17** for generators/shared modules; **Java 25** for the server
 - **AsciidoctorJ** for rendering (not Asciidoctor.js)
-- **nav.yml** as navigation standard for Biblios
+- **nav.yml** for explicit split-page navigation; automatic discovery fallback and heading-based single-page navigation
 - **Gradle multi-project** with clear module boundaries
 - **DevServer + InputWatcher** centralized in thoth-core
 
@@ -208,26 +227,30 @@ Key decisions:
 
 ```
 thoth/
-├── thoth-core/          Shared technical infrastructure
-├── thoth-blog/          Blog-specific product
-└── thoth-biblios/       Multi-repo documentation generator
+├── thoth-core/           Shared technical infrastructure
+├── thoth-blog/           Blog generator
+├── thoth-biblios-core/   Shared Biblios models, policies and templates
+├── thoth-biblios/        Documentation generator and publication packages
+└── thoth-biblios-server/ Authenticated documentation portal
 ```
 
 ### Module Responsibilities
 
 | Module | Contains |
 |--------|----------|
-| **thoth-core** | DevServer, InputWatcher, ServeHandle, shared dependencies (AsciidoctorJ, FreeMarker, jsoup) |
+| **thoth-core** | DevServer, InputWatcher, ServeHandle, language/URL helpers, INTERLIS Lab support |
 | **thoth-blog** | Post parsing, tags, RSS, templates, blog CLI |
-| **thoth-biblios** | YAML config, Git fetching, catalog building, doc templates, biblios CLI |
+| **thoth-biblios-core** | YAML config, catalog/navigation/access/publication models, view factory and templates |
+| **thoth-biblios** | Git fetching, catalog building, HTML/PDF/DOCX, package writer, CLI |
+| **thoth-biblios-server** | OIDC, package loading, authorization and per-user portal rendering |
 
-## Known MVP Limitations (thoth-biblios)
+## Current Limitations (thoth-biblios)
 
 1. No redirects from `/<component>/` to default version
 2. No branch patterns (`release/*`) – use exact branch names
 3. No tag-based versions – only branch-based
-4. Global search only – no faceting
-5. Single theme only
+4. Search supports global and active-version scopes; no arbitrary faceting
+5. One bundled theme, customizable through template and asset overrides
 6. No multi-language per component
 
 See [thoth-biblios/README.md](thoth-biblios/README.md) for the full list.
@@ -236,12 +259,13 @@ See [thoth-biblios/README.md](thoth-biblios/README.md) for the full list.
 
 ### Java Version
 
-Both products require Java 17 or later:
+The generator JARs require Java 17 or later. The server requires Java 25.
+Building all modules requires Java 17 and Java 25 toolchains discoverable by Gradle:
 
 ```bash
 java -version
-# If Java 17 or later is not active:
-sdk use java 17.0.12-tem
+# Inspect the JDKs Gradle can use:
+./gradlew -q javaToolchains
 ```
 
 ### Clean Build
@@ -259,5 +283,6 @@ rm -rf .thoth/cache
 ## Specifications
 
 - Blog: [thoth-blog/README.md](thoth-blog/README.md)
-- Biblios spec: [thoth-biblios-spec-v2.md](thoth-biblios-spec-v2.md)
+- Biblios: [thoth-biblios/README.md](thoth-biblios/README.md)
+- Portal: [thoth-biblios-server/README.md](thoth-biblios-server/README.md)
 - Architecture: [ARCHITECTURE.md](ARCHITECTURE.md)
